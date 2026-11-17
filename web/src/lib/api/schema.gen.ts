@@ -2764,6 +2764,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/app-display/pages": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * The services that publish the public app dashboard and status page
+         * @description Services whose upstream is Hashi's internal address; each one's port is asked which public page answers there.
+         */
+        get: operations["getPublicPages"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/addresses/{address}": {
         parameters: {
             query?: never;
@@ -3742,6 +3762,8 @@ export interface components {
             name: string;
             group: string;
             source_type: string;
+            /** @description What made it, for a link: the service, DNS record, firewall host or Traefik host ID */
+            source_id?: string;
             state: components["schemas"]["MonitorState"];
             /** Format: date-time */
             state_since?: string;
@@ -4080,6 +4102,14 @@ export interface components {
         PulseConsumers: {
             sets: string[];
             consumers: string[];
+            /** @description The admin's sets holding the agent, for links */
+            set_refs: components["schemas"]["IPSetRef"][];
+            /** @description What targets the agent directly (its hidden set) */
+            direct: components["schemas"]["IPSetConsumer"][];
+        };
+        IPSetRef: {
+            id: string;
+            name: string;
         };
         PulseInstall: {
             /** @description One-line install; <token> stands for the token, shown once */
@@ -4360,9 +4390,9 @@ export interface components {
             passphrase?: string;
             /**
              * Format: byte
-             * @description `key` from the scan the admin confirmed
+             * @description `key` from the scan the admin confirmed; required to add, omitted on an update keeps the pinned key
              */
-            host_key: string;
+            host_key?: string;
             internal_ip?: string;
             traefik_binary?: string;
             config_dir?: string;
@@ -5307,6 +5337,17 @@ export interface components {
             sets: components["schemas"]["AddressSetMatch"][];
             /** @description One verdict per managed firewall host (05 §4.3) */
             firewall: components["schemas"]["AddressHostVerdict"][];
+        };
+        PublicPages: {
+            apps: components["schemas"]["PublicPageLink"][];
+            status: components["schemas"]["PublicPageLink"][];
+        };
+        PublicPageLink: {
+            service_id: string;
+            name: string;
+            url: string;
+            /** @description Hashi's address and the port the page listens on, as the service reaches it */
+            upstream: string;
         };
         ServicePublication: {
             /** @description The firewall host the upstream sits behind (03 §5.2); absent when none matches */
@@ -10484,6 +10525,27 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ServicePublication"];
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    getPublicPages: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The pages */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PublicPages"];
                 };
             };
             default: components["responses"]["Problem"];

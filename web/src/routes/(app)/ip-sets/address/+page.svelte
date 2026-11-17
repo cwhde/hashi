@@ -52,6 +52,20 @@
 	const memberOf = $derived(lookup?.sets.filter((m) => m.set.system_key !== 'all') ?? []);
 	const leaf = (m: Schemas['AddressMatch']) => [...m.path, m.label].join(' › ');
 
+	// ---- ban (bug 64): the same entry the dynamic-blocked set takes, on every firewall host; an allowed address is refused ----
+	let banning = $state(false);
+	async function ban() {
+		banning = true;
+		const a = lookup?.address ?? address;
+		const r = await api.POST('/api/ip-sets/{id}/entries', {
+			params: { path: { id: 'sys-dynamic-blocked' } },
+			body: { address: a }
+		});
+		banning = false;
+		outcome = r.error ? problemText(r.error) : `${a} is banned. Lift it on the Security page.`;
+		if (!r.error) await load(a).catch(() => {});
+	}
+
 	// ---- add to a set ----
 	let addOpen = $state(false);
 	let target = $state('');
@@ -133,6 +147,7 @@
 				addOpen = true;
 			}}>Add to an IP set</Button
 		>
+		<Button variant="outline" size="sm" onclick={ban} disabled={banning}>Ban now</Button>
 	</div>
 
 	<div class="grid gap-4 lg:grid-cols-2">

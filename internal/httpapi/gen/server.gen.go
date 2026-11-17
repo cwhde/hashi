@@ -3770,6 +3770,12 @@ type IPSetProblem struct {
 	SetId string   `json:"set_id"`
 }
 
+// IPSetRef defines model for IPSetRef.
+type IPSetRef struct {
+	Id   string `json:"id"`
+	Name string `json:"name"`
+}
+
 // IPSetResolved defines model for IPSetResolved.
 type IPSetResolved struct {
 	AddressSet bool `json:"address_set"`
@@ -3871,24 +3877,27 @@ type MonitorCheck struct {
 
 // MonitorEndpoint defines model for MonitorEndpoint.
 type MonitorEndpoint struct {
-	Checks          []MonitorCheck       `json:"checks"`
-	DegradedMs      int64                `json:"degraded_ms"`
-	Group           string               `json:"group"`
-	Id              string               `json:"id"`
-	IntervalSeconds int64                `json:"interval_seconds"`
-	LastCheckAt     *time.Time           `json:"last_check_at,omitempty"`
-	LastLatencyMs   *int64               `json:"last_latency_ms,omitempty"`
-	Name            string               `json:"name"`
-	Paused          bool                 `json:"paused"`
-	PendingDns      *bool                `json:"pending_dns,omitempty"`
-	Public          bool                 `json:"public"`
-	RouteProviderId *string              `json:"route_provider_id,omitempty"`
-	SourceType      string               `json:"source_type"`
-	State           MonitorState         `json:"state"`
-	StateSince      *time.Time           `json:"state_since,omitempty"`
-	Strip           []MonitorStripSample `json:"strip"`
-	TimeoutSeconds  int64                `json:"timeout_seconds"`
-	Uptime24h       *float64             `json:"uptime_24h,omitempty"`
+	Checks          []MonitorCheck `json:"checks"`
+	DegradedMs      int64          `json:"degraded_ms"`
+	Group           string         `json:"group"`
+	Id              string         `json:"id"`
+	IntervalSeconds int64          `json:"interval_seconds"`
+	LastCheckAt     *time.Time     `json:"last_check_at,omitempty"`
+	LastLatencyMs   *int64         `json:"last_latency_ms,omitempty"`
+	Name            string         `json:"name"`
+	Paused          bool           `json:"paused"`
+	PendingDns      *bool          `json:"pending_dns,omitempty"`
+	Public          bool           `json:"public"`
+	RouteProviderId *string        `json:"route_provider_id,omitempty"`
+
+	// SourceId What made it, for a link: the service, DNS record, firewall host or Traefik host ID
+	SourceId       *string              `json:"source_id,omitempty"`
+	SourceType     string               `json:"source_type"`
+	State          MonitorState         `json:"state"`
+	StateSince     *time.Time           `json:"state_since,omitempty"`
+	Strip          []MonitorStripSample `json:"strip"`
+	TimeoutSeconds int64                `json:"timeout_seconds"`
+	Uptime24h      *float64             `json:"uptime_24h,omitempty"`
 }
 
 // MonitorEndpointCreate defines model for MonitorEndpointCreate.
@@ -4142,6 +4151,22 @@ type PublicEndpoint struct {
 	Uptime24h  *float64             `json:"uptime_24h,omitempty"`
 }
 
+// PublicPageLink defines model for PublicPageLink.
+type PublicPageLink struct {
+	Name      string `json:"name"`
+	ServiceId string `json:"service_id"`
+
+	// Upstream Hashi's address and the port the page listens on, as the service reaches it
+	Upstream string `json:"upstream"`
+	Url      string `json:"url"`
+}
+
+// PublicPages defines model for PublicPages.
+type PublicPages struct {
+	Apps   []PublicPageLink `json:"apps"`
+	Status []PublicPageLink `json:"status"`
+}
+
 // PublicStatus defines model for PublicStatus.
 type PublicStatus struct {
 	// CustomTheme The admin's palette (10-ui §2); the other roles are derived. Refused when text is unreadable.
@@ -4247,7 +4272,13 @@ type PulseAgentUpdate struct {
 // PulseConsumers defines model for PulseConsumers.
 type PulseConsumers struct {
 	Consumers []string `json:"consumers"`
-	Sets      []string `json:"sets"`
+
+	// Direct What targets the agent directly (its hidden set)
+	Direct []IPSetConsumer `json:"direct"`
+
+	// SetRefs The admin's sets holding the agent, for links
+	SetRefs []IPSetRef `json:"set_refs"`
+	Sets    []string   `json:"sets"`
 }
 
 // PulseHeartbeat defines model for PulseHeartbeat.
@@ -5322,8 +5353,8 @@ type TraefikConnectionInput struct {
 	Credential *string `json:"credential,omitempty"`
 	Host       string  `json:"host"`
 
-	// HostKey `key` from the scan the admin confirmed
-	HostKey       []byte  `json:"host_key"`
+	// HostKey `key` from the scan the admin confirmed; required to add, omitted on an update keeps the pinned key
+	HostKey       *[]byte `json:"host_key,omitempty"`
 	InternalIp    *string `json:"internal_ip,omitempty"`
 	Name          string  `json:"name"`
 	Passphrase    *string `json:"passphrase,omitempty"`
@@ -6178,6 +6209,9 @@ type ServerInterface interface {
 	// TestAdGuardConnection Connect now and record the result
 	// (POST /api/adguard/connections/{id}/test)
 	TestAdGuardConnection(w http.ResponseWriter, r *http.Request, id string)
+	// GetPublicPages The services that publish the public app dashboard and status page
+	// (GET /api/app-display/pages)
+	GetPublicPages(w http.ResponseWriter, r *http.Request)
 	// BootstrapLogin Sign in with the one-time bootstrap credentials (private networks only, before setup completes)
 	// (POST /api/auth/bootstrap/login)
 	BootstrapLogin(w http.ResponseWriter, r *http.Request)
@@ -7180,6 +7214,20 @@ func (siw *ServerInterfaceWrapper) TestAdGuardConnection(w http.ResponseWriter, 
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.TestAdGuardConnection(w, r, id)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// GetPublicPages operation middleware
+func (siw *ServerInterfaceWrapper) GetPublicPages(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetPublicPages(w, r)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -12178,6 +12226,7 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/ip-sets/{id}/consumers", wrapper.GetIPSetConsumers)
 	m.HandleFunc(http.MethodPatch+" "+options.BaseURL+"/api/addresses/{address}/counters", wrapper.EditAddressCounters)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/services/{id}/publication", wrapper.GetServicePublication)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/app-display/pages", wrapper.GetPublicPages)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/addresses/{address}", wrapper.LookupAddress)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/certificates", wrapper.ListCertificates)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/certificates/{id}/renew", wrapper.RenewCertificate)
@@ -12668,6 +12717,44 @@ type TestAdGuardConnectiondefaultApplicationProblemPlusJSONResponse struct {
 }
 
 func (response TestAdGuardConnectiondefaultApplicationProblemPlusJSONResponse) VisitTestAdGuardConnectionResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(response.StatusCode)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetPublicPagesRequestObject struct {
+}
+
+type GetPublicPagesResponseObject interface {
+	VisitGetPublicPagesResponse(w http.ResponseWriter) error
+}
+
+type GetPublicPages200JSONResponse PublicPages
+
+func (response GetPublicPages200JSONResponse) VisitGetPublicPagesResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetPublicPagesdefaultApplicationProblemPlusJSONResponse struct {
+	Body       Problem
+	StatusCode int
+}
+
+func (response GetPublicPagesdefaultApplicationProblemPlusJSONResponse) VisitGetPublicPagesResponse(w http.ResponseWriter) error {
 
 	var buf bytes.Buffer
 	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
@@ -21471,6 +21558,9 @@ type StrictServerInterface interface {
 	// TestAdGuardConnection Connect now and record the result
 	// (POST /api/adguard/connections/{id}/test)
 	TestAdGuardConnection(ctx context.Context, request TestAdGuardConnectionRequestObject) (TestAdGuardConnectionResponseObject, error)
+	// GetPublicPages The services that publish the public app dashboard and status page
+	// (GET /api/app-display/pages)
+	GetPublicPages(ctx context.Context, request GetPublicPagesRequestObject) (GetPublicPagesResponseObject, error)
 	// BootstrapLogin Sign in with the one-time bootstrap credentials (private networks only, before setup completes)
 	// (POST /api/auth/bootstrap/login)
 	BootstrapLogin(ctx context.Context, request BootstrapLoginRequestObject) (BootstrapLoginResponseObject, error)
@@ -22523,6 +22613,30 @@ func (sh *strictHandler) TestAdGuardConnection(w http.ResponseWriter, r *http.Re
 		sh.options.ResponseErrorHandlerFunc(w, r, err)
 	} else if validResponse, ok := response.(TestAdGuardConnectionResponseObject); ok {
 		if err := validResponse.VisitTestAdGuardConnectionResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// GetPublicPages operation middleware
+func (sh *strictHandler) GetPublicPages(w http.ResponseWriter, r *http.Request) {
+	var request GetPublicPagesRequestObject
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.GetPublicPages(ctx, request.(GetPublicPagesRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "GetPublicPages")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(GetPublicPagesResponseObject); ok {
+		if err := validResponse.VisitGetPublicPagesResponse(w); err != nil {
 			sh.options.ResponseErrorHandlerFunc(w, r, err)
 		}
 	} else if response != nil {

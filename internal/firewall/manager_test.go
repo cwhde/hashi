@@ -333,6 +333,12 @@ func TestHostFollowsAgent(t *testing.T) {
 	if got := addrs(ipsets.ScopePublic); got != "[203.0.113.1]" {
 		t.Fatalf("a hand-set address wins: %s", got)
 	}
+	if _, err := e.m.Save(ctx, "admin", "", home.ID, HostInput{Name: "home", EdgeMode: ModeExternalNAT, PublicIPOverride: "203.0.113.1"}); err != nil {
+		t.Fatal(err)
+	}
+	if got, err := e.m.hostAddrs(ctx, home.ID, ipsets.ScopeInternal); err == nil {
+		t.Fatalf("the agent's addresses stayed after it was let go: %v", got)
+	}
 }
 
 // Bug 58: the address lookup gets each managed host's verdict with the deciding prefix and set, and whether host

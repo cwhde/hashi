@@ -66,7 +66,7 @@ func endpointBody(r monitor.Row, lastErr map[string]string) gen.MonitorEndpoint 
 		checks = append(checks, gen.MonitorCheck{Id: c.ID, Type: c.Type, Role: c.Role, Target: c.Target, Required: c.Required == 1, LastError: emptyNil(lastErr[c.ID])})
 	}
 	since := time.UnixMilli(e.StateSince).UTC()
-	return gen.MonitorEndpoint{PendingDns: boolIf(e.PendingDns == 1), Id: e.ID, Name: e.Name, Group: e.GroupName, SourceType: e.SourceType, State: gen.MonitorState(r.State), StateSince: &since,
+	return gen.MonitorEndpoint{PendingDns: boolIf(e.PendingDns == 1), Id: e.ID, Name: e.Name, Group: e.GroupName, SourceType: e.SourceType, SourceId: emptyNil(e.SourceID), State: gen.MonitorState(r.State), StateSince: &since,
 		Paused: e.Paused == 1, Public: e.Public == 1, IntervalSeconds: e.IntervalSeconds, TimeoutSeconds: e.TimeoutSeconds, DegradedMs: e.DegradedMs,
 		RouteProviderId: emptyNil(e.RouteProviderID.String), LastCheckAt: millis(e.LastCheckAt), LastLatencyMs: nullInt(e.LastLatencyMs), Uptime24h: r.Uptime24,
 		Checks: checks, Strip: stripBody(r.Strip)}

@@ -46,9 +46,9 @@ PR A:
 - [x] 20 A service with no matching entry host says why nothing is published
 
 PR B:
-- [ ] 24 Connections adds and edits every outside system: Traefik hosts (address, user, key), firewall hosts, Pulse agents, AdGuard; object pages keep their own settings and link back
-- [ ] 22 An agent page: addresses per interface, the main-address choice, its settings, what uses it
-- [ ] 64 The missing links (check → service, per-instance rewrites, App display → pages, ban from lookup, Pulse → suffix, rewrite filters)
+- [x] 24 Connections adds and edits every outside system: Traefik hosts (address, user, key), firewall hosts, Pulse agents, AdGuard; object pages keep their own settings and link back
+- [x] 22 An agent page: addresses per interface, the main-address choice, its settings, what uses it
+- [x] 64 The missing links (check → service, per-instance rewrites, App display → pages, ban from lookup, Pulse → suffix, rewrite filters)
 
 ### 13.2 checklist (one PR)
 

@@ -104,6 +104,14 @@ func TestSaveValidateConfirm(t *testing.T) {
 		t.Error("password stored in plain text")
 	}
 
+	// Bug 24: an edit from Connections that did not read the key again keeps the pinned one and the takeover.
+	rename := in
+	rename.Name, rename.HostKey, rename.Credential = "edge-renamed", nil, secrets.Value{}
+	renamed, err := m.Save(ctx, "admin", "", row.ID, rename)
+	if err != nil || !bytes.Equal(renamed.HostKey, hk) || !renamed.OwnershipConfirmedAt.Valid || renamed.Name != "edge-renamed" {
+		t.Fatalf("rename: %+v %v", renamed, err)
+	}
+
 	// A different host key belongs to a different machine: validation and confirmation start over.
 	in.HostKey, in.Credential = hostKey(t), secrets.Value{}
 	row, err = m.Save(ctx, "setup", "", row.ID, in)

@@ -93,6 +93,7 @@ var Requirements = map[string]Requirement{
 	"GetMonitoringSettings":       {Scopes: []string{"admin.read"}, Session: false, Reauth: false},
 	"GetNotificationRoute":        {Scopes: []string{"admin.read"}, Session: false, Reauth: false},
 	"GetPublicApps":               {Scopes: []string{}, Session: false, Reauth: false},
+	"GetPublicPages":              {Scopes: []string{"admin.read"}, Session: false, Reauth: false},
 	"GetPublicStatus":             {Scopes: []string{}, Session: false, Reauth: false},
 	"GetPulseConsumers":           {Scopes: []string{"admin.read"}, Session: false, Reauth: false},
 	"GetPulseInstall":             {Scopes: []string{"admin.read"}, Session: false, Reauth: false},

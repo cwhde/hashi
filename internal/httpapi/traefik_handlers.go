@@ -467,8 +467,11 @@ func (s *Server) RemoveTraefikHost(ctx context.Context, req gen.RemoveTraefikHos
 }
 
 func connectionInput(b gen.TraefikConnectionInput) traefik.ConnectionInput {
-	in := traefik.ConnectionInput{Name: b.Name, Host: b.Host, Port: b.Port, User: b.User, Auth: string(b.Auth), HostKey: b.HostKey,
+	in := traefik.ConnectionInput{Name: b.Name, Host: b.Host, Port: b.Port, User: b.User, Auth: string(b.Auth),
 		InternalIP: str(b.InternalIp), Binary: str(b.TraefikBinary), ConfigDir: str(b.ConfigDir)}
+	if b.HostKey != nil {
+		in.HostKey = *b.HostKey
+	}
 	if b.Credential != nil {
 		in.Credential = secrets.New(*b.Credential)
 	}

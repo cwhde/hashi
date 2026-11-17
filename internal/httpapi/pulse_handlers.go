@@ -11,6 +11,7 @@ import (
 
 	"git.juzo.io/juzo/hashi/internal/audit"
 	"git.juzo.io/juzo/hashi/internal/httpapi/gen"
+	"git.juzo.io/juzo/hashi/internal/ipsets"
 	"git.juzo.io/juzo/hashi/internal/pulse"
 	"git.juzo.io/juzo/hashi/internal/settings"
 	"git.juzo.io/juzo/hashi/internal/sshx"
@@ -264,8 +265,18 @@ func (s *Server) GetPulseConsumers(ctx context.Context, req gen.GetPulseConsumer
 		return nil, err
 	}
 	ids := make([]string, 0, len(rows))
+	refs := []gen.IPSetRef{}
 	for _, r := range rows {
 		ids = append(ids, r.ID)
+		if r.ID != ipsets.AgentSetID(req.Id) {
+			refs = append(refs, gen.IPSetRef{Id: r.ID, Name: r.Name})
+		}
+	}
+	direct := []gen.IPSetConsumer{}
+	if cs, err := ipsets.Consumers(ctx, s.Store.R, ipsets.AgentSetID(req.Id), s.IPSets.Sources()); err == nil {
+		for _, c := range cs {
+			direct = append(direct, gen.IPSetConsumer{Type: c.Type, Id: c.ID, Name: c.Name, Position: gen.IPSetConsumerPosition(c.Position)})
+		}
 	}
 	sets, consumers := s.IPSets.Impact(ctx, ids)
 	if sets == nil {
@@ -274,7 +285,7 @@ func (s *Server) GetPulseConsumers(ctx context.Context, req gen.GetPulseConsumer
 	if consumers == nil {
 		consumers = []string{}
 	}
-	return gen.GetPulseConsumers200JSONResponse{Sets: sets, Consumers: consumers}, nil
+	return gen.GetPulseConsumers200JSONResponse{Sets: sets, Consumers: consumers, SetRefs: refs, Direct: direct}, nil
 }
 
 func (s *Server) GetPulseInstall(ctx context.Context, req gen.GetPulseInstallRequestObject) (gen.GetPulseInstallResponseObject, error) {

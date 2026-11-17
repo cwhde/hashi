@@ -11,10 +11,6 @@
 	import Mono from '#lib/components/hashi/Mono.svelte';
 	import StatusBadge from '#lib/components/hashi/StatusBadge.svelte';
 	import { Button } from '#lib/components/ui/button/index.ts';
-	import { Label } from '#lib/components/ui/label/index.ts';
-	import { Input } from '#lib/components/ui/input/index.ts';
-	import * as Sheet from '#lib/components/ui/sheet/index.ts';
-	import { withReauth } from '#lib/auth/reauth.ts';
 	import { Skeleton } from '#lib/components/ui/skeleton/index.ts';
 	import * as Tabs from '#lib/components/ui/tabs/index.ts';
 	import { CircleAlert, FileCode2, RefreshCw } from '@lucide/svelte';
@@ -40,52 +36,6 @@
 	const setTab = (t: string) =>
 		goto(hrefWithTab(page.url, tabs, t), { replace: true, reset: false });
 
-	let adding = $state<{
-		name: string;
-		host: string;
-		key: Schemas['HostKey'] | null;
-		error: string;
-		identity: string;
-	} | null>(null);
-	async function scanHost() {
-		if (!adding) return;
-		adding.error = '';
-		const [id, r] = await Promise.all([
-			api.GET('/api/traefik/identity'),
-			api.POST('/api/traefik/scan', { body: { host: adding.host.trim(), port: 22 } })
-		]);
-		adding.identity = id.data?.public_key ?? '';
-		if (r.error) adding.error = problemText(r.error);
-		else adding.key = r.data;
-	}
-	async function addHost() {
-		const a = adding;
-		if (!a?.key) return;
-		try {
-			const row = await withReauth(() =>
-				api.POST('/api/traefik/hosts', {
-					body: {
-						name: a.name.trim(),
-						host: a.host.trim(),
-						port: 22,
-						user: 'root',
-						auth: 'hashi_key',
-						host_key: a.key!.key
-					}
-				})
-			);
-			adding = null;
-			await load();
-			if (row?.health === 'failed')
-				outcome = {
-					text: row.last_error ?? 'The host could not be validated.',
-					review: false,
-					bad: true
-				};
-		} catch (e) {
-			a.error = problemText(e);
-		}
-	}
 	async function load() {
 		const [c, k] = await Promise.all([
 			api.GET('/api/traefik/connections'),
@@ -178,53 +128,8 @@
 	title="Traefik"
 	description="Hashi installs, configures and updates Traefik on every host itself, and gives every host the same certificates."
 >
-	{#snippet actions()}<Button
-			onclick={() => (adding = { name: '', host: '', key: null, error: '', identity: '' })}
-			>Add host</Button
-		>{/snippet}
+	{#snippet actions()}<Button href="/connections?add=traefik">Add host</Button>{/snippet}
 </PageHeader>
-
-<Sheet.Root open={!!adding} onOpenChange={(o) => !o && (adding = null)}>
-	<Sheet.Content class="w-full sm:max-w-lg">
-		<Sheet.Header>
-			<Sheet.Title>Add a Traefik host</Sheet.Title>
-			<Sheet.Description
-				>The host needs SSH with Hashi's key in root's authorized keys. It gets every enabled
-				service.</Sheet.Description
-			>
-		</Sheet.Header>
-		{#if adding}
-			<div class="space-y-3 px-4">
-				<div class="space-y-1.5">
-					<Label for="hn">Name</Label><Input id="hn" bind:value={adding.name} />
-				</div>
-				<div class="space-y-1.5">
-					<Label for="ha">Address</Label><Input
-						id="ha"
-						class="font-mono"
-						bind:value={adding.host}
-					/>
-				</div>
-				<Button size="sm" variant="outline" onclick={scanHost} disabled={!adding.host}
-					>Read its SSH key</Button
-				>
-				{#if adding.identity}<p class="text-sm break-all text-muted-foreground">
-						Hashi's key: {adding.identity}
-					</p>{/if}
-				{#if adding.key}<p class="text-md">
-						The host says it is <span class="font-mono break-all">{adding.key.fingerprint}</span>.
-					</p>{/if}
-				{#if adding.error}<p class="text-md text-bad-text">{adding.error}</p>{/if}
-			</div>
-		{/if}
-		<Sheet.Footer class="flex-row justify-end gap-2 border-t">
-			<Button variant="ghost" onclick={() => (adding = null)}>Cancel</Button>
-			<Button disabled={!adding?.key || !adding?.name} onclick={addHost}
-				>Trust this key and add</Button
-			>
-		</Sheet.Footer>
-	</Sheet.Content>
-</Sheet.Root>
 
 {#if outcome}
 	<p
@@ -322,7 +227,7 @@
 			{:else}
 				<Panel>
 					<p class="text-md text-muted-foreground">
-						No Traefik host yet. The first one is connected during setup.
+						No Traefik host yet. <a href="/connections?add=traefik" class="underline">Add one</a>.
 					</p>
 				</Panel>
 			{/each}

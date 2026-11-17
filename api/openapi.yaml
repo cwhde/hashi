@@ -2747,6 +2747,18 @@ paths:
           description: The publication
           content: { application/json: { schema: { $ref: "#/components/schemas/ServicePublication" } } }
         default: { $ref: "#/components/responses/Problem" }
+  /api/app-display/pages:
+    get:
+      operationId: getPublicPages
+      summary: The services that publish the public app dashboard and status page
+      description: Services whose upstream is Hashi's internal address; each one's port is asked which public page answers there.
+      tags: [monitor]
+      x-hashi-scopes: [admin.read]
+      responses:
+        "200":
+          description: The pages
+          content: { application/json: { schema: { $ref: "#/components/schemas/PublicPages" } } }
+        default: { $ref: "#/components/responses/Problem" }
   /api/addresses/{address}:
     get:
       operationId: lookupAddress
@@ -3675,6 +3687,7 @@ components:
         name: { type: string }
         group: { type: string }
         source_type: { type: string }
+        source_id: { type: string, description: "What made it, for a link: the service, DNS record, firewall host or Traefik host ID" }
         state: { $ref: "#/components/schemas/MonitorState" }
         state_since: { type: string, format: date-time }
         paused: { type: boolean }
@@ -4012,10 +4025,18 @@ components:
         auto_update: { type: boolean, description: "Agents installed on a machine update themselves to this Hashi's version (ADR 0003)" }
     PulseConsumers:
       type: object
-      required: [sets, consumers]
+      required: [sets, consumers, set_refs, direct]
       properties:
         sets: { type: array, items: { type: string } }
         consumers: { type: array, items: { type: string } }
+        set_refs: { type: array, items: { $ref: "#/components/schemas/IPSetRef" }, description: "The admin's sets holding the agent, for links" }
+        direct: { type: array, items: { $ref: "#/components/schemas/IPSetConsumer" }, description: "What targets the agent directly (its hidden set)" }
+    IPSetRef:
+      type: object
+      required: [id, name]
+      properties:
+        id: { type: string }
+        name: { type: string }
     PulseInstall:
       type: object
       required: [linux, compose]
@@ -4299,7 +4320,7 @@ components:
         key: { type: string, format: byte, description: Wire-format public key (base64) }
     TraefikConnectionInput:
       type: object
-      required: [name, host, port, user, auth, host_key]
+      required: [name, host, port, user, auth]
       properties:
         name: { type: string }
         host: { type: string }
@@ -4308,7 +4329,7 @@ components:
         auth: { type: string, enum: [hashi_key, private_key, password] }
         credential: { type: string, writeOnly: true, description: "Private key or password; omit to keep the stored one" }
         passphrase: { type: string, writeOnly: true }
-        host_key: { type: string, format: byte, description: "`key` from the scan the admin confirmed" }
+        host_key: { type: string, format: byte, description: "`key` from the scan the admin confirmed; required to add, omitted on an update keeps the pinned key" }
         internal_ip: { type: string }
         traefik_binary: { type: string }
         config_dir: { type: string }
@@ -5222,6 +5243,20 @@ components:
         address: { type: string, description: "Normalized (IPv4-mapped IPv6 shown as IPv4)" }
         sets: { type: array, items: { $ref: "#/components/schemas/AddressSetMatch" } }
         firewall: { type: array, items: { $ref: "#/components/schemas/AddressHostVerdict" }, description: "One verdict per managed firewall host (05 §4.3)" }
+    PublicPages:
+      type: object
+      required: [apps, status]
+      properties:
+        apps: { type: array, items: { $ref: "#/components/schemas/PublicPageLink" } }
+        status: { type: array, items: { $ref: "#/components/schemas/PublicPageLink" } }
+    PublicPageLink:
+      type: object
+      required: [service_id, name, url, upstream]
+      properties:
+        service_id: { type: string }
+        name: { type: string }
+        url: { type: string }
+        upstream: { type: string, description: "Hashi's address and the port the page listens on, as the service reaches it" }
     ServicePublication:
       type: object
       required: [records, reason]

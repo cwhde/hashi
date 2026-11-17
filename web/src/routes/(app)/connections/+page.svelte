@@ -1,361 +1,375 @@
 <script lang="ts">
+	// 10b §2, 10c §1 (bug 24): every outside system Hashi talks to is added and reached from here. What belongs to one
+	// host or agent (ports, host access, its main address) stays on that object's page; each name links there.
 	import { onMount } from 'svelte';
+	import { goto } from '$app/navigation';
+	import { page } from '$app/state';
 	import PageHeader from '#lib/components/hashi/PageHeader.svelte';
+	import StatusBadge from '#lib/components/hashi/StatusBadge.svelte';
 	import Tag from '#lib/components/hashi/Tag.svelte';
-	import TargetSources from '#lib/components/hashi/TargetSources.svelte';
+	import AdGuardSheet from '#lib/components/hashi/connections/AdGuardSheet.svelte';
+	import TraefikHostSheet from '#lib/components/hashi/connections/TraefikHostSheet.svelte';
+	import FirewallHostSheet from '#lib/components/hashi/connections/FirewallHostSheet.svelte';
+	import PulseAgentSheet from '#lib/components/hashi/connections/PulseAgentSheet.svelte';
 	import { Button } from '#lib/components/ui/button/index.ts';
-	import { Input } from '#lib/components/ui/input/index.ts';
-	import { Label } from '#lib/components/ui/label/index.ts';
-	import { Switch } from '#lib/components/ui/switch/index.ts';
-	import * as Select from '#lib/components/ui/select/index.ts';
-	import * as Sheet from '#lib/components/ui/sheet/index.ts';
-	import { Pencil, Plus, RefreshCw, Trash2 } from '@lucide/svelte';
+	import { Skeleton } from '#lib/components/ui/skeleton/index.ts';
+	import * as DropdownMenu from '#lib/components/ui/dropdown-menu/index.ts';
+	import { ChevronDown, MoreHorizontal, Plus } from '@lucide/svelte';
 	import { api, problemText, type Schemas } from '#lib/api/client.ts';
 	import { withReauth } from '#lib/auth/reauth.ts';
+	import { pulseAgents } from '#lib/pulseAgents.svelte.ts';
+	import { firewallHosts } from '#lib/firewallHosts.svelte.ts';
+	import { dateTime } from '#lib/format.ts';
+	import type { FirewallHost } from '#lib/firewall.ts';
+	import type { Health } from '#lib/design/mock.ts';
 
-	// 03 §8: AdGuard connections. Other connection kinds keep their own pages for now.
-	type Conn = Schemas['AdGuardConnection'];
-	let conns = $state<Conn[]>([]);
-	let sets = $state<{ id: string; name: string }[]>([]);
-	let agents = $state<{ id: string; name: string }[]>([]);
+	type Traefik = Schemas['TraefikConnection'];
+	type AdGuard = Schemas['AdGuardConnection'];
+	type Agent = Schemas['PulseAgent'];
+	let zones = $state<Schemas['DNSZone'][]>([]);
+	let traefik = $state<Traefik[]>([]);
+	let firewall = $state<FirewallHost[]>([]);
+	let agents = $state<Agent[]>([]);
+	let adguard = $state<AdGuard[]>([]);
+	let loaded = $state(false);
 	let error = $state('');
 	let busy = $state(false);
 
-	const modes: Record<string, string> = {
-		read_only: 'Read-only: only looks, changes nothing',
-		active: 'Active: Hashi manages its own rewrites',
-		disabled: 'Disabled: not contacted'
-	};
-	const modeTag = { read_only: 'Read-only', active: 'Active', disabled: 'Disabled' };
-
 	async function load() {
-		const [c, s, a] = await Promise.all([
-			api.GET('/api/adguard/connections'),
-			api.GET('/api/ip-sets', { params: { query: {} } }),
-			api.GET('/api/pulse/agents')
+		const [z, t, f, p, a] = await Promise.all([
+			api.GET('/api/dns/zones'),
+			api.GET('/api/traefik/connections'),
+			api.GET('/api/firewall/hosts'),
+			api.GET('/api/pulse/agents'),
+			api.GET('/api/adguard/connections')
 		]);
-		if (!c.data || !s.data || !a.data) throw c.error ?? s.error ?? a.error;
-		agents = a.data.agents.map((x) => ({ id: x.id, name: x.name }));
-		conns = c.data.connections;
-		sets = s.data.sets.map((x) => ({ id: x.id, name: x.name }));
+		if (!z.data || !t.data || !f.data || !p.data || !a.data)
+			throw z.error ?? t.error ?? f.error ?? p.error ?? a.error;
+		zones = z.data.zones;
+		traefik = t.data.connections;
+		firewall = f.data.hosts;
+		agents = p.data.agents;
+		adguard = a.data.connections;
+		// The shared lists other pages pick from follow what changed here.
+		pulseAgents.list = agents;
+		firewallHosts.list = firewall.map((h) => ({ id: h.id, name: h.name }));
+		loaded = true;
+	}
+	const reload = () => load().catch((e) => (error = problemText(e)));
+	async function act(fn: () => Promise<unknown>) {
+		error = '';
+		busy = true;
+		try {
+			await fn();
+			await load();
+		} catch (e) {
+			error = problemText(e);
+		} finally {
+			busy = false;
+		}
+	}
+
+	// ---- drawers; ?add=<kind> opens one, so feature pages can link here ----
+	type Kind = 'traefik' | 'firewall' | 'pulse' | 'adguard';
+	let traefikOpen = $state(false);
+	let traefikConn = $state<Traefik | null>(null);
+	let firewallOpen = $state(false);
+	let firewallHost = $state<FirewallHost | null>(null);
+	let pulseOpen = $state(false);
+	let pulseShown = $state<{ agent: Agent; token: string } | null>(null);
+	let adguardOpen = $state(false);
+	let adguardConn = $state<AdGuard | null>(null);
+	function add(k: Kind) {
+		if (k === 'traefik') [traefikConn, traefikOpen] = [null, true];
+		if (k === 'firewall') [firewallHost, firewallOpen] = [null, true];
+		if (k === 'pulse') [pulseShown, pulseOpen] = [null, true];
+		if (k === 'adguard') [adguardConn, adguardOpen] = [null, true];
 	}
 	onMount(() => {
-		load().catch((e) => (error = problemText(e)));
+		reload();
+		const k = page.url.searchParams.get('add');
+		if (k && ['traefik', 'firewall', 'pulse', 'adguard'].includes(k)) {
+			add(k as Kind);
+			void goto('/connections', { replace: true, reset: false });
+		}
 	});
 
-	async function test(id: string) {
-		error = '';
-		busy = true;
-		try {
-			const r = await api.POST('/api/adguard/connections/{id}/test', { params: { path: { id } } });
-			if (r.error) throw r.error;
-			await load();
-		} catch (e) {
-			error = problemText(e);
-		} finally {
-			busy = false;
-		}
-	}
-	async function remove(id: string) {
-		error = '';
-		busy = true;
-		try {
-			await withReauth(() =>
-				api.DELETE('/api/adguard/connections/{id}', { params: { path: { id } } })
-			);
-			await load();
-		} catch (e) {
-			error = problemText(e);
-		} finally {
-			busy = false;
-		}
-	}
+	// ---- rows ----
+	type Action = { label: string; run: () => void; danger?: boolean };
+	type Row = {
+		key: string;
+		name: string;
+		href?: string;
+		detail: string;
+		bad?: boolean;
+		checked?: string | null;
+		health: Health;
+		tags?: string[];
+		actions: Action[];
+	};
+	const hostHealth = (h: string): Health =>
+		h === 'healthy' ? 'up' : h === 'degraded' ? 'degraded' : h === 'failed' ? 'down' : 'unknown';
+	const agentHealth = {
+		fresh: 'up',
+		stale: 'degraded',
+		revoked: 'down',
+		waiting: 'unknown'
+	} as const;
+	const adguardMode = { read_only: 'read-only', active: 'active', disabled: 'disabled' } as const;
+	// Hashi needs one DNS provider, one Traefik host and one firewall host (10b §2).
+	const required = (n: number) => (n === 1 ? ['required'] : []);
 
-	// ---- add and edit ----
-	const blank = () => ({
-		name: '',
-		target: 'agent' as 'agent' | 'set',
-		target_set_id: '',
-		target_agent_id: '',
-		tls_fingerprint: '',
-		port: '443',
-		scheme: 'https',
-		path_prefix: '',
-		tls_verify: true,
-		server_name: '',
-		username: '',
-		password: '',
-		mode: 'read_only' as Conn['mode'],
-		save_inactive: false
-	});
-	// Bug 90: HTTP has no certificate to check, so its fields go; the port follows the scheme while it is the default.
-	// Through a Pulse agent only HTTPS is allowed (the password must reach the real instance).
-	function schemeChanged(v: string) {
-		if (f.port === (v === 'http' ? '443' : '80')) f.port = v === 'http' ? '80' : '443';
-	}
-	$effect(() => {
-		if (f.target === 'agent' && f.scheme === 'http') {
-			f.scheme = 'https';
-			schemeChanged('https');
+	const sections = $derived<{ title: string; empty: string; kind?: Kind; rows: Row[] }[]>([
+		{
+			title: 'DNS provider',
+			empty: 'Connected during setup.',
+			rows: zones.map((z) => ({
+				key: z.id,
+				name: z.provider.type === 'hetzner' ? 'Hetzner DNS' : z.provider.type,
+				href: '/dns',
+				detail: z.last_refresh_error || `zone ${z.name}, ${z.rrset_count} records`,
+				bad: !!z.last_refresh_error,
+				checked: z.last_refreshed_at,
+				health: z.last_refresh_error ? 'down' : 'up',
+				tags: required(zones.length),
+				actions: []
+			}))
+		},
+		{
+			title: 'Traefik hosts',
+			kind: 'traefik',
+			empty: 'No Traefik host yet.',
+			rows: traefik.map((c) => ({
+				key: c.id,
+				name: c.name,
+				href: '/traefik',
+				detail: c.last_error || `${c.user}@${c.host}:${c.port}`,
+				bad: !!c.last_error && c.health === 'failed',
+				checked: c.last_validated_at,
+				health: hostHealth(c.health),
+				tags: required(traefik.length),
+				actions: [
+					{ label: 'Edit', run: () => ([traefikConn, traefikOpen] = [c, true]) },
+					{
+						label: 'Remove',
+						danger: true,
+						run: () =>
+							act(() =>
+								withReauth(() =>
+									api.DELETE('/api/traefik/hosts/{id}', { params: { path: { id: c.id } } })
+								)
+							)
+					}
+				]
+			}))
+		},
+		{
+			title: 'Firewall hosts',
+			kind: 'firewall',
+			empty: 'No firewall host yet.',
+			rows: firewall.map((h) => ({
+				key: h.id,
+				name: h.name,
+				href: `/firewall/${h.id}`,
+				detail:
+					h.edge_mode === 'managed'
+						? h.last_error || `${h.user}@${h.host}:${h.port}`
+						: `behind a router${h.address_agent_id ? `, address from ${pulseAgents.list.find((a) => a.id === h.address_agent_id)?.name ?? 'a Pulse agent'}` : ''}`,
+				bad: h.health === 'failed',
+				checked: h.last_validated_at,
+				health: h.edge_mode === 'managed' ? hostHealth(h.health) : 'unknown',
+				tags: required(firewall.length),
+				actions: [{ label: 'Edit', run: () => ([firewallHost, firewallOpen] = [h, true]) }]
+			}))
+		},
+		{
+			title: 'Pulse agents',
+			kind: 'pulse',
+			empty: 'No agent yet. Add one to a machine whose address can change.',
+			rows: agents.map((a) => ({
+				key: a.id,
+				name: a.name,
+				href: `/pulse/${a.id}`,
+				detail:
+					[a.selected_ip, a.hostname, a.version].filter(Boolean).join(' · ') || 'no heartbeat yet',
+				checked: a.last_seen_at,
+				health: agentHealth[a.status],
+				actions: [
+					{
+						label: 'New token',
+						run: () =>
+							act(async () => {
+								pulseShown = await withReauth(() =>
+									api.POST('/api/pulse/agents/{id}/rotate-token', {
+										params: { path: { id: a.id } }
+									})
+								);
+								pulseOpen = true;
+							})
+					},
+					...(a.status !== 'revoked'
+						? [
+								{
+									label: 'Revoke',
+									danger: true,
+									run: () =>
+										act(() =>
+											withReauth(() =>
+												api.POST('/api/pulse/agents/{id}/revoke', {
+													params: { path: { id: a.id } }
+												})
+											)
+										)
+								}
+							]
+						: []),
+					{
+						label: 'Remove',
+						danger: true,
+						run: () =>
+							act(() =>
+								withReauth(() =>
+									api.DELETE('/api/pulse/agents/{id}', { params: { path: { id: a.id } } })
+								)
+							)
+					}
+				]
+			}))
+		},
+		{
+			title: 'AdGuard Home',
+			kind: 'adguard',
+			empty: 'No AdGuard instance yet. A new one starts read-only, so adding it changes nothing.',
+			rows: adguard.map((c) => ({
+				key: c.id,
+				name: c.name,
+				href: `/dns?tab=adguard&instance=${c.id}`,
+				detail: c.last_error || c.last_version || 'not checked yet',
+				bad: !!c.last_error,
+				checked: c.last_checked_at,
+				health:
+					c.mode === 'disabled'
+						? 'unknown'
+						: c.last_error
+							? 'down'
+							: c.last_version
+								? 'up'
+								: 'unknown',
+				tags: [adguardMode[c.mode]],
+				actions: [
+					{
+						label: 'Test',
+						run: () =>
+							act(() =>
+								api.POST('/api/adguard/connections/{id}/test', { params: { path: { id: c.id } } })
+							)
+					},
+					{ label: 'Edit', run: () => ([adguardConn, adguardOpen] = [c, true]) },
+					{
+						label: 'Remove',
+						danger: true,
+						run: () =>
+							act(() =>
+								withReauth(() =>
+									api.DELETE('/api/adguard/connections/{id}', { params: { path: { id: c.id } } })
+								)
+							)
+					}
+				]
+			}))
 		}
-	});
-	let open = $state(false);
-	let editing = $state<string | null>(null);
-	let f = $state(blank());
-	let formError = $state('');
-	function openAdd() {
-		f = blank();
-		editing = null;
-		formError = '';
-		open = true;
-	}
-	function openEdit(c: Conn) {
-		f = {
-			...blank(),
-			...c,
-			target: c.target_agent_id ? 'agent' : 'set',
-			target_set_id: c.target_agent_id ? '' : c.target_set_id,
-			target_agent_id: c.target_agent_id ?? '',
-			port: String(c.port),
-			password: ''
-		};
-		editing = c.id;
-		formError = '';
-		open = true;
-	}
-	async function save() {
-		formError = '';
-		busy = true;
-		try {
-			const body = {
-				name: f.name,
-				target_set_id: f.target === 'set' ? f.target_set_id : undefined,
-				target_agent_id: f.target === 'agent' ? f.target_agent_id : undefined,
-				tls_fingerprint: (f.scheme === 'https' && f.tls_fingerprint) || undefined,
-				port: Number(f.port),
-				scheme: f.scheme,
-				path_prefix: f.path_prefix || undefined,
-				tls_verify: f.scheme === 'https' && f.tls_verify,
-				server_name: (f.scheme === 'https' && f.server_name) || undefined,
-				username: f.username || undefined,
-				password: f.password || undefined,
-				mode: f.mode,
-				save_inactive: f.save_inactive
-			};
-			const id = editing;
-			const row = await withReauth(() =>
-				id
-					? api.PUT('/api/adguard/connections/{id}', { params: { path: { id } }, body })
-					: api.POST('/api/adguard/connections', { body })
-			);
-			f.password = '';
-			open = false;
-			await load();
-			if (row?.id) await test(row.id);
-		} catch (e) {
-			formError = problemText(e);
-		} finally {
-			busy = false;
-		}
-	}
+	]);
+	const kinds: [Kind, string][] = [
+		['traefik', 'Traefik host'],
+		['firewall', 'Firewall host'],
+		['pulse', 'Pulse agent'],
+		['adguard', 'AdGuard Home']
+	];
 </script>
 
 <svelte:head><title>Connections · Hashi</title></svelte:head>
 
-<PageHeader
-	title="Connections"
-	description="The outside systems Hashi talks to. Credentials are kept in the vault and are never shown again after saving."
->
-	{#snippet actions()}<Button onclick={openAdd}><Plus />Add AdGuard</Button>{/snippet}
+<PageHeader title="Connections">
+	{#snippet actions()}
+		<DropdownMenu.Root>
+			<DropdownMenu.Trigger>
+				{#snippet child({ props })}<Button {...props}><Plus />Add connection<ChevronDown /></Button
+					>{/snippet}
+			</DropdownMenu.Trigger>
+			<DropdownMenu.Content align="end">
+				{#each kinds as [k, label] (k)}<DropdownMenu.Item onclick={() => add(k)}
+						>{label}</DropdownMenu.Item
+					>{/each}
+			</DropdownMenu.Content>
+		</DropdownMenu.Root>
+	{/snippet}
 </PageHeader>
 
 {#if error}<p role="alert" class="mb-3 text-md text-bad-text">{error}</p>{/if}
-<div class="rounded-2xl border bg-card px-4 py-3">
-	<h2 class="mb-1 text-sm font-medium text-muted-foreground">AdGuard Home</h2>
-	{#if conns.length === 0}
-		<p class="py-2 text-md text-muted-foreground">
-			No AdGuard instance yet. A new one starts read-only, so adding it changes nothing.
-		</p>
-	{/if}
-	<ul>
-		{#each conns as c (c.id)}
-			<li class="flex flex-wrap items-center gap-3 py-2 text-md">
-				<span class="min-w-40 font-medium">{c.name}</span>
-				<span class="min-w-0 flex-1 truncate text-muted-foreground">
-					{#if c.last_error}<span class="text-bad-text">{c.last_error}</span
-						>{:else if c.last_version}{c.last_version}{:else}Not checked yet{/if}
-				</span>
-				<Tag tone={c.mode === 'active' ? 'ok' : undefined}>{modeTag[c.mode]}</Tag>
-				<Button variant="outline" size="sm" href="/dns?tab=adguard">Show rewrites</Button>
-				<Button
-					variant="ghost"
-					size="icon-sm"
-					aria-label="Test {c.name}"
-					onclick={() => test(c.id)}
-					disabled={busy}><RefreshCw /></Button
-				>
-				<Button
-					variant="ghost"
-					size="icon-sm"
-					aria-label="Edit {c.name}"
-					onclick={() => openEdit(c)}
-					disabled={busy}><Pencil /></Button
-				>
-				<Button
-					variant="ghost"
-					size="icon-sm"
-					aria-label="Remove {c.name}"
-					onclick={() => remove(c.id)}
-					disabled={busy}><Trash2 /></Button
-				>
-			</li>
-		{/each}
-	</ul>
-</div>
-
-<Sheet.Root bind:open>
-	<Sheet.Content class="w-full sm:max-w-md">
-		<Sheet.Header>
-			<Sheet.Title>{editing ? 'Edit AdGuard' : 'Add AdGuard'}</Sheet.Title>
-			<Sheet.Description
-				>{editing
-					? 'Leave the password empty to keep the stored one.'
-					: 'The password is stored encrypted and never shown again.'}</Sheet.Description
-			>
-		</Sheet.Header>
-		<div class="space-y-4 overflow-y-auto px-4">
-			<div class="space-y-1.5">
-				<Label for="ag-name">Name</Label><Input id="ag-name" bind:value={f.name} />
-			</div>
-			<div class="space-y-1.5">
-				<Label for="ag-kind">Reached through</Label>
-				<Select.Root type="single" bind:value={f.target}>
-					<Select.Trigger id="ag-kind" class="w-full"
-						>{f.target === 'agent' ? 'Pulse agent' : 'Address set'}</Select.Trigger
-					>
-					<Select.Content>
-						<Select.Item value="agent">Pulse agent</Select.Item>
-						<Select.Item value="set">Address set</Select.Item>
-					</Select.Content>
-				</Select.Root>
-				{#if f.target === 'agent'}
-					<Select.Root type="single" bind:value={f.target_agent_id}>
-						<Select.Trigger aria-label="Pulse agent" class="w-full"
-							>{agents.find((a) => a.id === f.target_agent_id)?.name ??
-								'Choose an agent'}</Select.Trigger
-						>
-						<Select.Content>
-							{#each agents as a (a.id)}<Select.Item value={a.id}>{a.name}</Select.Item>{/each}
-						</Select.Content>
-					</Select.Root>
-					<p class="text-xs text-muted-foreground">
-						Hashi follows this machine's internal address. It needs HTTPS and proof of the
-						certificate, so the password only goes to the real instance.
-					</p>
-				{:else}
-					<Select.Root type="single" bind:value={f.target_set_id}>
-						<Select.Trigger aria-label="Address set" class="w-full"
-							>{sets.find((s) => s.id === f.target_set_id)?.name ?? 'Choose a set'}</Select.Trigger
-						>
-						<Select.Content>
-							{#each sets as s (s.id)}<Select.Item value={s.id}>{s.name}</Select.Item>{/each}
-						</Select.Content>
-					</Select.Root>
-					<TargetSources setId={f.target_set_id} />
-					<p class="text-xs text-muted-foreground">
-						An IP set holding the instance's address or DNS name. With a Pulse agent in it, Hashi
-						needs HTTPS and proof of the certificate.
+{#if !loaded}
+	<Skeleton class="h-80 rounded-2xl" />
+{:else}
+	<div class="divide-y rounded-2xl border bg-card">
+		{#each sections as s (s.title)}
+			<section class="px-4 py-3" aria-label={s.title}>
+				<h2 class="mb-1 text-sm font-medium text-muted-foreground">{s.title}</h2>
+				{#if s.rows.length === 0}
+					<p class="py-2 text-md text-muted-foreground">
+						{s.empty}
+						{#if s.kind}<button
+								class="font-medium text-foreground underline underline-offset-2"
+								onclick={() => add(s.kind!)}>Add one</button
+							>{/if}
 					</p>
 				{/if}
-			</div>
-			<div class="grid grid-cols-[1fr_6rem] gap-3">
-				<div class="space-y-1.5">
-					<Label for="ag-scheme">Scheme</Label>
-					<Select.Root type="single" bind:value={f.scheme} onValueChange={schemeChanged}>
-						<Select.Trigger id="ag-scheme" class="w-full">{f.scheme.toUpperCase()}</Select.Trigger>
-						<Select.Content>
-							<Select.Item value="https">HTTPS</Select.Item>
-							<Select.Item value="http" disabled={f.target === 'agent'}>HTTP</Select.Item>
-						</Select.Content>
-					</Select.Root>
-				</div>
-				<div class="space-y-1.5">
-					<Label for="ag-port">Port</Label><Input
-						id="ag-port"
-						bind:value={f.port}
-						inputmode="numeric"
-					/>
-				</div>
-			</div>
-			{#if f.scheme === 'https'}
-				<div class="space-y-1.5">
-					<Label for="ag-fp">Certificate fingerprint</Label><Input
-						id="ag-fp"
-						class="font-mono"
-						bind:value={f.tls_fingerprint}
-					/>
-					<p class="text-xs text-muted-foreground">
-						For a self-signed certificate: its SHA-256. Hashi then accepts only that exact
-						certificate, and the two settings below are not needed.
-					</p>
-				</div>
-				<div class="space-y-1.5">
-					<Label for="ag-host">Expected hostname</Label><Input
-						id="ag-host"
-						bind:value={f.server_name}
-						placeholder="ns.example.com"
-					/>
-					<p class="text-xs text-muted-foreground">The name on its certificate.</p>
-				</div>
-				<label class="flex items-center justify-between gap-3 text-md">
-					<span>Check the certificate</span><Switch
-						bind:checked={f.tls_verify}
-						aria-label="Check the certificate"
-					/>
-				</label>
-			{/if}
-			<div class="space-y-1.5">
-				<Label for="ag-user">Username</Label><Input
-					id="ag-user"
-					autocomplete="off"
-					bind:value={f.username}
-				/>
-			</div>
-			<div class="space-y-1.5">
-				<Label for="ag-pass">Password</Label><Input
-					id="ag-pass"
-					type="password"
-					autocomplete="off"
-					bind:value={f.password}
-				/>
-			</div>
-			<div class="space-y-1.5">
-				<Label for="ag-mode">Mode</Label>
-				<Select.Root type="single" bind:value={f.mode}>
-					<Select.Trigger id="ag-mode" class="w-full">{modes[f.mode]}</Select.Trigger>
-					<Select.Content>
-						{#each Object.entries(modes) as [v, t] (v)}<Select.Item value={v}>{t}</Select.Item
-							>{/each}
-					</Select.Content>
-				</Select.Root>
-			</div>
-			<label class="flex items-center justify-between gap-3 text-md">
-				<span>Save even if it does not answer yet</span><Switch
-					bind:checked={f.save_inactive}
-					aria-label="Save even if it does not answer yet"
-				/>
-			</label>
-			{#if formError}<p role="alert" class="text-md text-bad-text">{formError}</p>{/if}
-		</div>
-		<Sheet.Footer class="flex-row justify-end gap-2 border-t">
-			<Button variant="outline" onclick={() => (open = false)}>Cancel</Button>
-			<Button
-				onclick={save}
-				disabled={busy ||
-					!f.name.trim() ||
-					!(f.target === 'agent' ? f.target_agent_id : f.target_set_id)}
-				>{editing ? 'Save changes' : 'Add AdGuard'}</Button
-			>
-		</Sheet.Footer>
-	</Sheet.Content>
-</Sheet.Root>
+				<ul>
+					{#each s.rows as r (r.key)}
+						<li class="flex flex-wrap items-center gap-x-3 gap-y-1 py-2 text-md">
+							{#if r.href}<a href={r.href} class="min-w-40 font-medium hover:underline">{r.name}</a
+								>{:else}<span class="min-w-40 font-medium">{r.name}</span>{/if}
+							<span
+								class="min-w-0 flex-1 basis-48 truncate {r.bad
+									? 'text-bad-text'
+									: 'text-muted-foreground'}">{r.detail}</span
+							>
+							{#each r.tags ?? [] as t (t)}<Tag>{t}</Tag>{/each}
+							<span class="hidden w-40 text-right text-sm text-muted-foreground md:inline"
+								>{r.checked ? dateTime(r.checked) : ''}</span
+							>
+							<span class="w-24"><StatusBadge state={r.health} /></span>
+							{#if r.actions.length}
+								<DropdownMenu.Root>
+									<DropdownMenu.Trigger>
+										{#snippet child({ props })}<Button
+												{...props}
+												variant="ghost"
+												size="icon-sm"
+												aria-label="Actions for {r.name}"
+												disabled={busy}><MoreHorizontal /></Button
+											>{/snippet}
+									</DropdownMenu.Trigger>
+									<DropdownMenu.Content align="end">
+										{#each r.actions as a (a.label)}<DropdownMenu.Item
+												onclick={a.run}
+												variant={a.danger ? 'destructive' : 'default'}>{a.label}</DropdownMenu.Item
+											>{/each}
+									</DropdownMenu.Content>
+								</DropdownMenu.Root>
+							{:else}<span class="size-8"></span>{/if}
+						</li>
+					{/each}
+				</ul>
+			</section>
+		{/each}
+	</div>
+{/if}
+
+<TraefikHostSheet bind:open={traefikOpen} conn={traefikConn} onsaved={reload} />
+<FirewallHostSheet bind:open={firewallOpen} host={firewallHost} onsaved={reload} />
+<PulseAgentSheet bind:open={pulseOpen} bind:shown={pulseShown} onsaved={reload} />
+<AdGuardSheet
+	bind:open={adguardOpen}
+	conn={adguardConn}
+	onsaved={(id) =>
+		act(() => api.POST('/api/adguard/connections/{id}/test', { params: { path: { id } } }))}
+/>

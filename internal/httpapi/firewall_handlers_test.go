@@ -78,14 +78,18 @@ func TestSetupStep6FirewallAPI(t *testing.T) {
 	if _, err := s.ConfirmSetupFirewall(ctx, gen.ConfirmSetupFirewallRequestObject{}); status(err) != http.StatusConflict {
 		t.Fatalf("confirm before save: %v", err)
 	}
-	// A mistake can be undone before the host is confirmed; a changed login on a saved host is refused, not dropped.
+	// A mistake can be undone before the host is confirmed; a changed login on a saved host is saved, never dropped,
+	// and setup validates it again with the new login (bug 24).
 	if _, err := s.PutSetupFirewallHost(ctx, gen.PutSetupFirewallHostRequestObject{Body: &in}); err != nil {
 		t.Fatal(err)
 	}
 	wrong := in
 	wrong.User = ptr("other")
-	if _, err := s.PutSetupFirewallHost(ctx, gen.PutSetupFirewallHostRequestObject{Body: &wrong}); status(err) != http.StatusUnprocessableEntity {
+	if _, err := s.PutSetupFirewallHost(ctx, gen.PutSetupFirewallHostRequestObject{Body: &wrong}); err != nil {
 		t.Fatalf("changed login: %v", err)
+	}
+	if rows, _ := st.R.ListFirewallHosts(ctx); len(rows) != 1 || rows[0].SshUser != "other" {
+		t.Fatalf("changed login was not saved: %+v", rows)
 	}
 	if _, err := s.DeleteSetupFirewallHost(ctx, gen.DeleteSetupFirewallHostRequestObject{}); err != nil {
 		t.Fatal(err)

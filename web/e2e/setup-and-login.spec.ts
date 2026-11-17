@@ -497,7 +497,10 @@ test('setup with a passkey, then sign in with it', async ({ page, request }) => 
 	await page.getByRole('button', { name: 'Save and publish' }).click();
 	await expect(page.getByRole('status')).toContainText('need your approval');
 	// A home server behind a router: no SSH, public traffic enters through edge-a, its own network.
-	await page.goto(`${state.baseURL}/firewall/new`);
+	// Every outside system is added on Connections (bug 24).
+	await page.goto(`${state.baseURL}/connections`);
+	await page.getByRole('button', { name: 'Add connection' }).click();
+	await page.getByRole('menuitem', { name: 'Firewall host' }).click();
 	await page.getByLabel('Name').fill('home-a');
 	await page.getByLabel('How it is reached').selectOption('external_nat');
 	await page.getByLabel('Public address').fill('198.51.100.40');
@@ -581,13 +584,22 @@ test('setup with a passkey, then sign in with it', async ({ page, request }) => 
 	// AdGuard: adding one is safe, and the page says so.
 	await page.goto(`${state.baseURL}/connections`);
 	await expect(page.getByText('A new one starts read-only')).toBeVisible();
-	await page.getByRole('button', { name: 'Add AdGuard' }).click();
+	await page.getByRole('button', { name: 'Add connection' }).click();
+	await page.getByRole('menuitem', { name: 'AdGuard Home' }).click();
 	await expect(page.getByLabel('Expected hostname')).toBeVisible();
+	// Bug 90: over HTTP there is no certificate to check (a Pulse agent target only allows HTTPS).
+	await page.getByLabel('Reached through').click();
+	await page.getByRole('option', { name: 'Address set' }).click();
+	await page.locator('#ag-scheme').click();
+	await page.getByRole('option', { name: 'HTTP', exact: true }).click();
+	await expect(page.getByLabel('Expected hostname')).toHaveCount(0);
+	await expect(page.locator('#ag-port')).toHaveValue('80');
 	await page.getByRole('button', { name: 'Cancel' }).click();
 
-	// Pulse: an agent's token is shown once, and an agent can go into an IP set.
+	// Pulse: an agent's token is shown once, and an agent can go into an IP set. Agents are added on Connections.
 	await page.goto(`${state.baseURL}/pulse`);
-	await page.getByRole('button', { name: 'Add agent' }).click();
+	await page.getByRole('link', { name: 'Add agent' }).click();
+	await expect(page).toHaveURL(/\/connections$/);
 	await page.getByLabel('Name').fill('e2e-box');
 	await page.getByRole('button', { name: 'Create agent' }).click();
 	const command = page.getByText(/--token hp_/);
@@ -602,20 +614,31 @@ test('setup with a passkey, then sign in with it', async ({ page, request }) => 
 		data: {
 			version: 'e2e',
 			hostname: 'e2e-host',
-			candidates: [{ interface: 'eth0', address: '10.9.8.7' }]
+			candidates: [
+				{ interface: 'eth0', address: '10.9.8.7' },
+				{ interface: 'wg0', address: '10.9.8.8' }
+			]
 		}
 	});
 	expect(beat.status()).toBe(200);
-	await page.reload();
+	await page.goto(`${state.baseURL}/pulse`);
 	await expect(page.getByRole('cell', { name: '10.9.8.7' })).toBeVisible();
+	// Bug 22: the agent's page lists its addresses per interface; choosing one makes it the main address.
+	await page.getByRole('link', { name: 'e2e-box' }).click();
+	await expect(page.getByText('wg0')).toBeVisible();
+	await page.getByRole('radio', { name: '10.9.8.8' }).click();
+	await expect(page.getByRole('status')).toContainText('10.9.8.8 is the main address now.');
+	await page.goto(`${state.baseURL}/pulse`);
+	await expect(page.getByRole('cell', { name: /10\.9\.8\.8/ })).toBeVisible();
 	// The DNS page lists its name and AdGuard state.
 	await page.goto(`${state.baseURL}/dns?tab=agents`);
 	await expect(page.getByText('e2e-box.hashi.home.arpa')).toBeVisible();
 	await page.goto(`${state.baseURL}/dns?tab=adguard`);
 	await expect(page.getByText('No AdGuard instance')).toBeVisible();
-	await page.goto(`${state.baseURL}/pulse`);
-	await page.getByRole('button', { name: 'Remove e2e-box' }).click();
-	await expect(page.getByRole('button', { name: 'Remove e2e-box' })).toHaveCount(0);
+	await page.goto(`${state.baseURL}/connections`);
+	await page.getByRole('button', { name: 'Actions for e2e-box' }).click();
+	await page.getByRole('menuitem', { name: 'Remove' }).click();
+	await expect(page.getByRole('button', { name: 'Actions for e2e-box' })).toHaveCount(0);
 
 	// Rule sets (06 §13): a shared set with one rule, attached to a service; the trace shows who decides; a closed fallback
 	// says what happens while Hashi is away. The admin service stays read-only.

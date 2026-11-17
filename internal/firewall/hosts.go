@@ -278,6 +278,12 @@ func (m *Manager) Save(ctx context.Context, actor, ip, id string, in HostInput) 
 		if err := followAgent(ctx, q, id, now); err != nil {
 			return err
 		}
+		// No longer following an agent: what it reported is not the host's any more.
+		if cur.AddressAgentID.Valid && in.AddressAgentID == "" && in.EdgeMode == ModeExternalNAT {
+			if err := q.SetFirewallHostAgentAddresses(ctx, db.SetFirewallHostAgentAddressesParams{InternalIpsJson: "[]", UpdatedAt: now, ID: id}); err != nil {
+				return err
+			}
+		}
 		return m.ensureHashiHosts(ctx, q)
 	})
 	if err != nil {
