@@ -41,7 +41,7 @@
 		? `Alerts go to ${target}.`
 		: 'No alerts are sent until you choose a provider.'}
 >
-	{#snippet actions()}<Button variant="outline" size="sm" href="/settings?category=notifications"
+	{#snippet actions()}<Button variant="outline" size="sm" href="/settings?category=monitoring"
 			><Settings />Notification settings</Button
 		>{/snippet}
 	{#if deliveries.length === 0}

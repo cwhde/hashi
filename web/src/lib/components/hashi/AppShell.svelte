@@ -327,7 +327,7 @@
 						</div>
 					</DropdownMenu.Label>
 					<DropdownMenu.Separator />
-					<DropdownMenu.Item onSelect={() => live && goto('/settings?category=account')}
+					<DropdownMenu.Item onSelect={() => live && goto('/settings?category=security')}
 						><KeyRound />Passkeys and sessions</DropdownMenu.Item
 					>
 					<DropdownMenu.Item onSelect={() => live?.onSignOut()}

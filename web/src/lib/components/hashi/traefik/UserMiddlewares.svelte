@@ -6,15 +6,14 @@
 	import Tag from '#lib/components/hashi/Tag.svelte';
 	import CodeEditor from '#lib/components/hashi/CodeEditor.svelte';
 	import { Button } from '#lib/components/ui/button/index.ts';
-	import { Switch } from '#lib/components/ui/switch/index.ts';
 	import { Skeleton } from '#lib/components/ui/skeleton/index.ts';
 	import { CircleAlert, CircleCheck } from '@lucide/svelte';
 	import { api, problemText, type Schemas } from '#lib/api/client.ts';
 	import { pendingPlans } from '#lib/sync-pending.svelte.ts';
 	import { saveText } from '#lib/services.ts';
 
-	// 30-user-middlewares.yml (04 §4): the YAML editor, the middlewares it defines with where each is used, and the
-	// Traefik setting "on every service" (09 §2). Every change is checked by the server as you type; a file that fails
+	// 30-user-middlewares.yml (04 §4): the YAML editor and the middlewares it defines with where each is used. Which
+	// run on every service is a setting (Settings → Services and Traefik, 10c §1.2); a name the file drops leaves it. Every change is checked by the server as you type; a file that fails
 	// the check cannot be saved, so the hosts keep the last applied one.
 	type Mw = Schemas['UserMiddleware'];
 	let text = $state('');
@@ -82,10 +81,6 @@
 		return () => clearTimeout(timer);
 	});
 
-	function toggleEvery(name: string, on: boolean) {
-		every = on ? [...every.filter((n) => n !== name), name] : every.filter((n) => n !== name);
-	}
-
 	async function save() {
 		busy = true;
 		saveError = '';
@@ -115,8 +110,6 @@
 			busy = false;
 		}
 	}
-
-	const usedText = (m: Mw) => (everyLive.includes(m.name) ? 'on every service' : 'unused');
 </script>
 
 {#if loadError}
@@ -215,16 +208,11 @@
 												: ''}<a class="underline underline-offset-2" href="/services/{u.service_id}"
 												>{u.service_name}</a
 											>{/each}
-									{:else}{usedText(m)}{/if}
+									{:else if everyLive.includes(m.name)}<a
+											class="underline underline-offset-2"
+											href="/settings?category=traefik">on every service</a
+										>{:else}unused{/if}
 								</div>
-								<label class="flex items-center justify-between gap-3 text-sm">
-									<span>On every service</span>
-									<Switch
-										checked={everyLive.includes(m.name)}
-										onCheckedChange={(on) => toggleEvery(m.name, on)}
-										aria-label="Use {m.name} on every service"
-									/>
-								</label>
 							</li>
 						{/each}
 					</ul>

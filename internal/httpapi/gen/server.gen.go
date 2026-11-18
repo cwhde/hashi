@@ -5803,6 +5803,9 @@ type PutGeneralSettingsJSONRequestBody = GeneralSettings
 // PutAgentDNSSettingsJSONRequestBody defines body for PutAgentDNSSettings for application/json ContentType.
 type PutAgentDNSSettingsJSONRequestBody = AgentDNSSettings
 
+// PreviewAgentDNSJSONRequestBody defines body for PreviewAgentDNS for application/json ContentType.
+type PreviewAgentDNSJSONRequestBody = AgentDNSSettings
+
 // PutMonitoringSettingsJSONRequestBody defines body for PutMonitoringSettings for application/json ContentType.
 type PutMonitoringSettingsJSONRequestBody = MonitoringSettings
 
@@ -18787,6 +18790,7 @@ func (response ApplyAgentDNSdefaultApplicationProblemPlusJSONResponse) VisitAppl
 }
 
 type PreviewAgentDNSRequestObject struct {
+	Body *PreviewAgentDNSJSONRequestBody
 }
 
 type PreviewAgentDNSResponseObject interface {
@@ -26988,6 +26992,16 @@ func (sh *strictHandler) ApplyAgentDNS(w http.ResponseWriter, r *http.Request) {
 // PreviewAgentDNS operation middleware
 func (sh *strictHandler) PreviewAgentDNS(w http.ResponseWriter, r *http.Request) {
 	var request PreviewAgentDNSRequestObject
+
+	var body PreviewAgentDNSJSONRequestBody
+	if err := runtime.BindJSONBody(r, &body); err != nil {
+		if !errors.Is(err, io.EOF) {
+			sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+			return
+		}
+	} else {
+		request.Body = &body
+	}
 
 	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
 		return sh.ssi.PreviewAgentDNS(ctx, request.(PreviewAgentDNSRequestObject))

@@ -445,7 +445,7 @@ test('setup with a passkey, then sign in with it', async ({ page, request }) => 
 	await expect(page.getByRole('button', { name: 'Delete set' })).toBeDisabled();
 
 	// Account: the passkey and this session; the last passkey cannot be deleted.
-	await page.goto(`${state.baseURL}/settings?category=account`);
+	await page.goto(`${state.baseURL}/settings?category=security`);
 	await expect(page.getByText('E2E authenticator')).toBeVisible();
 	await expect(page.getByText('this session')).toBeVisible();
 	await expect(
@@ -559,9 +559,9 @@ test('setup with a passkey, then sign in with it', async ({ page, request }) => 
 	await visitor.goto(state.appsURL);
 	await expect(visitor.getByText(/hosts online/)).toBeVisible();
 	await visitor.close();
-	// Notifications: no provider yet; the page explains it.
-	await page.goto(`${state.baseURL}/status`);
-	await page.getByRole('tab', { name: 'Notifications' }).click();
+	// Notifications: no provider yet; the page explains it. Sent alerts are history, so they live under Activity (bug 39).
+	await page.goto(`${state.baseURL}/activity`);
+	await page.getByRole('tab', { name: 'Alerts sent' }).click();
 	await expect(page.getByText('No alerts are sent until you choose a provider.')).toBeVisible();
 	await page.getByRole('link', { name: 'Notification settings' }).click();
 	await expect(page.getByText('Add Telegram or email to receive alerts.')).toBeVisible();
@@ -677,7 +677,7 @@ test('setup with a passkey, then sign in with it', async ({ page, request }) => 
 	await page.getByLabel('Path to try').fill('/admin/x');
 	await page.getByRole('button', { name: 'Try a request' }).click();
 	await expect(page.getByLabel('Decides')).toBeVisible();
-	// S10: the WAF tab (headers only by default, a path with uploads), saved through the API.
+	// S10: the WAF tab (headers only by default, a path with uploads). Bug 65: it saves with the header's one Save.
 	await page.getByRole('tab', { name: 'WAF' }).click();
 	await expect(page.getByText('Mode per path')).toBeVisible();
 	await expect(page.getByLabel('WAF mode for the whole service')).toContainText(
@@ -685,8 +685,13 @@ test('setup with a passkey, then sign in with it', async ({ page, request }) => 
 	);
 	await page.getByRole('button', { name: 'Add path' }).click();
 	await page.getByLabel('Path', { exact: true }).fill('/upload');
-	await page.getByRole('button', { name: 'Save WAF' }).click();
+	await expect(page.getByRole('button', { name: 'Save WAF' })).toHaveCount(0);
+	await page.getByRole('button', { name: 'Save and publish' }).click();
 	await expect(page.getByRole('status')).toContainText('Saved');
+	await expect(page.getByRole('button', { name: 'Save and publish' })).toBeDisabled();
+	await page.reload();
+	await page.getByRole('tab', { name: 'WAF' }).click();
+	await expect(page.getByLabel('Path', { exact: true })).toHaveValue('/upload');
 	await page.setViewportSize({ width: 390, height: 844 });
 	await page.screenshot({ path: 'test-results/s10-waf-phone.png', fullPage: true });
 	await page.setViewportSize({ width: 1280, height: 800 });
@@ -707,9 +712,15 @@ test('setup with a passkey, then sign in with it', async ({ page, request }) => 
 	);
 	await expect(page.getByText('Found 2 middlewares')).toBeVisible();
 	await expect(page.getByText('Valid. Not saved yet.')).toBeVisible();
-	await page.getByRole('switch', { name: 'Use no-frames on every service' }).click();
 	await page.getByRole('button', { name: 'Save and plan' }).click();
 	await expect(page.getByRole('status').first()).toContainText('Saved');
+	await expect(page.getByText('Valid and saved.')).toBeVisible();
+	// Which middlewares run on every service is a setting (10c §1.2); the Traefik page keeps the file.
+	await page.goto(`${state.baseURL}/settings?category=traefik`);
+	await page.getByRole('switch', { name: 'Use no-frames on every service' }).click();
+	await page.getByRole('button', { name: 'Save', exact: true }).click();
+	await expect(page.getByRole('status')).toContainText('Saved');
+	await page.goto(`${state.baseURL}/traefik?tab=middlewares`);
 	await expect(page.getByText('Valid and saved.')).toBeVisible();
 	// Break the file, then take the break back: the old problem goes away and the switch stays on.
 	await editor.click();
@@ -718,7 +729,9 @@ test('setup with a passkey, then sign in with it', async ({ page, request }) => 
 	await expect(page.getByText(/^Line \d+:/)).toBeVisible();
 	for (let i = 0; i < 3; i++) await page.keyboard.press('Backspace');
 	await expect(page.getByText('Valid and saved.')).toBeVisible();
-	await expect(page.getByRole('switch', { name: 'Use no-frames on every service' })).toBeChecked();
+	await expect(page.getByRole('list', { name: 'Middlewares in the file' })).toContainText(
+		'on every service'
+	);
 	await page.setViewportSize({ width: 390, height: 844 });
 	await page.screenshot({ path: 'test-results/bug25-middlewares-phone.png', fullPage: true });
 	await page.setViewportSize({ width: 1280, height: 800 });
@@ -844,8 +857,10 @@ test('setup with a passkey, then sign in with it', async ({ page, request }) => 
 	await expect(page.getByRole('button', { name: /succeeded/ })).toBeVisible();
 	await expect(page.getByText(/^Next: Sun/)).toBeVisible();
 	await page.screenshot({ path: 'test-results/s11-scripts.png', fullPage: true });
+	// Edge protection settings live in Settings; the Security page only shows what happened (10c §1, bug 36).
 	await page.goto(`${state.baseURL}/security`);
-	await page.getByRole('tab', { name: 'Challenge', exact: true }).click();
+	await page.getByRole('link', { name: 'Edge protection settings' }).click();
+	await expect(page).toHaveURL(/category=edge/);
 	await expect(page.getByText('Cap challenge')).toBeVisible();
 	await expect(page.getByLabel('Challenge page')).toHaveValue(/^captcha\.hashi\./);
 	await page.setViewportSize({ width: 390, height: 844 });
@@ -853,15 +868,15 @@ test('setup with a passkey, then sign in with it', async ({ page, request }) => 
 	expect(fits, 'the page is wider than a phone').toBe(true);
 	await page.screenshot({ path: 'test-results/s10-challenge-phone.png', fullPage: true });
 	await page.setViewportSize({ width: 1280, height: 800 });
-	await page.getByRole('tab', { name: 'Engine' }).click();
 	await expect(page.getByText('300 in 10 s')).toBeVisible();
 	await expect(page.getByText('600/min, 1000 open per address')).toBeVisible();
 	await page.getByRole('button', { name: 'Edit' }).click();
 	await page.getByLabel('New connections per minute from one address').fill('700');
-	await page.getByRole('button', { name: 'Save', exact: true }).click();
+	await page.getByRole('dialog').getByRole('button', { name: 'Save', exact: true }).click();
 	await expect(page.getByText('700/min, 1000 open per address')).toBeVisible();
-	await page.getByRole('tab', { name: 'Sign-in providers' }).click();
-	await expect(page.getByText('No provider yet')).toBeVisible();
+	// Sign-in providers are connections (10c §1.2).
+	await page.goto(`${state.baseURL}/connections`);
+	await expect(page.getByText(/^No provider yet/)).toBeVisible();
 
 	await page.goto(`${state.baseURL}/ip-sets`);
 	await page.getByRole('button', { name: 'Add blocklist' }).click();
@@ -912,10 +927,9 @@ test('setup with a passkey, then sign in with it', async ({ page, request }) => 
 	).toBe(true);
 	await page.screenshot({ path: 'test-results/s11-custom-theme-phone.png', fullPage: true });
 	await page.setViewportSize({ width: 1280, height: 800 });
-	// Reduce transparency is applied at once and saved.
+	// Reduce transparency is applied and saved at once, with no Save of its own.
 	await page.getByRole('switch', { name: /Reduce transparency/ }).click();
 	await expect(page.locator('html')).toHaveAttribute('data-solid', '');
-	await page.getByRole('button', { name: 'Save', exact: true }).last().click();
 	await expect
 		.poll(async () => (await page.request.get(`${state.baseURL}/api/settings/appearance`)).json())
 		.toMatchObject({ reduce_transparency: true });
@@ -932,8 +946,9 @@ test('setup with a passkey, then sign in with it', async ({ page, request }) => 
 	await page.getByRole('radio', { name: 'Local time' }).click();
 	await page.getByRole('button', { name: 'Save', exact: true }).click();
 	await expect(page.getByRole('status')).toContainText('Saved');
-	// Dashboard: the public page starts sorted by name; new services start hidden from it.
+	// Public pages: the dashboard starts sorted by name; new services start hidden from it. The old address still works.
 	await page.goto(`${state.baseURL}/settings?category=dashboard`);
+	await expect(page).toHaveURL(/category=public/);
 	await page.getByRole('radio', { name: 'Name' }).click();
 	await page.getByRole('switch', { name: /New services show/ }).click();
 	await page.getByRole('button', { name: 'Save', exact: true }).click();
@@ -949,7 +964,7 @@ test('setup with a passkey, then sign in with it', async ({ page, request }) => 
 	await page.goto(`${state.baseURL}/settings?category=monitoring`);
 	await page.getByLabel('Check every (seconds)').fill('120');
 	await page.getByRole('button', { name: 'Save', exact: true }).click();
-	await expect(page.getByRole('status')).toContainText('New monitors start with these');
+	await expect(page.getByRole('status')).toContainText('Checks that exist keep their own values');
 	await page.goto(`${state.baseURL}/settings?category=firewall`);
 	await expect(page.getByRole('radio', { name: 'Peer only' })).toBeChecked();
 	await page.screenshot({ path: 'test-results/s11-settings-firewall.png', fullPage: true });
@@ -1045,7 +1060,7 @@ test('setup with a passkey, then sign in with it', async ({ page, request }) => 
 
 	// S12: strict vault mode (02 §5.4). A PRF passkey becomes an unlocker, strict mode is switched on, and after each
 	// restart Hashi is locked until the recovery key or the passkey unlocks it; the session survives the restarts.
-	await page.goto(`${state.baseURL}/settings?category=account`);
+	await page.goto(`${state.baseURL}/settings?category=security`);
 	// The vault's own button links a passkey that already signs in (one prompt, that passkey only).
 	await page.getByRole('button', { name: 'Add a passkey' }).click();
 	const vaultAdd = page.getByRole('dialog', { name: 'Add a passkey that unlocks the vault' });
@@ -1078,7 +1093,7 @@ test('setup with a passkey, then sign in with it', async ({ page, request }) => 
 	await expect(page.getByText(/Service mode is on/)).toBeVisible();
 
 	// Deleting the passkey this session signed in with ends the session: the page goes to sign-in.
-	await page.goto(`${state.baseURL}/settings?category=account`);
+	await page.goto(`${state.baseURL}/settings?category=security`);
 	await page.getByRole('button', { name: 'Delete passkey E2E authenticator' }).click();
 	await page.getByRole('button', { name: 'Delete passkey', exact: true }).click();
 	await expect(page).toHaveURL(/\/login/);

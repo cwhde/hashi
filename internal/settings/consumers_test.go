@@ -25,7 +25,7 @@ var consumerTests = map[string]string{
 
 	"appearance.theme":                    "internal/notify/notify_test.go::TestMailCustomTheme",
 	"appearance.custom_theme":             "web/e2e/setup-and-login.spec.ts::A custom theme: unreadable text cannot be saved",
-	"appearance.reduce_transparency":      "web/e2e/setup-and-login.spec.ts::Reduce transparency is applied at once and saved",
+	"appearance.reduce_transparency":      "web/e2e/setup-and-login.spec.ts::Reduce transparency is applied and saved at once",
 	"appearance.public_dashboard_enabled": "internal/app/public_test.go::TestPublicPageSettings",
 	"appearance.public_status_enabled":    "internal/app/public_test.go::TestPublicPageSettings",
 
@@ -36,7 +36,7 @@ var consumerTests = map[string]string{
 	"monitoring.degraded_ms":      "internal/monitor/service_test.go::TestMonitoringSettingsApply",
 	"monitoring.retention_days":   "internal/monitor/service_test.go::TestMonitoringSettingsApply",
 
-	"dashboard.default_sort":         "web/e2e/setup-and-login.spec.ts::the public page starts sorted by name",
+	"dashboard.default_sort":         "web/e2e/setup-and-login.spec.ts::the dashboard starts sorted by name",
 	"dashboard.new_services_visible": "web/e2e/setup-and-login.spec.ts::new services start hidden from it",
 
 	"firewall_defaults.netbird_mode": "web/e2e/setup-and-login.spec.ts::name: 'Peer only'",

@@ -1711,7 +1711,10 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** The rewrites agent DNS wants right now; changes nothing */
+        /**
+         * The rewrites agent DNS wants right now; changes nothing
+         * @description With a body, the names follow those settings instead of the stored ones (a draft, bug 84); nothing is saved.
+         */
         post: operations["previewAgentDNS"];
         delete?: never;
         options?: never;
@@ -8584,7 +8587,11 @@ export interface operations {
             path?: never;
             cookie?: never;
         };
-        requestBody?: never;
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["AgentDNSSettings"];
+            };
+        };
         responses: {
             /** @description Wanted rewrites */
             200: {

@@ -591,6 +591,11 @@ func (s *Service) Names(ctx context.Context) ([]AgentName, error) {
 	if err != nil {
 		return nil, err
 	}
+	return s.NamesWith(ctx, c)
+}
+
+// NamesWith decides the names under settings c instead of the stored ones: the preview of a draft (bug 84).
+func (s *Service) NamesWith(ctx context.Context, c settings.AgentDNS) ([]AgentName, error) {
 	p, err := settings.Get[settings.Pulse](ctx, s.st.R)
 	if err != nil {
 		return nil, err

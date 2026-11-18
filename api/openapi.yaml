@@ -1649,8 +1649,12 @@ paths:
     post:
       operationId: previewAgentDNS
       summary: The rewrites agent DNS wants right now; changes nothing
+      description: With a body, the names follow those settings instead of the stored ones (a draft, bug 84); nothing is saved.
       tags: [settings]
       x-hashi-scopes: [admin.read]
+      requestBody:
+        required: false
+        content: { application/json: { schema: { $ref: "#/components/schemas/AgentDNSSettings" } } }
       responses:
         "200":
           description: Wanted rewrites

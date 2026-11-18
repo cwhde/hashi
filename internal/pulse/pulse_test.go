@@ -172,6 +172,14 @@ func TestAgentDNS(t *testing.T) {
 	if err != nil || len(got) != 1 || got[0].Domain != "media-box.hashi.home.arpa" || got[0].Answer != "10.0.0.5" {
 		t.Fatalf("%+v %v", got, err)
 	}
+	// Bug 84: the preview shows the settings on screen, not the stored ones, and saves nothing.
+	names, err := s.NamesWith(ctx, settings.AgentDNS{Enabled: true, Domain: "lan.example", IPMode: settings.AgentIPSelected})
+	if err != nil || len(names) != 1 || names[0].Domain != "media-box.lan.example" {
+		t.Fatalf("draft preview: %+v %v", names, err)
+	}
+	if got, _ := s.Rewrites(ctx); got[0].Domain != "media-box.hashi.home.arpa" {
+		t.Fatalf("the preview changed the stored settings: %+v", got)
+	}
 }
 
 func TestDeleteRefusedWhileReferenced(t *testing.T) {

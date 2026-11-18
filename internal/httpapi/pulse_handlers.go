@@ -213,8 +213,21 @@ func (s *Server) PutAgentDNSSettings(ctx context.Context, req gen.PutAgentDNSSet
 	return gen.PutAgentDNSSettings200JSONResponse{Enabled: v.Enabled, Domain: v.Domain, IpMode: gen.AgentDNSSettingsIpMode(v.IPMode), RemoveStaleAfterHours: intPtr(v.RemoveStaleAfterHours)}, nil
 }
 
-func (s *Server) PreviewAgentDNS(ctx context.Context, _ gen.PreviewAgentDNSRequestObject) (gen.PreviewAgentDNSResponseObject, error) {
-	names, err := s.Pulse.Names(ctx)
+func (s *Server) PreviewAgentDNS(ctx context.Context, req gen.PreviewAgentDNSRequestObject) (gen.PreviewAgentDNSResponseObject, error) {
+	var names []pulse.AgentName
+	var err error
+	if b := req.Body; b != nil { // the draft on screen (bug 84)
+		v := settings.AgentDNS{Enabled: b.Enabled, Domain: b.Domain, IPMode: string(b.IpMode)}
+		if b.RemoveStaleAfterHours != nil {
+			v.RemoveStaleAfterHours = *b.RemoveStaleAfterHours
+		}
+		if err := v.Validate(); err != nil {
+			return nil, invalid(strings.TrimPrefix(err.Error(), settings.ErrInvalid.Error()+": "))
+		}
+		names, err = s.Pulse.NamesWith(ctx, v)
+	} else {
+		names, err = s.Pulse.Names(ctx)
+	}
 	if err != nil {
 		return nil, err
 	}
