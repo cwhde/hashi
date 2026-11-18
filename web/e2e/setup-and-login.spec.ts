@@ -638,6 +638,9 @@ test('setup with a passkey, then sign in with it', async ({ page, request }) => 
 	await page.goto(`${state.baseURL}/connections`);
 	await page.getByRole('button', { name: 'Actions for e2e-box' }).click();
 	await page.getByRole('menuitem', { name: 'Remove' }).click();
+	// A removal asks first and names what goes (10c §5).
+	await expect(page.getByRole('alertdialog')).toContainText('Remove e2e-box?');
+	await page.getByRole('button', { name: 'Remove agent' }).click();
 	await expect(page.getByRole('button', { name: 'Actions for e2e-box' })).toHaveCount(0);
 
 	// Rule sets (06 §13): a shared set with one rule, attached to a service; the trace shows who decides; a closed fallback

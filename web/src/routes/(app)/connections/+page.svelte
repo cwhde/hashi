@@ -14,6 +14,7 @@
 	import { Button } from '#lib/components/ui/button/index.ts';
 	import { Skeleton } from '#lib/components/ui/skeleton/index.ts';
 	import * as DropdownMenu from '#lib/components/ui/dropdown-menu/index.ts';
+	import * as AlertDialog from '#lib/components/ui/alert-dialog/index.ts';
 	import { ChevronDown, MoreHorizontal, Plus } from '@lucide/svelte';
 	import { api, problemText, type Schemas } from '#lib/api/client.ts';
 	import { withReauth } from '#lib/auth/reauth.ts';
@@ -95,7 +96,11 @@
 	});
 
 	// ---- rows ----
-	type Action = { label: string; run: () => void; danger?: boolean };
+	// A destructive action asks first and names what goes (10b §3, 10c §5).
+	type Confirm = { title: string; body: string; verb: string };
+	type Action = { label: string; run: () => void; danger?: boolean; confirm?: Confirm };
+	let asking = $state<Action | null>(null);
+	const choose = (a: Action) => (a.confirm ? (asking = a) : a.run());
 	type Row = {
 		key: string;
 		name: string;
@@ -153,6 +158,11 @@
 					{
 						label: 'Remove',
 						danger: true,
+						confirm: {
+							title: `Remove ${c.name}?`,
+							body: 'Hashi stops managing this Traefik host. Nothing on the host changes: its services, files and certificates stay.',
+							verb: 'Remove host'
+						},
 						run: () =>
 							act(() =>
 								withReauth(() =>
@@ -212,6 +222,11 @@
 								{
 									label: 'Revoke',
 									danger: true,
+									confirm: {
+										title: `Revoke ${a.name}?`,
+										body: 'Its token stops working, and whatever follows this agent resolves to nothing until it has a new token.',
+										verb: 'Revoke agent'
+									},
 									run: () =>
 										act(() =>
 											withReauth(() =>
@@ -226,6 +241,11 @@
 					{
 						label: 'Remove',
 						danger: true,
+						confirm: {
+							title: `Remove ${a.name}?`,
+							body: 'The agent and its addresses are deleted; this cannot be undone. Hashi refuses while something still uses it.',
+							verb: 'Remove agent'
+						},
 						run: () =>
 							act(() =>
 								withReauth(() =>
@@ -268,6 +288,11 @@
 					{
 						label: 'Remove',
 						danger: true,
+						confirm: {
+							title: `Remove ${c.name}?`,
+							body: 'Hashi forgets this AdGuard instance. Its rewrites stay on the instance.',
+							verb: 'Remove connection'
+						},
 						run: () =>
 							act(() =>
 								withReauth(() =>
@@ -350,7 +375,7 @@
 									</DropdownMenu.Trigger>
 									<DropdownMenu.Content align="end">
 										{#each r.actions as a (a.label)}<DropdownMenu.Item
-												onclick={a.run}
+												onclick={() => choose(a)}
 												variant={a.danger ? 'destructive' : 'default'}>{a.label}</DropdownMenu.Item
 											>{/each}
 									</DropdownMenu.Content>
@@ -373,3 +398,22 @@
 	onsaved={(id) =>
 		act(() => api.POST('/api/adguard/connections/{id}/test', { params: { path: { id } } }))}
 />
+
+<AlertDialog.Root open={!!asking} onOpenChange={(o) => !o && (asking = null)}>
+	<AlertDialog.Content>
+		<AlertDialog.Header>
+			<AlertDialog.Title>{asking?.confirm?.title}</AlertDialog.Title>
+			<AlertDialog.Description>{asking?.confirm?.body}</AlertDialog.Description>
+		</AlertDialog.Header>
+		<AlertDialog.Footer>
+			<AlertDialog.Cancel>Cancel</AlertDialog.Cancel>
+			<AlertDialog.Action
+				onclick={() => {
+					const a = asking;
+					asking = null;
+					a?.run();
+				}}>{asking?.confirm?.verb}</AlertDialog.Action
+			>
+		</AlertDialog.Footer>
+	</AlertDialog.Content>
+</AlertDialog.Root>

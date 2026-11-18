@@ -3,6 +3,7 @@ package app
 import (
 	"context"
 	"net/http"
+	"regexp"
 	"strings"
 	"testing"
 	"time"
@@ -89,7 +90,8 @@ func TestServicesAPI(t *testing.T) {
 	}
 	// The WAF runs in forward auth: Traefik's files carry nothing of it.
 	r = c.mustStatus(c.do(http.MethodGet, "/api/services/"+id+"/effective", nil), 200)
-	if y := r.body["yaml"].(string); strings.Contains(y, "waf") || strings.Contains(y, "/dav") {
+	// A whole word, so a random route ID such as "…pwaf9…" does not count.
+	if y := r.body["yaml"].(string); regexp.MustCompile(`\bwaf\b`).MatchString(y) || strings.Contains(y, "/dav") {
 		t.Errorf("WAF in Traefik's files: %s", y)
 	}
 	c.mustStatus(c.do(http.MethodPut, "/api/services/"+id+"/waf", map[string]any{"mode": "enabled"}), 422)
