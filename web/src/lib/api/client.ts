@@ -2,6 +2,7 @@
 import createClient, { type Middleware } from 'openapi-fetch';
 import type { components, paths } from './schema.gen';
 import { signInHref } from '#lib/auth/next.ts';
+import { csrfRetry } from './csrf.ts';
 
 export type Schemas = components['schemas'];
 export type Problem = Schemas['Problem'];
@@ -14,14 +15,16 @@ export function setCSRF(token: string | undefined) {
 	csrfToken = token ?? '';
 }
 
-export const csrfMiddleware: Middleware = {
-	onRequest({ request }) {
-		if (csrfToken && !['GET', 'HEAD', 'OPTIONS'].includes(request.method)) {
-			request.headers.set('X-Hashi-CSRF', csrfToken);
-		}
-		return request;
-	}
-};
+// A sign-in in another tab replaces the session cookie, so the token this page holds is refused; csrfRetry fetches
+// the session again and sends the request once more (bug 98).
+export const csrfMiddleware: Middleware = csrfRetry({
+	token: () => csrfToken,
+	refresh: async () => {
+		const r = await fetch('/api/auth/session', { credentials: 'same-origin' });
+		if (r.ok) setCSRF((await r.json()).csrf_token);
+	},
+	fetch: (r) => fetch(r)
+});
 // A session can end at any time (idle, IP change, revoked, its passkey deleted). Admin pages then go to sign-in
 // instead of showing a dead error; pages that work without a session handle 401 themselves.
 const publicPaths = ['/login', '/setup'];

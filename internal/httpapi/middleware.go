@@ -137,7 +137,7 @@ func (s *Server) requireScopes(f gen.StrictHandlerFunc, op string) gen.StrictHan
 		}
 		if unsafeMethod(r.Method) && !s.Sessions.CheckCSRF(sess, r.Header.Get(headerCSRF)) {
 			s.deny(ctx, ri, op, "csrf")
-			return nil, forbidden("Missing or wrong " + headerCSRF + " header; reload the page.")
+			return nil, csrfRefused()
 		}
 		scopes := make([]auth.Scope, len(req.Scopes))
 		for i, sc := range req.Scopes {
