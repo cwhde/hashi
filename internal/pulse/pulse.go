@@ -438,7 +438,9 @@ func (s *Service) SetMainAddress(ctx context.Context, id, addr string) (db.Pulse
 	}
 	selected := selectIP(cands, addr, "", row.SelectedIp)
 	if addr == "" {
-		selected = row.SelectedIp // the agent chooses again at its next beat
+		// The agent chooses again now, without keeping what the pin left behind; an agent set to one interface
+		// moves there at its next beat.
+		selected = selectIP(cands, "", "", "")
 	}
 	if err := s.st.Q.SetPulsePinned(ctx, db.SetPulsePinnedParams{PinnedIp: addr, SelectedIp: selected, UpdatedAt: s.now().UnixMilli(), ID: id}); err != nil {
 		return db.PulseAgent{}, err

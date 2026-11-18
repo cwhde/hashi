@@ -614,4 +614,16 @@ func TestMainAddressPinned(t *testing.T) {
 	if r, err := s.SetMainAddress(ctx, a.ID, ""); err != nil || r.PinnedIp != "" {
 		t.Fatalf("unpin: %+v %v", r, err)
 	}
+	// Giving the choice back undoes the pin while the pinned address is still reported (seen on prod, 13.3 gate):
+	// the agent's own choice, not the address the pin left behind.
+	beat(both...)
+	if _, err := s.SetMainAddress(ctx, a.ID, "100.64.0.2"); err != nil {
+		t.Fatal(err)
+	}
+	if r, err := s.SetMainAddress(ctx, a.ID, ""); err != nil || r.SelectedIp != "10.0.0.5" {
+		t.Fatalf("unpin kept the old pin: %+v %v", r.SelectedIp, err)
+	}
+	if r := beat(both...); r.SelectedIp != "10.0.0.5" {
+		t.Fatalf("after the next beat: %q", r.SelectedIp)
+	}
 }
