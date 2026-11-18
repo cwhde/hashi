@@ -1036,6 +1036,10 @@ Decisions made in S0:
 
 ## Log
 
+- 2026-11-18 · deploy `v0.13.3-beta.1` (`7c0c4b3`, the owner's OK) · smoke ok (readyz, version, SPA, both public
+  pages); migration 00027 ran (readyz ok). Release run 1234 green; main CI run 1233 for the version bump cancelled (its
+  tree passed CI in #70). On prod, `/connections` signed out redirects to `/login?next=%2Fconnections` (bug 97).
+  13.3's gate still needs the owner's passkey for the signed-in checks.
 - 2026-11-17 · deploy `v0.13.2-beta.1` (`7f80d9b`, the owner's OK) · smoke ok (readyz, version, SPA, both public
   pages). Release run 1230 green (image, pulse-release); the main CI run for the one-line version bump was cancelled
   (its tree passed CI in #69).
