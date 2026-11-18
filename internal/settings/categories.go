@@ -390,6 +390,14 @@ func (g General) Validate() error {
 	return g.validateCommon()
 }
 
+// ValidateNew refuses public trusted proxies on save (bug 48); see Security.ValidateNew for why reads don't.
+func (g General) ValidateNew() error {
+	if _, err := clientip.ParsePrivatePrefixes(g.TrustedProxies); err != nil {
+		return invalid("trusted proxies: %v", err)
+	}
+	return nil
+}
+
 func (g General) validateCommon() error {
 	if g.SyncIntervalSeconds < minSyncInterval || g.SyncIntervalSeconds > maxSyncInterval {
 		return invalid("sync interval must be between 1 minute and 24 hours")
@@ -412,6 +420,15 @@ func (s Security) Validate() error {
 		return invalid("bootstrap needs at least one allowed network")
 	}
 	if _, err := clientip.ParsePrefixes(s.BootstrapAllowedCIDRs); err != nil {
+		return invalid("bootstrap networks: %v", err)
+	}
+	return nil
+}
+
+// ValidateNew refuses public bootstrap networks on save (bug 49). A stored public range still loads, so an old value
+// never stops Hashi from starting; the next save has to fix it.
+func (s Security) ValidateNew() error {
+	if _, err := clientip.ParsePrivatePrefixes(s.BootstrapAllowedCIDRs); err != nil {
 		return invalid("bootstrap networks: %v", err)
 	}
 	return nil

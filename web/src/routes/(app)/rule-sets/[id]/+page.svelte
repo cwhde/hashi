@@ -12,6 +12,8 @@
 	import * as Sheet from '#lib/components/ui/sheet/index.ts';
 	import * as Select from '#lib/components/ui/select/index.ts';
 	import { ChevronLeft, CircleAlert, Layers, Lock, Plus, TriangleAlert } from '@lucide/svelte';
+	import { withReauth } from '#lib/auth/reauth.ts';
+	import ConfirmDelete from '#lib/components/hashi/ConfirmDelete.svelte';
 	import { api, problemText } from '#lib/api/client.ts';
 	import { pendingPlans } from '#lib/sync-pending.svelte.ts';
 	import { listSets, type IPSet } from '#lib/ipsets.ts';
@@ -33,6 +35,7 @@
 	let providers = $state<Provider[]>([]);
 	let others = $state<RuleSet[]>([]);
 	let error = $state('');
+	let confirming = $state(false);
 	let editing = $state<{ rule: RuleEntry; index: number } | null>(null);
 	let attach = $state(false);
 	let attachId = $state('');
@@ -84,9 +87,10 @@
 		void save();
 	}
 	async function remove() {
-		const r = await api.DELETE('/api/rule-sets/{id}', { params: { path: { id } } });
-		if (r.error) {
-			error = problemText(r.error);
+		try {
+			await withReauth(() => api.DELETE('/api/rule-sets/{id}', { params: { path: { id } } }));
+		} catch (e) {
+			error = problemText(e);
 			return;
 		}
 		await goto('/rule-sets');
@@ -169,7 +173,7 @@
 					size="sm"
 					class="mt-2 -ml-2 text-bad-text"
 					disabled={rs.used_by.length > 0}
-					onclick={remove}>Delete rule set</Button
+					onclick={() => (confirming = true)}>Delete rule set</Button
 				>{/if}
 		</Panel>
 	</div>
@@ -214,3 +218,11 @@
 		</Sheet.Footer>
 	</Sheet.Content>
 </Sheet.Root>
+
+{#if rs}<ConfirmDelete
+		bind:open={confirming}
+		title="Delete {rs.slug}?"
+		body="Its rules are deleted with it; this cannot be undone. Hashi asks for your passkey."
+		verb="Delete rule set"
+		onconfirm={remove}
+	/>{/if}

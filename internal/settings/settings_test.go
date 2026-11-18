@@ -11,7 +11,7 @@ import (
 
 func validGeneral() General {
 	return General{RootDomain: "example.com", AdminDomain: "hashi.example.com", InternalURL: "http://192.0.2.10:3340",
-		SyncIntervalSeconds: 3600, TrustedProxies: []string{"192.0.2.0/24"}}
+		SyncIntervalSeconds: 3600, TrustedProxies: []string{"10.20.0.0/24"}}
 }
 
 func TestGeneralValidate(t *testing.T) {
@@ -43,6 +43,17 @@ func TestGeneralValidate(t *testing.T) {
 		mut(&g)
 		if err := g.Validate(); !errors.Is(err, ErrInvalid) {
 			t.Errorf("%s: got %v", name, err)
+		}
+	}
+	// Public proxies are refused when saved, but a stored one still loads (bug 48).
+	for _, p := range []string{"198.51.100.0/24", "0.0.0.0/0"} {
+		g := validGeneral()
+		g.TrustedProxies = []string{p}
+		if err := g.Validate(); err != nil {
+			t.Errorf("stored %s no longer loads: %v", p, err)
+		}
+		if err := g.ValidateNew(); !errors.Is(err, ErrInvalid) {
+			t.Errorf("saving %s: got %v", p, err)
 		}
 	}
 	g := validGeneral()

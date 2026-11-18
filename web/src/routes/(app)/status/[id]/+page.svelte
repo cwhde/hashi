@@ -14,6 +14,8 @@
 	import * as Select from '#lib/components/ui/select/index.ts';
 	import * as ToggleGroup from '#lib/components/ui/toggle-group/index.ts';
 	import { ChevronLeft } from '@lucide/svelte';
+	import { withReauth } from '#lib/auth/reauth.ts';
+	import ConfirmDelete from '#lib/components/hashi/ConfirmDelete.svelte';
 	import { api, problemText, type Schemas } from '#lib/api/client.ts';
 	import { checkSummary, sourceText, stripHealth, uptimeText } from '#lib/monitor.ts';
 	import { dateTime } from '#lib/format.ts';
@@ -25,6 +27,7 @@
 	let s = $state<Schemas['MonitorEndpointSettings'] | null>(null);
 	let range = $state<'1h' | '24h' | '7d' | '30d'>('24h');
 	let error = $state('');
+	let confirming = $state(false);
 	let notice = $state('');
 	let busy = $state(false);
 
@@ -80,9 +83,14 @@
 		}
 	}
 	async function remove() {
-		const r = await api.DELETE('/api/monitor/endpoints/{id}', { params: { path: { id } } });
-		if (r.error) error = problemText(r.error);
-		else goto('/status');
+		try {
+			await withReauth(() =>
+				api.DELETE('/api/monitor/endpoints/{id}', { params: { path: { id } } })
+			);
+			goto('/status');
+		} catch (e) {
+			error = problemText(e);
+		}
 	}
 	const ms = (v: number | undefined) => (v === undefined ? 'no data' : `${v} ms`);
 	const series = $derived(d?.series ?? []);
@@ -262,8 +270,11 @@
 					</label>
 				</div>
 				<div class="mt-3 flex justify-end gap-2">
-					{#if m.source_type === 'user'}<Button variant="ghost" size="sm" onclick={remove}
-							>Delete</Button
+					{#if m.source_type === 'user'}<Button
+							variant="ghost"
+							size="sm"
+							class="text-bad-text"
+							onclick={() => (confirming = true)}>Delete</Button
 						>{/if}
 					<Button size="sm" disabled={busy} onclick={() => save()}>Save</Button>
 				</div>
@@ -271,3 +282,11 @@
 		</Panel>
 	</div>
 {/if}
+
+{#if d}<ConfirmDelete
+		bind:open={confirming}
+		title="Delete {d.endpoint.name}?"
+		body="The check and all its history are deleted; this cannot be undone. Hashi asks for your passkey."
+		verb="Delete check"
+		onconfirm={remove}
+	/>{/if}

@@ -116,6 +116,7 @@ paths:
       summary: Delete a reusable rule set nothing attaches
       tags: [rule-sets]
       x-hashi-scopes: [security.manage]
+      x-hashi-reauth: true
       parameters:
         - { name: id, in: path, required: true, schema: { type: string } }
       responses:
@@ -1103,6 +1104,7 @@ paths:
       summary: Remove a user monitor; other endpoints follow what they watch
       tags: [monitor]
       x-hashi-scopes: [admin.write]
+      x-hashi-reauth: true
       parameters:
         - { name: id, in: path, required: true, schema: { type: string } }
       responses:
@@ -2583,6 +2585,7 @@ paths:
       summary: Delete a user set that nothing uses (409 lists what still uses it)
       tags: [ip-sets]
       x-hashi-scopes: [security.manage]
+      x-hashi-reauth: true
       parameters:
         - { name: id, in: path, required: true, schema: { type: string } }
       responses:

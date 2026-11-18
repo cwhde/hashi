@@ -120,9 +120,9 @@ func TestForwardAuthRules(t *testing.T) {
 	}
 	c.mustStatus(c.do(http.MethodPut, "/api/services/"+b+"/access", map[string]any{"entries": []map[string]any{}, "fallback": "deny"}), 200)
 
-	// Attached set can't be deleted; a cycle is refused; Pass CAPTCHA without CAPTCHA set up and sign-in without a
-	// provider stay shut.
-	c.mustStatus(c.do(http.MethodDelete, "/api/rule-sets/"+rs, nil), 409)
+	// Deleting needs a passkey (bug 51; an attached set's refusal is TestDeleteAttachedRuleSet); a cycle is refused;
+	// Pass CAPTCHA without CAPTCHA set up and sign-in without a provider stay shut.
+	c.mustStatus(c.do(http.MethodDelete, "/api/rule-sets/"+rs, nil), 403)
 	c.mustStatus(c.do(http.MethodPut, "/api/rule-sets/"+rs+"/entries", map[string]any{"entries": []map[string]any{{"type": "set", "child_id": rs}}}), 400)
 	c.mustStatus(c.do(http.MethodPut, "/api/rule-sets/"+rs+"/entries", map[string]any{"entries": []map[string]any{
 		{"type": "item", "applies_to": set, "action": "pass_captcha", "enabled": true}}}), 200)

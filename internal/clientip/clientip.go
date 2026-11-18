@@ -187,6 +187,37 @@ func ParsePrefixes(in []string) ([]netip.Prefix, error) {
 	return out, nil
 }
 
+// privateSpace is where proxies and bootstrap clients may sit (01 §8, 02 §1.1): RFC 1918, loopback, shared address
+// space (NetBird, CGNAT), link-local, unique local and IPv6 loopback.
+var privateSpace = []netip.Prefix{
+	netip.MustParsePrefix("10.0.0.0/8"), netip.MustParsePrefix("172.16.0.0/12"),
+	netip.MustParsePrefix("192.168.0.0/16"), netip.MustParsePrefix("127.0.0.0/8"),
+	netip.MustParsePrefix("100.64.0.0/10"), netip.MustParsePrefix("169.254.0.0/16"),
+	netip.MustParsePrefix("::1/128"), netip.MustParsePrefix("fc00::/7"), netip.MustParsePrefix("fe80::/10"),
+}
+
+// ParsePrivatePrefixes is ParsePrefixes that refuses any range reaching outside private space (bugs 48, 49): a
+// public or whole-internet entry would let any client claim any address.
+func ParsePrivatePrefixes(in []string) ([]netip.Prefix, error) {
+	out, err := ParsePrefixes(in)
+	if err != nil {
+		return nil, err
+	}
+	for _, p := range out {
+		inside := false
+		for _, s := range privateSpace {
+			if p.Addr().BitLen() == s.Addr().BitLen() && p.Bits() >= s.Bits() && s.Contains(p.Addr()) {
+				inside = true
+				break
+			}
+		}
+		if !inside {
+			return nil, errors.New(p.String() + " is not a private network")
+		}
+	}
+	return out, nil
+}
+
 // InAny reports whether a lies in any prefix.
 func InAny(a netip.Addr, ps []netip.Prefix) bool {
 	for _, p := range ps {

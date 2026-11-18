@@ -1,6 +1,8 @@
 package rules
 
 import (
+	"errors"
+	"strings"
 	"testing"
 	"time"
 
@@ -29,5 +31,30 @@ func TestRulesAreSetConsumers(t *testing.T) {
 	got, err := Consumers(ctx, st.Q, set.ID)
 	if err != nil || len(got) != 1 || got[0].Type != "rule_set" || got[0].ID != "R1" || got[0].Name != "Rule set Staff" || got[0].Position != ipsets.PositionMatch {
 		t.Fatalf("consumers %+v %v", got, err)
+	}
+}
+
+// An attached rule set can't be deleted, and says where it is attached (06 §13). Moved here from the edge flow test,
+// whose delete now stops at the passkey check first (bug 51).
+func TestDeleteAttachedRuleSet(t *testing.T) {
+	ctx := t.Context()
+	st := storetest.New(t)
+	now := time.Unix(1, 0)
+	parent, err := Create(ctx, st.Q, "outer", "Outer", "", now)
+	if err != nil {
+		t.Fatal(err)
+	}
+	child, err := Create(ctx, st.Q, "inner", "Inner", "", now)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := PutEntries(ctx, st.Q, parent, []Entry{{Type: EntrySet, ChildID: child, Enabled: true}}, "", false, now); err != nil {
+		t.Fatal(err)
+	}
+	if err := Delete(ctx, st.Q, child); !errors.Is(err, ErrInUse) || !strings.Contains(err.Error(), "Outer") {
+		t.Fatalf("attached: %v", err)
+	}
+	if err := Delete(ctx, st.Q, parent); err != nil {
+		t.Fatalf("unattached: %v", err)
 	}
 }
