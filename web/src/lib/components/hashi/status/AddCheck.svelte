@@ -12,33 +12,33 @@
 	const types: Record<string, { label: string; hint: string; placeholder: string }> = {
 		https: {
 			label: 'HTTPS',
-			hint: 'Any answer from 200 to 399 passes.',
+			hint: '',
 			placeholder: 'https://app.example.com/'
 		},
 		http: {
 			label: 'HTTP',
-			hint: 'Any answer from 200 to 399 passes.',
+			hint: '',
 			placeholder: 'http://192.0.2.10:8080/'
 		},
 		h2c: {
 			label: 'HTTP/2 without TLS',
-			hint: 'Any answer from 200 to 399 passes.',
+			hint: '',
 			placeholder: 'http://192.0.2.10:8080/'
 		},
 		tcp: {
 			label: 'TCP connect',
-			hint: 'Passes when the port accepts a connection.',
+			hint: '',
 			placeholder: '192.0.2.10:22'
 		},
 		udp: {
 			label: 'UDP',
-			hint: 'Needs a payload and an expected answer: silence never counts as healthy.',
+			hint: '',
 			placeholder: '192.0.2.10:53'
 		},
 		dns: {
 			label: 'DNS',
-			hint: 'Add @server:port to ask a specific server.',
-			placeholder: 'app.example.com'
+			hint: '',
+			placeholder: 'app.example.com or app.example.com@192.0.2.53:53'
 		},
 		tls: {
 			label: 'Certificate expiry',
@@ -102,7 +102,7 @@
 							>{/each}
 					</Select.Content>
 				</Select.Root>
-				<p class="text-xs text-muted-foreground">{types[type]!.hint}</p>
+				{#if types[type]!.hint}<p class="text-xs text-muted-foreground">{types[type]!.hint}</p>{/if}
 			</div>
 			<div class="space-y-1.5">
 				<Label for="ck-target">Target</Label>

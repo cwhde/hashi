@@ -83,7 +83,7 @@
 			{:else}
 				<Table.Row>
 					<Table.Cell colspan={5} class="px-4 py-4 text-md text-muted-foreground"
-						>No agents yet. Add one to a machine whose address can change.</Table.Cell
+						>No agents yet.</Table.Cell
 					>
 				</Table.Row>
 			{/each}

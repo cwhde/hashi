@@ -171,7 +171,7 @@
 	</div>
 	{#if series.length === 0}
 		<p class="mb-4 text-center text-md text-muted-foreground">
-			Charts appear after the first full minute of checks.
+			No chart before the first full minute of checks.
 		</p>
 	{:else}
 		<div class="mb-4 grid gap-4 lg:grid-cols-3">
@@ -202,10 +202,7 @@
 				{/each}
 			</ol>
 		</Panel>
-		<Panel
-			title="Checks and settings"
-			description="{sourceText[m.source_type]}: its checks follow what it watches."
-		>
+		<Panel title="Checks and settings" description={sourceText[m.source_type]}>
 			<ul class="mb-4 space-y-1.5 text-md">
 				{#each m.checks as c (c.id)}
 					<li class="min-w-0 break-words">

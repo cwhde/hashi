@@ -120,7 +120,7 @@
 	}
 </script>
 
-<Panel title="Custom theme" description="Your own colours, previewed before saving.">
+<Panel title="Custom theme">
 	{#snippet actions()}
 		<input
 			bind:this={fileInput}

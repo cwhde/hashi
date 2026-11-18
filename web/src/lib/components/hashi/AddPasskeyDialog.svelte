@@ -216,8 +216,7 @@
 				</label>
 			</fieldset>
 			<p class="text-xs text-muted-foreground">
-				Not every passkey can unlock. Ones kept in a password manager often can’t; a USB security
-				key or your device’s own passkeys usually can. Hashi tells you at the end.
+				Passkeys kept in a password manager often can’t unlock; a USB security key usually can.
 			</p>
 			<Dialog.Footer>
 				<Button variant="ghost" onclick={() => (open = false)}>Cancel</Button>
@@ -281,7 +280,7 @@
 								<p class="text-muted-foreground">Confirmed.</p>
 							{:else if s === 'create' && created}
 								<p class="text-muted-foreground">
-									“{created.name}” created and added to your sign-in passkeys.
+									“{created.name}” created
 								</p>
 							{/if}
 							{#if st === 'current'}

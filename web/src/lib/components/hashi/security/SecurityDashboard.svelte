@@ -177,9 +177,6 @@
 						</li>
 					{/each}
 				</ul>
-				<p class="mt-3 text-sm text-muted-foreground">
-					Many bans compared to solves can mean a background app keeps polling while challenged.
-				</p>
 			</Panel>
 			<Panel title="Kernel meters" description="Addresses banned by a firewall host's meters">
 				<ul class="divide-y text-md">

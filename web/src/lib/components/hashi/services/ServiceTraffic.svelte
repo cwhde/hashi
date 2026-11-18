@@ -149,9 +149,6 @@
 				/>
 			</div>
 		{/if}
-		<p class="mt-3 text-sm text-muted-foreground">
-			<Mono>X-Forwarded-Host</Mono> always carries the public name.
-		</p>
 	</Panel>
 
 	<Panel title="Visitor address" description="Headers that tell the app who is asking">
@@ -182,9 +179,6 @@
 					onCheckedChange={(on) => (traffic.drop_real_ip = !on || undefined)}
 				/>
 			</div>
-			<p class="text-sm text-muted-foreground">
-				Hashi's own checks always see the visitor's address; this only changes what the app gets.
-			</p>
 		</div>
 	</Panel>
 
@@ -230,16 +224,15 @@
 		{#if names.length || middlewares.length}
 			<MiddlewarePicker {names} bind:selected={middlewares} label="Extra middlewares" {disabled} />
 		{:else}
-			<p class="text-md text-muted-foreground">
-				None written yet. Write them on the <a
-					class="underline underline-offset-2"
-					href="/traefik?tab=middlewares">Traefik page</a
-				>.
-			</p>
+			<div class="flex items-center gap-3 text-md text-muted-foreground">
+				None written yet.<Button size="sm" variant="outline" href="/traefik?tab=middlewares"
+					>Write one</Button
+				>
+			</div>
 		{/if}
 		{#if every.length}
 			<p class="mt-3 text-sm text-muted-foreground">
-				On every service already: {#each every as n, i (n)}{i ? ', ' : ''}<Mono>{n}</Mono>{/each}.
+				On every service already: {#each every as n, i (n)}{i ? ', ' : ''}<Mono>{n}</Mono>{/each}
 			</p>
 		{/if}
 	</Panel>

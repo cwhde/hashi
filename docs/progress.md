@@ -69,12 +69,16 @@ PR A (36, 38, 39, 46, 48, 49, 51, 65, 84, 98):
 - [x] e2e follows the moves; make check, integration (httpapi), e2e
 
 PR B (61, 62, 78, 93, 94):
-- [ ] A help-text counter in `make check` (report only) with the baseline
-- [ ] Every page through the 10c §7 checklist: descriptions cut by the deletion test, no eyebrows, More options
-      sections and conditional fields; below 40 help sentences app-wide
-- [ ] 61 leftover promises gone; the rule editor offers Pass CAPTCHA
-- [ ] 62 stream services show `20-hashi-stream-services.yml`; 78 an Off service's rendered config says it isn't deployed
-- [ ] make check, integration, e2e
+- [x] A help-text counter in `make check` (report only, `make help-text` lists every sentence): baseline 257
+      sentences in 58 files, now 36 in 25
+- [x] Every page through the 10c §7 checklist: descriptions cut by the deletion test, concepts behind one help icon
+      (rule order, counters, vault modes, challenge, WAF modes, overlapping addresses, your middlewares), More options in
+      Add service and the service's Routing tab, conditional certificate fields in the AdGuard sheet, name rules shown
+      only when broken, empty-state links as buttons; services keep at most 5 tabs (Access and WAF only for HTTP)
+- [x] 61 leftover promises gone (setup slices, Add service, Monitoring tab now the summary's Checks); the rule
+      editor offers Pass CAPTCHA
+- [x] 62 stream services show `20-hashi-stream-services.yml`; 78 an Off service's rendered config says it isn't deployed
+- [x] make check, integration, e2e
 
 ### 13.3 checklist (two PRs: A fixes and agent targets, B Connections)
 

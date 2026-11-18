@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import Panel from '#lib/components/hashi/Panel.svelte';
-	import Mono from '#lib/components/hashi/Mono.svelte';
+	import HelpTip from '#lib/components/hashi/HelpTip.svelte';
 	import { Button } from '#lib/components/ui/button/index.ts';
 	import { Input } from '#lib/components/ui/input/index.ts';
 	import { Label } from '#lib/components/ui/label/index.ts';
@@ -90,8 +90,16 @@
 </script>
 
 {#if form && info}
-	<div class="grid gap-4 lg:grid-cols-2">
+	<div class="grid max-w-3xl gap-4">
 		<Panel title="Cap challenge" description="Cap runs next to Hashi">
+			{#snippet help()}<HelpTip topic="the challenge"
+					><p>
+						Too many requests from one address send its browser to the challenge page; ignoring it
+						leads to a ban.
+					</p>
+					<p>Solving ends the challenge but leaves the counters alone.</p>
+					<p>Signed-in users and addresses in the firewall allow list never see it.</p></HelpTip
+				>{/snippet}
 			<div class="space-y-3">
 				<label class="flex items-center gap-2 text-md"
 					><Switch bind:checked={form.enabled} />Challenge visitors with a CAPTCHA</label
@@ -99,9 +107,6 @@
 				<div class="space-y-1.5">
 					<Label for="cc-domain">Challenge page</Label>
 					<Input id="cc-domain" bind:value={form.challenge_domain} class="h-10" />
-					<p class="text-sm text-muted-foreground">
-						Hashi's own service: only the check itself is reachable there.
-					</p>
 				</div>
 				<div class="space-y-1.5">
 					<Label for="cc-dash">Cap dashboard service</Label>
@@ -114,9 +119,6 @@
 								>{/each}
 						</Select.Content>
 					</Select.Root>
-					<p class="text-sm text-muted-foreground">
-						A service of yours for Cap's dashboard; a CAPTCHA is never asked there.
-					</p>
 				</div>
 				<div class="space-y-1.5">
 					<Label for="cc-key">Site key</Label>
@@ -167,18 +169,6 @@
 					><Button size="sm" disabled={busy} onclick={save}>Save</Button>
 				</div>
 			</div>
-		</Panel>
-		<Panel title="How the challenge works">
-			<p class="text-md">
-				Too many requests from one address send its browser to <Mono
-					>{form.challenge_domain || '…'}</Mono
-				>. Solving ends the challenge but leaves the counters alone; ignoring it leads to a ban.
-				Signed-in users and addresses in the firewall allow list never see it.
-			</p>
-			<p class="mt-3 text-sm text-muted-foreground">
-				A rule's "Pass CAPTCHA" uses the same page and lets the visitor through that service for a
-				day.
-			</p>
 		</Panel>
 	</div>
 {:else if error}

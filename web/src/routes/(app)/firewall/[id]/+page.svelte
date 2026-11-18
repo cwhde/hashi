@@ -241,10 +241,7 @@
 				{#if host.edge_mode === 'managed'}{#key host.id}<HostSettings {host} {busy} {save} />{/key}
 				{:else}{#key host.id}<ExternalAddress {host} {busy} {save} />{/key}{/if}
 			</Panel>
-			<Panel
-				title="Public entry"
-				description="Where traffic for services on {name} enters. Changes one DNS record."
-			>
+			<Panel title="Public entry">
 				<Label for="entry">Enters through</Label>
 				<select
 					id="entry"
@@ -269,11 +266,7 @@
 			</Panel>
 		</Tabs.Content>
 		<Tabs.Content value="ports">
-			<Panel
-				flush
-				title="Public ports"
-				description="From services. Opening or closing one is a high-risk change."
-			>
+			<Panel flush title="Public ports" description="From services">
 				<ul class="divide-y text-md">
 					{#each rendered?.ports ?? [] as p (p)}
 						<li class="flex items-center gap-3 px-4 py-2.5">
@@ -292,7 +285,7 @@
 		<Tabs.Content value="access">
 			<Panel
 				title="Who may reach this host itself"
-				description="SSH and the Proxmox UI on the host. Loopback, its own subnets and NetBird always can."
+				description="Loopback, its own subnets and NetBird always can."
 			>
 				<ul class="space-y-2 text-md" aria-label="Host access">
 					{#each access as s (s)}
@@ -324,11 +317,7 @@
 			</Panel>
 		</Tabs.Content>
 		<Tabs.Content value="rules">
-			<Panel
-				flush
-				title="Observed ruleset"
-				description="Every table on the host, read just now. The rest is left alone."
-			>
+			<Panel flush title="Observed ruleset" description="Every table, read just now">
 				{#snippet actions()}<Button
 						size="sm"
 						variant="outline"
@@ -341,21 +330,14 @@
 			</Panel>
 		</Tabs.Content>
 		<Tabs.Content value="generated">
-			<Panel
-				flush
-				title="Hashi's table"
-				description="What the next apply loads, as one transaction. Read-only."
-			>
+			<Panel flush title="Hashi's table" description="Loaded by the next apply">
 				<pre
 					class="max-h-[70vh] overflow-auto p-4 font-mono text-sm leading-relaxed text-muted-foreground">{rendered?.table ??
 						'Validate the host first.'}</pre>
 			</Panel>
 		</Tabs.Content>
 		<Tabs.Content value="script">
-			<Panel
-				title="Old firewall script"
-				description="What the next plan removes, listed exactly. Rules of NetBird, Docker and Proxmox are refused. If the apply is not confirmed, everything comes back."
-			>
+			<Panel title="Old firewall script" description="Removed by the next plan">
 				<div class="grid gap-3 md:grid-cols-2">
 					{#each [{ k: 'chains', l: 'Its chains' }, { k: 'ipsets', l: 'Its ipsets' }, { k: 'rules', l: 'Its rules in built-in chains ("filter -A FORWARD …")' }, { k: 'cron_match', l: 'Cron lines containing' }, { k: 'cron_files', l: 'Files the crontab is installed from' }] as f (f.k)}
 						{@const key = f.k as keyof typeof tk}

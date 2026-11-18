@@ -92,9 +92,6 @@
 				bind:value={form.value}
 				placeholder={form.type === 'ip' ? '198.51.100.7' : '192.0.2.0/24'}
 			/>
-			{#if form.type === 'cidr'}<p class="text-sm text-muted-foreground">
-					Host bits are cleared on save; a /32 or /128 is saved as an IP.
-				</p>{/if}
 		</div>
 	{:else if form.type === 'pulse'}
 		<div class="grid gap-3 sm:grid-cols-2">
@@ -128,9 +125,6 @@
 				<Input id="item-selector" bind:value={form.selector} placeholder="eth0 or 10.0.0.0/24" />
 			</div>
 		{/if}
-		<p class="text-sm text-muted-foreground">
-			Follows the agent: when its address changes, every place using this set updates.
-		</p>
 	{:else if form.type === 'host'}
 		<div class="grid gap-3 sm:grid-cols-2">
 			<div class="space-y-1.5">
@@ -155,9 +149,6 @@
 				</Select.Root>
 			</div>
 		</div>
-		<p class="text-sm text-muted-foreground">
-			Follows the host: when its address changes, every place using this set updates.
-		</p>
 	{:else if form.type === 'geo'}
 		<div class="grid gap-3 sm:grid-cols-[10rem_1fr]">
 			<div class="space-y-1.5">
@@ -190,9 +181,7 @@
 				bind:value={form.value}
 				placeholder="vpn.example.org"
 			/>
-			<p class="text-sm text-muted-foreground">
-				Resolved by Hashi and looked up again every 5 minutes.
-			</p>
+			<p class="text-sm text-muted-foreground">Looked up every 5 minutes</p>
 		</div>
 	{:else}
 		<div class="space-y-1.5">
@@ -203,9 +192,6 @@
 				addressOnly={usedAsTarget}
 				exclude={[self]}
 			/>
-			<p class="text-sm text-muted-foreground">
-				Everything in that set counts as part of this one. Loops are refused when you save.
-			</p>
 		</div>
 	{/if}
 
@@ -214,15 +200,7 @@
 			<Label for="nt">Note</Label><Input id="nt" bind:value={form.note} placeholder="Optional" />
 		</div>
 		<div class="space-y-1.5">
-			<Label for="ex">Expires</Label><Input
-				id="ex"
-				type="date"
-				bind:value={form.expires}
-				aria-describedby="exh"
-			/>
+			<Label for="ex">Expires</Label><Input id="ex" type="date" bind:value={form.expires} />
 		</div>
 	</div>
-	<p id="exh" class="-mt-2 text-sm text-muted-foreground">
-		An expired item drops out at the next update and is recorded in Activity.
-	</p>
 </div>

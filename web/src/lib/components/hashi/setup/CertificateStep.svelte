@@ -31,7 +31,7 @@
 			hint: 'Needs an External Account Binding key from Google Cloud.'
 		},
 		{ id: 'letsencrypt', name: "Let's Encrypt", hint: 'No key needed.' },
-		{ id: 'custom', name: 'Other ACME CA', hint: 'Any ACME directory URL.' }
+		{ id: 'custom', name: 'Other ACME CA', hint: '' }
 	] as const;
 
 	// Starting values only: the form keeps what the admin types while setup reloads.
@@ -121,9 +121,7 @@
 
 <h1 class="mt-1 text-title font-semibold">Certificates</h1>
 <p class="mt-1 max-w-[62ch] text-md text-muted-foreground">
-	Hashi requests one certificate for <Mono>{root}</Mono> and <Mono>*.{root}</Mono> and proves it owns
-	the domain with a temporary DNS record in your zone. Your Traefik hosts get the files from Hashi; they
-	never talk to the certificate authority.
+	One certificate for <Mono>{root}</Mono> and <Mono>*.{root}</Mono>.
 </p>
 
 <section class="mt-6 rounded-3xl border bg-card p-6">
@@ -183,7 +181,6 @@
 					placeholder="you@example.com"
 					class="h-10"
 				/>
-				<p class="text-xs text-muted-foreground">The CA writes here about expiring certificates.</p>
 			</div>
 			<div></div>
 			{#if form.directory !== 'letsencrypt'}
@@ -207,10 +204,6 @@
 						class="h-10 font-mono"
 					/>
 				</div>
-				<p class="text-sm text-muted-foreground md:col-span-2">
-					The key pair links Hashi's account to yours at the CA. It is stored encrypted and never
-					shown again.
-				</p>
 			{/if}
 			<details class="md:col-span-2">
 				<summary class="cursor-pointer text-md font-medium">DNS check</summary>
@@ -222,9 +215,6 @@
 							placeholder="Your zone's own name servers"
 							class="h-10 font-mono"
 						/>
-						<p class="text-xs text-muted-foreground">
-							Hashi waits until the temporary record shows up here before asking the CA.
-						</p>
 					</div>
 					<div class="space-y-1.5">
 						<Label for="cdelay">Extra wait (s)</Label><Input
@@ -257,10 +247,7 @@
 {#if provider?.account_registered}
 	<section class="mt-8">
 		<h2 class="text-lg font-semibold">First certificate</h2>
-		<p class="mt-1 mb-3 max-w-[70ch] text-md text-muted-foreground">
-			Issuing now takes about a minute. Otherwise Hashi issues it within the hour on its own. It
-			goes to your Traefik host once that host is connected.
-		</p>
+		<p class="mt-1 mb-3 max-w-[70ch] text-md text-muted-foreground">Takes about a minute.</p>
 		{#if plan}
 			<PlanReview
 				title={plan.title}

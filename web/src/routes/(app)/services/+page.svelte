@@ -1,5 +1,6 @@
 <script lang="ts">
 	import ServiceExtras from '#lib/components/hashi/services/ServiceExtras.svelte';
+	import MoreOptions from '#lib/components/hashi/MoreOptions.svelte';
 	import { onMount } from 'svelte';
 	import { goto } from '$app/navigation';
 	import PageHeader from '#lib/components/hashi/PageHeader.svelte';
@@ -110,6 +111,16 @@
 		adguard: true
 	});
 	let formError = $state('');
+	// 10c §3.3: the create form asks for what's needed; the rest waits under More options, which counts changes.
+	let dashboardDefault = $state(true);
+	const extrasChanged = $derived(
+		[
+			form.slugTouched && form.slug !== slugify(form.name),
+			form.dashboard !== dashboardDefault,
+			!form.monitoring,
+			!form.adguard
+		].filter(Boolean).length
+	);
 	const host = $derived(
 		isStream(form.kind) && !(form.custom ? form.full : form.sub).trim()
 			? ''
@@ -140,7 +151,7 @@
 		addOpen = true;
 		// New services follow the Dashboard settings unless the admin changes the switch (09 §2).
 		void api.GET('/api/settings/dashboard').then((r) => {
-			if (r.data) form.dashboard = r.data.new_services_visible;
+			if (r.data) form.dashboard = dashboardDefault = r.data.new_services_visible;
 		});
 	}
 
@@ -179,10 +190,7 @@
 
 <svelte:head><title>Services · Hashi</title></svelte:head>
 
-<PageHeader
-	title="Services"
-	description="What Hashi publishes. Every enabled service is served by every Traefik host with Hashi's certificate."
->
+<PageHeader title="Services">
 	{#snippet actions()}
 		<Button onclick={openAdd} disabled={!loaded}><Plus />Add service</Button>
 	{/snippet}
@@ -231,9 +239,7 @@
 			<span class="ml-auto text-sm text-muted-foreground">{rows.length} of {list.length}</span>
 		</div>
 		{#if list.length === 0}
-			<p class="px-4 py-10 text-center text-md text-muted-foreground">
-				No services yet. Add the first one; Hashi publishes it on every Traefik host.
-			</p>
+			<p class="px-4 py-10 text-center text-md text-muted-foreground">No services yet.</p>
 		{:else if rows.length === 0}
 			<p class="p-4 text-md text-muted-foreground">No service matches the filter.</p>
 		{:else}
@@ -323,26 +329,14 @@
 			class="space-y-5 overflow-y-auto px-4 pb-4"
 			onsubmit={(e) => (e.preventDefault(), add())}
 		>
-			<div class="grid gap-4 sm:grid-cols-2">
-				<div class="space-y-1.5">
-					<Label for="sn">Name</Label>
-					<Input
-						id="sn"
-						bind:value={form.name}
-						oninput={() => !form.slugTouched && (form.slug = slugify(form.name))}
-						required
-					/>
-				</div>
-				<div class="space-y-1.5">
-					<Label for="ss">Short name</Label>
-					<Input
-						id="ss"
-						bind:value={form.slug}
-						oninput={() => (form.slugTouched = true)}
-						class="font-mono"
-						required
-					/>
-				</div>
+			<div class="space-y-1.5">
+				<Label for="sn">Name</Label>
+				<Input
+					id="sn"
+					bind:value={form.name}
+					oninput={() => !form.slugTouched && (form.slug = slugify(form.name))}
+					required
+				/>
 			</div>
 			<div class="space-y-1.5">
 				<div class="flex items-center justify-between gap-3">
@@ -371,10 +365,6 @@
 						/><span class="text-md text-muted-foreground">.{root}</span>
 					</div>
 				{/if}
-				<p class="text-sm text-muted-foreground">
-					Names a level deeper (like <Mono>dev.hashi.{root}</Mono>) get their own wildcard
-					certificate automatically.
-				</p>
 			</div>
 			<fieldset class="space-y-2">
 				<legend class="mb-1.5 text-md font-medium">Upstream</legend>
@@ -401,7 +391,17 @@
 				bind:proxy={form.proxy}
 				bind:entryHost={form.entryHost}
 			/>
-			<div class="space-y-3 rounded-xl border p-3">
+			<MoreOptions changed={extrasChanged}>
+				<div class="space-y-1.5">
+					<Label for="ss">Short name</Label>
+					<Input
+						id="ss"
+						bind:value={form.slug}
+						oninput={() => (form.slugTouched = true)}
+						class="font-mono"
+						required
+					/>
+				</div>
 				<div class="flex items-center justify-between gap-3">
 					<Label for="f1">Show on the app dashboard</Label><Switch
 						id="f1"
@@ -417,11 +417,7 @@
 						bind:checked={form.adguard}
 					/>
 				</div>
-				<p class="text-sm text-muted-foreground">
-					Access rules arrive later; until then Hashi's forward auth runs in front of every service
-					and lets requests through.
-				</p>
-			</div>
+			</MoreOptions>
 			{#if formError}<p role="alert" class="text-md text-bad-text">{formError}</p>{/if}
 		</form>
 		<Sheet.Footer class="flex-row justify-end gap-2 border-t">

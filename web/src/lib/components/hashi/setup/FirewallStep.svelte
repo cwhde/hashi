@@ -113,10 +113,6 @@
 </script>
 
 <h1 class="mt-1 text-title font-semibold">Connect a firewall host</h1>
-<p class="mt-1 max-w-[62ch] text-md text-muted-foreground">
-	The machine with a public address that forwards traffic to Traefik. Hashi keeps its rules in one
-	table of its own; NetBird, Proxmox and Docker rules stay untouched.
-</p>
 
 {#if !host}
 	<div class="mt-5">
@@ -190,8 +186,7 @@
 		<section class="mt-8">
 			<h2 class="text-lg font-semibold">First apply</h2>
 			<p class="mt-1 mb-3 max-w-[70ch] text-md text-muted-foreground">
-				Optional here. If Hashi cannot log in again over a new connection within 3 minutes, the host
-				goes back to how it was.
+				Optional here, and rolls back by itself if Hashi can't log in again within 3 minutes.
 			</p>
 			{#if plan}
 				<PlanReview

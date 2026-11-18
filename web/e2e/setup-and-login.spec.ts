@@ -394,6 +394,8 @@ test('setup with a passkey, then sign in with it', async ({ page, request }) => 
 	await page.getByRole('button', { name: 'Turn off' }).click();
 	await expect(page.getByRole('status')).toContainText('applied on 1 Traefik host');
 	await expect(page.getByText('Off', { exact: true })).toBeVisible();
+	// Bug 78: the rendered config of an Off service says it isn't on any host.
+	await expect(page.getByText('Off: not on any Traefik host')).toBeVisible();
 	// Deleting asks for the passkey (reauth), then the service is gone.
 	await page.getByRole('button', { name: 'Delete' }).click();
 	await page.getByRole('button', { name: 'Delete service' }).click();
@@ -586,13 +588,13 @@ test('setup with a passkey, then sign in with it', async ({ page, request }) => 
 	await expect(page.getByText('A new one starts read-only')).toBeVisible();
 	await page.getByRole('button', { name: 'Add connection' }).click();
 	await page.getByRole('menuitem', { name: 'AdGuard Home' }).click();
-	await expect(page.getByLabel('Expected hostname')).toBeVisible();
+	await expect(page.getByLabel('Name on its certificate')).toBeVisible();
 	// Bug 90: over HTTP there is no certificate to check (a Pulse agent target only allows HTTPS).
 	await page.getByLabel('Reached through').click();
 	await page.getByRole('option', { name: 'Address set' }).click();
 	await page.locator('#ag-scheme').click();
 	await page.getByRole('option', { name: 'HTTP', exact: true }).click();
-	await expect(page.getByLabel('Expected hostname')).toHaveCount(0);
+	await expect(page.getByLabel('Name on its certificate')).toHaveCount(0);
 	await expect(page.locator('#ag-port')).toHaveValue('80');
 	await page.getByRole('button', { name: 'Cancel' }).click();
 
@@ -654,6 +656,8 @@ test('setup with a passkey, then sign in with it', async ({ page, request }) => 
 	await page.getByRole('combobox', { name: 'Path match' }).click();
 	await page.getByRole('option', { name: 'prefix' }).click();
 	await page.locator('#pp').fill('/admin');
+	// Bug 61: the editor offers every action the edge engine runs, Pass CAPTCHA included.
+	await expect(page.getByRole('radio', { name: /Pass CAPTCHA/ })).toBeVisible();
 	await page.getByRole('radio', { name: /Deny/ }).click();
 	await page.getByRole('button', { name: 'Save rule' }).click();
 	await expect(page.getByText('/admin')).toBeVisible();
@@ -739,6 +743,9 @@ test('setup with a passkey, then sign in with it', async ({ page, request }) => 
 	// Traffic options (04 §1.1a) on the service: a Host name of its own, no X-Real-IP, an extra header, a timeout and
 	// one middleware; the rendered config shows them.
 	await page.goto(guardedURL);
+	// Bug 61: the summary lists the checks Status runs for the service instead of a Monitoring tab.
+	await expect(page.getByRole('tab', { name: 'Monitoring' })).toHaveCount(0);
+	await expect(page.getByText('Checks', { exact: true })).toBeVisible();
 	await page.getByRole('tab', { name: 'Traffic' }).click();
 	await page.getByRole('radio', { name: /A name you choose/ }).click();
 	await page.getByLabel('Name sent to the app').fill('guarded.internal.example');
@@ -755,7 +762,7 @@ test('setup with a passkey, then sign in with it', async ({ page, request }) => 
 	await expect(page.getByRole('status').first()).toContainText('Saved');
 	await page.setViewportSize({ width: 390, height: 844 });
 	await page.screenshot({ path: 'test-results/bug25-traffic-phone.png', fullPage: true });
-	// The six tabs scroll in their own row; the page itself never scrolls sideways.
+	// The tabs scroll in their own row; the page itself never scrolls sideways.
 	expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);
 	await page.setViewportSize({ width: 1280, height: 800 });
 	await page.getByRole('tab', { name: 'Rendered config' }).click();
@@ -797,6 +804,11 @@ test('setup with a passkey, then sign in with it', async ({ page, request }) => 
 	await page.goto(`${state.baseURL}/security`);
 	await page.getByRole('tab', { name: 'Counters' }).click();
 	await expect(page.getByRole('row', { name: /198\.51\.100\.77/ })).toContainText('banned');
+	// Bug 93: a concept is explained behind its help icon, not in a paragraph on the page (10c §4.7).
+	await expect(page.getByText('Solving a CAPTCHA resets neither.')).toHaveCount(0);
+	await page.getByRole('button', { name: 'About counters' }).click();
+	await expect(page.getByText('Solving a CAPTCHA resets neither.')).toBeVisible();
+	await page.keyboard.press('Escape');
 	await page.getByRole('button', { name: 'Actions for 198.51.100.77' }).click();
 	await page.getByRole('menuitem', { name: 'Unban' }).click();
 	await expect(page.getByRole('row', { name: /198\.51\.100\.77/ })).not.toContainText('banned');
@@ -958,6 +970,9 @@ test('setup with a passkey, then sign in with it', async ({ page, request }) => 
 	});
 	await page.goto(`${state.baseURL}/services`);
 	await page.getByRole('button', { name: 'Add service' }).click();
+	// The switch differs from no default here, so More options stays plain (10c §3.1).
+	await expect(page.getByRole('button', { name: 'More options', exact: true })).toBeVisible();
+	await page.getByRole('button', { name: 'More options' }).click();
 	await expect(page.getByRole('switch', { name: 'Show on the app dashboard' })).not.toBeChecked();
 	await page.keyboard.press('Escape');
 	// Monitoring defaults and the firewall's MSS switch save (their effect is tested in Go).

@@ -176,10 +176,7 @@
 {#if error}<p role="alert" class="mb-3 text-md text-bad-text">{error}</p>{/if}
 {#if notice}<p role="status" class="mb-3 text-md text-ok-text">{notice}</p>{/if}
 <div class="grid gap-4 lg:grid-cols-2">
-	<Panel
-		title="Where alerts go"
-		description="The default route. An endpoint's settings can send it elsewhere."
-	>
+	<Panel title="Where alerts go">
 		<div class="space-y-3 text-md">
 			<div class="space-y-1.5">
 				<Label for="route-provider">Send to</Label>

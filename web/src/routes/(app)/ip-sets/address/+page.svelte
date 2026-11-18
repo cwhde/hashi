@@ -114,20 +114,16 @@
 	/>
 </form>
 
-{#if !address}
-	<p class="text-md text-muted-foreground">
-		Type an address to see every set that contains it, and through what.
-	</p>
-{:else if loadError}
+{#if address && loadError}
 	<p
 		role="alert"
 		class="flex gap-2 rounded-2xl border border-bad/30 bg-bad/10 p-4 text-md text-bad-text"
 	>
 		<CircleAlert class="mt-0.5 size-4 shrink-0" />{loadError}
 	</p>
-{:else if !lookup}
+{:else if address && !lookup}
 	<Skeleton class="h-60 rounded-2xl" />
-{:else}
+{:else if address && lookup}
 	<div class="mb-5 flex flex-wrap items-end gap-x-6 gap-y-3">
 		<div class="min-w-64 flex-1">
 			<h1 class="font-mono text-title leading-tight font-medium tracking-[-0.02em]">
@@ -165,7 +161,7 @@
 				</ul>
 			{:else}
 				<p class="text-md text-muted-foreground">
-					Only in <span class="font-medium text-foreground">all</span>. No set of yours contains it.
+					No set of yours contains it, only <span class="font-medium text-foreground">all</span>.
 				</p>
 			{/if}
 		</Panel>

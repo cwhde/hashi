@@ -137,10 +137,7 @@
 </script>
 
 <svelte:head><title>Activity · Hashi</title></svelte:head>
-<PageHeader
-	title="Activity"
-	description="Who changed what, what ran in the background, and the live log. Secrets never appear here."
-/>
+<PageHeader title="Activity" />
 {#snippet error(msg: string)}
 	<p role="alert" class="p-4 text-md text-bad-text">{msg}</p>
 {/snippet}
@@ -178,9 +175,7 @@
 			{#if auditError}{@render error(auditError)}
 			{:else if !events}{@render loading()}
 			{:else if events.length === 0}
-				<p class="p-4 text-md text-muted-foreground">
-					Nothing recorded yet. Sign-ins, setup steps and every change appear here.
-				</p>
+				<p class="p-4 text-md text-muted-foreground">Nothing recorded yet.</p>
 			{:else if shown.length === 0}
 				<p class="p-4 text-md text-muted-foreground">
 					No loaded entry matches the filter.{#if cursor}

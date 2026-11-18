@@ -140,11 +140,7 @@
 	{/each}
 
 	<div class="grid gap-4 xl:grid-cols-[minmax(0,1fr)_20rem]">
-		<Panel
-			flush
-			title="Rules"
-			description="Checked top to bottom. An attached rule set is checked completely at its position."
-		>
+		<Panel flush title="Rules" description="Checked top to bottom">
 			{#if entries.length === 0}<p class="px-4 py-3 text-md text-muted-foreground">
 					No rules yet.
 				</p>{/if}
@@ -162,12 +158,12 @@
 							<a href={u.href} class="font-medium hover:underline">{u.label}</a>
 						</li>{/each}
 				</ul>
-			{:else if rs.kind !== 'global'}<p class="text-md text-muted-foreground">Not used yet.</p>{/if}
-			<p class="mt-3 text-sm text-muted-foreground">
-				{rs.kind === 'global'
-					? "Runs after each service's own rules and before its fallback."
-					: 'A rule set that is attached somewhere cannot be deleted.'}
-			</p>
+			{:else if rs.kind !== 'global'}<p class="text-md text-muted-foreground">Unused</p>{/if}
+			{#if rs.kind === 'user' && rs.used_by.length > 0}<p
+					class="mt-3 text-sm text-muted-foreground"
+				>
+					Detach it everywhere to delete it.
+				</p>{/if}
 			{#if rs.kind === 'user'}<Button
 					variant="ghost"
 					size="sm"

@@ -121,10 +121,7 @@
 
 <svelte:head><title>IP sets · Hashi</title></svelte:head>
 
-<PageHeader
-	title="IP sets"
-	description="Named groups of addresses. Firewall allow and block, rules, DNS values, upstreams and SSH targets all point at a set, so one change reaches every place that uses it."
->
+<PageHeader title="IP sets">
 	{#snippet actions()}
 		<Button variant="outline" onclick={() => (feedOpen = true)}><Rss />Add blocklist</Button>
 		<Button onclick={openAdd}><Plus />Add set</Button>
@@ -246,7 +243,9 @@
 					bind:value={form.slug}
 					placeholder="family-devices"
 				/>
-				<p class="text-sm text-muted-foreground">Lowercase letters, digits and dashes.</p>
+				{#if form.slug && !/^[a-z0-9-]+$/.test(form.slug)}<p class="text-sm text-bad-text">
+						Lowercase letters, digits and dashes only.
+					</p>{/if}
 			</div>
 			<div class="space-y-1.5">
 				<Label for="sd">Description</Label><Textarea

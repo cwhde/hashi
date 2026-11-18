@@ -3,6 +3,7 @@
 	// names come from the file on the Traefik page; saving sends that file back unchanged.
 	import { onMount } from 'svelte';
 	import Panel from '#lib/components/hashi/Panel.svelte';
+	import { Button } from '#lib/components/ui/button/index.ts';
 	import Mono from '#lib/components/hashi/Mono.svelte';
 	import Tag from '#lib/components/hashi/Tag.svelte';
 	import SaveBar from './SaveBar.svelte';
@@ -51,11 +52,11 @@
 <Panel title="Middlewares on every service" flush>
 	{#if error}<p role="alert" class="px-4 py-3 text-md text-bad-text">{error}</p>
 	{:else if file && file.middlewares.length === 0}
-		<p class="px-4 py-3 text-md text-muted-foreground">
-			None defined yet. <a href="/traefik?tab=middlewares" class="text-foreground underline"
-				>Write one</a
-			>.
-		</p>
+		<div class="flex items-center gap-3 px-4 py-3 text-md text-muted-foreground">
+			None defined yet.<Button size="sm" variant="outline" href="/traefik?tab=middlewares"
+				>Write one</Button
+			>
+		</div>
 	{:else if file}
 		<ul class="divide-y text-md">
 			{#each file.middlewares as m (m.name)}

@@ -37,7 +37,7 @@
 			>Settings</Button
 		>{/snippet}
 	{#if settings && !settings.enabled}
-		<p class="mb-2 text-md text-muted-foreground">Turned off in settings; nothing is written.</p>
+		<p class="mb-2 text-md text-muted-foreground">Off in settings</p>
 	{/if}
 	{#if names.length === 0}<p class="text-md text-muted-foreground">No agents yet.</p>{/if}
 	{#if names.length > 5}<Input

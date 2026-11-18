@@ -166,9 +166,6 @@
 						>Clear</Button
 					>{/if}
 			</div>
-			<p class="text-xs text-muted-foreground">
-				The record follows the set's addresses. If the set is ever empty, the last values stay.
-			</p>
 		</div>
 	{/if}
 	<MoreOptions class="mt-3">

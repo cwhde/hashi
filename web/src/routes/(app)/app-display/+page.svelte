@@ -72,7 +72,7 @@
 
 <PageHeader
 	title="App display"
-	description="What visitors see on the public app dashboard and status page. Both run on their own ports with no admin access."
+	description="What visitors see on the public app dashboard and status page."
 />
 {#if error}<p role="alert" class="mb-3 text-md text-bad-text">{error}</p>{/if}
 {#snippet reached(links: Schemas['PublicPageLink'][] | undefined)}
@@ -87,8 +87,7 @@
 				>
 			{:else}
 				<span class="text-muted-foreground"
-					>No service publishes it yet. <a href="/services" class="underline">Add one</a> with Hashi's
-					address and this page's port.</span
+					>No service publishes it yet. <a href="/services" class="underline">Add one</a></span
 				>
 			{/each}
 		</div>
@@ -107,7 +106,7 @@
 		{@render reached(pages?.apps)}
 		{#if !loaded}<div class="space-y-2 p-4"><Skeleton class="h-6" /><Skeleton class="h-6" /></div>
 		{:else if services.length === 0}<p class="px-4 py-3 text-md text-muted-foreground">
-				Services with a public name appear here.
+				No services with a public name yet.
 			</p>{/if}
 		<ul class="divide-y">
 			{#each services as r (r.id)}

@@ -157,9 +157,6 @@
 									? 'The same machine.'
 									: 'Not the key Hashi knows: another machine, whose ruleset is read again.'}
 							</p>{/if}
-						<p class="text-muted-foreground">
-							After saving, validate and confirm it again on its page before the next plan.
-						</p>
 					{/if}
 				{/if}
 			{/if}
