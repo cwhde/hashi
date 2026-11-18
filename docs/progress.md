@@ -32,6 +32,16 @@ version `v0.13.2-beta.1`, the page carries `theme-color` and the touch icon (200
 no overflow. Not seen on prod: the signed-in pages (needs the owner's passkey); the same build passed them in e2e.
 Found on the way: bug 97 (sign-in redirect drops the tab), planned into 13.3.
 
+**13.3 gate, partly proven on prod** (2026-11-18, `v0.13.3-beta.1`, signed in with the owner's passkey). Connections
+lists DNS provider, both Traefik hosts, both firewall hosts (the home one "behind a router"), seven agents and both AdGuards,
+each with a status. A test agent was added from "Add connection" (install shown once), its page opened ("Nothing
+follows this agent yet"), then removed. IP set `home-public` → Used by lists two "Service access" rules, each a link to
+the service's access tab. A service page shows "Behind" with the VPS host and the upstream picker (Address / Pulse agent / IP set).
+Six of seven agents self-updated to 0.13.3 within minutes. Found and fixed: Remove on Connections deleted without asking
+(`2383c29`, ships with the next release); bug 98 logged. Still open: a service targeting an agent and following its
+main-address change on prod (it changes a real service, needs the owner's OK); a Traefik or firewall host added
+from Connections on prod (no spare machine; covered by e2e).
+
 ### 13.3 checklist (two PRs: A fixes and agent targets, B Connections)
 
 PR A:
