@@ -30,9 +30,11 @@ Rules that follow from it:
    with settings elsewhere gets a gear link in its header to the matching Settings category. Nothing else.
 2. **Settings categories carry the name of the page they configure**, in the navigation's order: General, Security
    (admin sign-in, passkeys, vault, sessions, bootstrap networks, trusted proxies), Edge protection (engine, limits,
-   CAPTCHA, edge sign-in, GeoIP), Services and Traefik (middlewares on every service), DNS and agent names, Firewall,
-   Pulse, Monitoring and notifications, Public pages (dashboard and status page), Appearance. Account keeps only what is
-   about the person (name, sign-out everywhere).
+   CAPTCHA, edge sign-in session lengths), Services and Traefik (middlewares on every service), DNS and agent names,
+   Firewall, Pulse, Monitoring and notifications, Public pages (dashboard and status page), Appearance. There is no
+   Account category: Hashi stores nothing about the person, and signing out everywhere is in Security's sessions.
+   Edge sign-in providers (issuer, client secret) and the GeoIP download source (MaxMind account, licence key) are
+   credentials for outside systems, so they live on Connections with the other connections (2026-11-18).
 3. **One setting, one place.** A value is never editable in two places. Another place can show it read-only with a link.
 4. **Defaults vs. overrides:** the default lives in Settings; an object that overrides it shows the override on its own
    page with "Default: …" next to it and a way back to the default.
@@ -129,8 +131,8 @@ Test for every sentence: delete it. Would someone now make a real mistake or be 
 
 | Today | Rule | Target |
 | --- | --- | --- |
-| Security page tabs CAPTCHA, Sign-in, Limits, Engine, GeoIP | §1.1 | Settings → Edge protection; Security keeps Dashboard and Counters |
-| Settings → Account holds passkeys, sessions, vault; Security holds session settings | §1.2 | Settings → Security; Account keeps the person |
+| Security page tabs CAPTCHA, Sign-in, Limits, Engine, GeoIP | §1.1 | Settings → Edge protection (CAPTCHA, session limits, engine); sign-in providers and the GeoIP source on Connections; Security keeps Dashboard and Counters |
+| Settings → Account holds passkeys, sessions, vault; Security holds session settings | §1.2 | Settings → Security; no Account category |
 | Status → Notifications tab + Settings → Notifications | §1.2, §1.5 | Settings → Monitoring and notifications for setup; deliveries in Activity or on the check |
 | DNS → Agent names tab + Settings → Internal agent DNS | §1.3 | Settings for the switch and domain; DNS shows the names read-only |
 | App display page switches + Settings → Appearance public pages on/off + Settings → Dashboard | §1.2, §5.1 | Settings → Public pages for page-wide options; per-service visibility stays an instant switch on App display |
