@@ -26,6 +26,7 @@ var consumerTests = map[string]string{
 	"appearance.theme":                    "internal/notify/notify_test.go::TestMailCustomTheme",
 	"appearance.custom_theme":             "web/e2e/setup-and-login.spec.ts::A custom theme: unreadable text cannot be saved",
 	"appearance.reduce_transparency":      "web/e2e/setup-and-login.spec.ts::Reduce transparency is applied and saved at once",
+	"appearance.overview_widgets":         "web/e2e/setup-and-login.spec.ts::hiding one and moving another changes the start page",
 	"appearance.public_dashboard_enabled": "internal/app/public_test.go::TestPublicPageSettings",
 	"appearance.public_status_enabled":    "internal/app/public_test.go::TestPublicPageSettings",
 
