@@ -4,7 +4,7 @@
 	import HistoryStrip from '#lib/components/hashi/HistoryStrip.svelte';
 	import StatusBadge from '#lib/components/hashi/StatusBadge.svelte';
 	import { api, type Schemas } from '#lib/api/client.ts';
-	import { stripHealth, uptimeText } from '#lib/monitor.ts';
+	import { publicSummary, stripHealth, uptimeText } from '#lib/monitor.ts';
 	import { dateTime, time } from '#lib/format.ts';
 	import { theme } from '#lib/theme.svelte.ts';
 
@@ -44,7 +44,12 @@
 				: []
 			: Object.entries(Object.groupBy(data?.endpoints ?? [], (e) => e.group))
 	);
-	const down = $derived((data?.endpoints ?? []).filter((e) => e.state === 'down').length);
+	const summary = $derived(data ? publicSummary(data.endpoints.map((e) => e.state)) : null);
+	const tones = {
+		ok: 'border-ok/30 bg-ok/10 text-ok-text',
+		warn: 'border-warn/30 bg-warn/10 text-warn-text',
+		bad: 'border-bad/30 bg-bad/10 text-bad-text'
+	};
 </script>
 
 <svelte:head><title>Status · {data?.title ?? ''}</title></svelte:head>
@@ -59,21 +64,18 @@
 				? dateTime(data.updated_at)
 				: 'the page was opened'}.
 		</div>
-	{:else if data}
+	{:else if summary}
+		<!-- The update time sits in the banner, so it belongs to it and not to the first card (bug 145). -->
 		<div
-			class="{down
-				? 'border-bad/30 bg-bad/10 text-bad-text'
-				: 'border-ok/30 bg-ok/10 text-ok-text'} mt-4 rounded-2xl border px-4 py-3 text-base font-medium"
+			class="{tones[
+				summary.tone
+			]} mt-4 flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 rounded-2xl border px-4 py-3"
 		>
-			{down === 1
-				? '1 service is down. Others are working.'
-				: down
-					? `${down} services are down. Others are working.`
-					: 'All services are working.'}
+			<span class="text-base font-medium">{summary.text}</span>
+			{#if data?.updated_at}<span class="text-sm text-muted-foreground"
+					>Updated {time(data.updated_at)}</span
+				>{/if}
 		</div>
-	{/if}
-	{#if data?.updated_at}
-		<p class="mt-2 text-sm text-muted-foreground">Updated {time(data.updated_at)}.</p>
 	{/if}
 	{#if !data && !stale}
 		<Skeleton class="mt-4 h-12 rounded-2xl" />

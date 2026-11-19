@@ -410,14 +410,15 @@ func (s *Service) PublicStatus(ctx context.Context) (PublicStatus, error) {
 		}
 		out := PublicStatus{Endpoints: []PublicEndpoint{}, Grouped: page.Grouped}
 		for _, r := range rows {
-			if r.Endpoint.LastCheckAt.Valid {
+			if r.Endpoint.Public != 1 || slices.Contains(page.Hidden, r.Endpoint.GroupName) {
+				continue
+			}
+			if r.Endpoint.LastCheckAt.Valid { // only what the page shows (bug 80)
 				if t := time.UnixMilli(r.Endpoint.LastCheckAt.Int64).UTC(); t.After(out.UpdatedAt) {
 					out.UpdatedAt = t
 				}
 			}
-			if r.Endpoint.Public == 1 && !slices.Contains(page.Hidden, r.Endpoint.GroupName) {
-				out.Endpoints = append(out.Endpoints, PublicEndpoint{PendingDNS: r.Endpoint.PendingDns == 1, Name: r.Endpoint.Name, Group: r.Endpoint.GroupName, State: r.State, Strip: r.Strip, Uptime24: r.Uptime24})
-			}
+			out.Endpoints = append(out.Endpoints, PublicEndpoint{PendingDNS: r.Endpoint.PendingDns == 1, Name: r.Endpoint.Name, Group: r.Endpoint.GroupName, State: r.State, Strip: r.Strip, Uptime24: r.Uptime24})
 		}
 		place := func(group string) int { // set categories first, in their order; the rest after
 			if i := slices.Index(page.Order, group); i >= 0 {

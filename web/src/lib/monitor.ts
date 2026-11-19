@@ -42,3 +42,19 @@ export const stateOrder: Record<string, number> = {
 	paused: 3,
 	up: 4
 };
+
+/** The public status page's one-line summary (07 §7, bugs 80, 145): what is wrong, nothing more; null when nothing is listed. */
+export function publicSummary(
+	states: string[]
+): { text: string; tone: 'ok' | 'warn' | 'bad' } | null {
+	if (states.length === 0) return null;
+	const down = states.filter((s) => s === 'down').length;
+	const slow = states.filter((s) => s === 'degraded').length;
+	const n = (k: number, one: string, many: string) =>
+		k === 1 ? `1 service ${one}` : `${k} services ${many}`;
+	if (down && slow)
+		return { text: `${n(down, 'is down', 'are down')}, ${slow} slow.`, tone: 'bad' };
+	if (down) return { text: `${n(down, 'is down', 'are down')}.`, tone: 'bad' };
+	if (slow) return { text: `${n(slow, 'is slow', 'are slow')}.`, tone: 'warn' };
+	return { text: 'All services are working.', tone: 'ok' };
+}

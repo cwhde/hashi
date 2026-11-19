@@ -521,3 +521,20 @@ func TestPublicStatusCategories(t *testing.T) {
 		t.Fatalf("one list: %v, want %v", got, want)
 	}
 }
+
+// "Updated" on the public page comes from the checks it shows, not from private ones (07 §7, bug 80).
+func TestPublicStatusUpdatedFromPublicChecksOnly(t *testing.T) {
+	s, _, _, _ := fixture(t)
+	ctx := t.Context()
+	if _, err := s.RunChecks(ctx); err != nil { // every check runs, none is public
+		t.Fatal(err)
+	}
+	s.statusCache = cache[PublicStatus]{}
+	v, err := s.PublicStatus(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(v.Endpoints) != 0 || !v.UpdatedAt.IsZero() {
+		t.Fatalf("nothing public, yet updated at %v", v.UpdatedAt)
+	}
+}
