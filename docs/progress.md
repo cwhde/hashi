@@ -97,7 +97,7 @@ PR C, the owner's walk (2026-11-19; 31, 75, 99–125). The owner accepts 13.4 on
 - [x] A host without an address gets no TCP check (103); Status placeholders (107): not changed, seen once while
       the slow dashboard query held the database; check again on the walk
 - [x] Overview start page from its mock with widgets the owner can turn on/off and reorder (31)
-- [ ] With the owner: which IP sets to delete (121). Checked on prod read-only 2026-11-19: every set is in use. The per-agent sets are Hashi's hidden ones (services and AdGuard naming an agent) and go by themselves. Rules can only name sets, so the agent-backed home set stays. Only two single-range sets overlap the built-in private networks set; swapping them would widen those rules. Waiting for the owner's answer, DNS records to import (116)
+- [x] With the owner: which IP sets to delete (121). Every set is in use (checked on prod read-only). The owner: leave them; a later pass over all settings and configuration will tidy them, so it is not a bug
 - [x] make check, integration, e2e; deploy with the owner's OK (`v0.13.4-beta.2`, 2026-11-19)
 - [ ] The owner walks again and accepts
 
@@ -108,7 +108,8 @@ still listed in `bugs.md` although fixed; removed after a check of the code and 
 - [x] Security dashboard 7d and 30d still slow on prod (2.2 s, 5.7 s) (99): hourly rollup tables and retention (01 §4.3); 30d reads ~98k hour rows instead of 3.4 M minutes, each query 0.02–0.14 s on a read-only in-memory copy on prod (was 0.7–1.2 s)
 - [x] Status placeholders once stuck (107): try to reproduce. Not reproduced on prod (12 visits, 0.65–0.88 s); stays in bugs.md
 - [ ] With the owner: which IP sets to delete (121). Checked on prod read-only 2026-11-19: every set is in use. The per-agent sets are Hashi's hidden ones (services and AdGuard naming an agent) and go by themselves. Rules can only name sets, so the agent-backed home set stays. Only two single-range sets overlap the built-in private networks set; swapping them would widen those rules. Waiting for the owner's answer
-- [ ] make check, integration, e2e; release and deploy with the owner's OK; the owner walks and accepts
+- [x] make check, integration, e2e; release and deploy with the owner's OK
+- [ ] The owner walks and accepts
 
 ### 13.3 checklist (two PRs: A fixes and agent targets, B Connections)
 
@@ -1114,6 +1115,7 @@ Decisions made in S0:
 
 ## Log
 
+- 2026-11-19 · deploy `v0.13.4-beta.4` (`530a613`, the owner's OK) · smoke ok (readyz, version, SPA, both public pages). Security hourly rollup ran: first run 168 hours in 3.7 s; catches up over the next runs. Sign-in page redesign (136), stream message (137), hourly rollup and retention (99).
 - 2026-11-19 · deploy `v0.13.4-beta.3` (`50b68e7`, the owner's OK) · smoke ok (readyz, version, SPA, both public pages),
   schema 28 → 29 (streams may share a name). Release run 1253 green. In it: 120, 126, 127, 128–132, 135, skeletons.
   Then, with the owner's yes: the root site's rules cut to the admin page and everything under it → sign-in, fallback
