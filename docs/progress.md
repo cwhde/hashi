@@ -1105,6 +1105,10 @@ Decisions made in S0:
 
 ## Log
 
+- 2026-11-19 · prod, the owner's OK · deleted pre-migration copies v1–v26 (disk 83 % → 77 %, v27 kept); DNS: all 69
+  importable records imported ("68 labelled, verified", low risk, auto-applied; only NS/SOA stay unowned); codeman's
+  upstream moved from its IP set to its Pulse agent (Traefik unchanged), set deleted. Other owner sets stay until rules
+  and host access can take ranges or agents. Walk by me: bugs 128–131; 107 not reproduced (Status loaded in ~1 s).
 - 2026-11-19 · deploy `v0.13.4-beta.2` (`a1c3822`, the owner's OK) · smoke ok (readyz, version, SPA, both public
   pages), container healthy, schema 27 → 28 (security events index) with no error. PR #73 (the owner's walk) merged
   green; release image and 6 signed Pulse files published. Disk on the Hashi container 93 % full: old pre-migration
