@@ -282,8 +282,8 @@ test('setup with a passkey, then sign in with it', async ({ page, request }) => 
 	await expect(page).toHaveURL(/\/overview$/); // the start page (bug 31)
 	await expect(page.getByRole('heading', { name: 'Overview' })).toBeVisible();
 	await page.getByRole('link', { name: 'Activity', exact: true }).first().click();
-	await expect(page.getByRole('cell', { name: 'setup.completed' })).toBeVisible();
-	await expect(page.getByRole('cell', { name: 'auth.passkey.login' })).toBeVisible();
+	await expect(page.getByRole('cell', { name: 'Setup finished' })).toBeVisible();
+	await expect(page.getByRole('cell', { name: 'Signed in with a passkey' })).toBeVisible();
 
 	// DNS: the observed zone with the decisions from setup; a changed decision survives a reload.
 	await page.getByRole('link', { name: 'DNS' }).first().click();
