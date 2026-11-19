@@ -53,6 +53,11 @@ always possible; SMTP — send test email.
 Routing: global default route, per-endpoint override, severity thresholds, cooldowns, recovery notifications; pending
 high-risk sync plans and vault-lock events can also notify. Deliveries recorded in `notification_deliveries` with retry/backoff.
 
+The cooldown is per check: a second alert for the same check within it waits for its end and goes only if the check is
+still in alarm. Alerts are grouped: a new alert waits a short window (route setting, default 15 s, 0 = off), each further
+alert for the same provider restarts it, and when it ends the waiting alerts go as one message listing them. No alert
+waits longer than 2 minutes for grouping. Recoveries are not delayed.
+
 Providers can be edited: name and settings, with the secret kept unless a new one is given. Setup lives under Settings →
 Notifications; the Status page shows what was sent.
 
