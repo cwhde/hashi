@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { Skeleton } from '#lib/components/ui/skeleton/index.ts';
 	import { onMount } from 'svelte';
 	import Panel from '#lib/components/hashi/Panel.svelte';
 	import Mono from '#lib/components/hashi/Mono.svelte';
@@ -11,6 +12,7 @@
 	let names = $state<Schemas['AgentDNSPreview']['rewrites']>([]);
 	let settings = $state<Schemas['AgentDNSSettings'] | null>(null);
 	let error = $state('');
+	let loaded = $state(false);
 	let q = $state(''); // bug 64: the same filter Records has
 	const shown = $derived(
 		names.filter((a) =>
@@ -25,6 +27,7 @@
 		if (n.data) names = n.data.rewrites;
 		else error = problemText(n.error);
 		if (s.data) settings = s.data;
+		loaded = true;
 	});
 </script>
 
@@ -36,7 +39,8 @@
 	{#if settings && !settings.enabled}
 		<p class="mb-2 text-md text-muted-foreground">Off in settings</p>
 	{/if}
-	{#if names.length === 0}<p class="text-md text-muted-foreground">No agents yet.</p>{/if}
+	{#if !loaded}<Skeleton class="h-24 w-full" />
+	{:else if names.length === 0}<p class="text-md text-muted-foreground">No agents yet.</p>{/if}
 	{#if names.length > 5}<Input
 			bind:value={q}
 			placeholder="Filter by name or address"

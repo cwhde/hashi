@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { Skeleton } from '#lib/components/ui/skeleton/index.ts';
 	import HelpTip from '#lib/components/hashi/HelpTip.svelte';
 	import { onMount } from 'svelte';
 	import Panel from '#lib/components/hashi/Panel.svelte';
@@ -149,6 +150,7 @@
 	</div>
 {:else if error}
 	<p role="alert" class="text-md text-bad-text">{error}</p>
+{:else}<Skeleton class="h-40 rounded-2xl" />
 {/if}
 
 <Sheet.Root open={!!form} onOpenChange={(o) => !o && (form = null)}>

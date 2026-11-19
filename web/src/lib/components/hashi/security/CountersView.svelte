@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { Skeleton } from '#lib/components/ui/skeleton/index.ts';
 	// Security → Counters (06 §13.1): every address with a ban or challenge counter, active or not.
 	import { onMount } from 'svelte';
 	import Tag from '#lib/components/hashi/Tag.svelte';
@@ -29,6 +30,7 @@
 	let minChallenge = $state(0);
 	let source = $state<Source | 'any'>('any');
 	let rows = $state<Row[]>([]);
+	let loaded = $state(false);
 	let total = $state(0);
 	let next = $state<string | undefined>();
 	let selected = $state<string[]>([]);
@@ -57,6 +59,7 @@
 		const r = await api.GET('/api/security/counters', {
 			params: { query: { ...filter(), cursor: more ? next : undefined, limit: 100 } }
 		});
+		loaded = true;
 		if (r.error || !r.data) {
 			error = problemText(r.error);
 			return;
@@ -310,11 +313,20 @@
 					</Table.Cell>
 				</Table.Row>
 			{:else}
-				<Table.Row
-					><Table.Cell colspan={9} class="py-10 text-center text-muted-foreground"
-						>No address matches.</Table.Cell
-					></Table.Row
-				>
+				{#if loaded}
+					<Table.Row
+						><Table.Cell colspan={9} class="py-10 text-center text-muted-foreground"
+							>No address matches.</Table.Cell
+						></Table.Row
+					>
+				{:else}
+					{#each [0, 1, 2, 3, 4] as i (i)}
+						<Table.Row
+							><Table.Cell colspan={9} class="px-4"><Skeleton class="h-6 w-full" /></Table.Cell
+							></Table.Row
+						>
+					{/each}
+				{/if}
 			{/each}
 		</Table.Body>
 	</Table.Root>

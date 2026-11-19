@@ -285,4 +285,5 @@
 			<SaveBar saver={proxySaver} dirty={proxyDraft.dirty} onsave={saveProxies} />
 		</div>
 	</Panel>
+{:else}<Skeleton class="h-40 rounded-2xl" />
 {/if}

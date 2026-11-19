@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { Skeleton } from '#lib/components/ui/skeleton/index.ts';
 	import { Draft, guardUnsaved } from '#lib/unsaved.svelte.ts';
 	import { onMount } from 'svelte';
 	import Panel from '#lib/components/hashi/Panel.svelte';
@@ -21,6 +22,7 @@
 		recovery: true
 	});
 	let error = $state('');
+	let loaded = $state(false);
 	let notice = $state('');
 	let busy = $state(false);
 	const draft = new Draft(() => route);
@@ -35,9 +37,13 @@
 		providers = p.data.providers;
 		route = r.data;
 		draft.mark();
+		loaded = true;
 	}
 	onMount(() => {
-		load().catch((e) => (error = problemText(e)));
+		load().catch((e) => {
+			error = problemText(e);
+			loaded = true;
+		});
 	});
 
 	async function act(fn: () => Promise<void>, done = '') {
@@ -228,7 +234,8 @@
 	</Panel>
 	<Panel title="Providers" flush>
 		{#snippet actions()}<Button size="sm" onclick={openAdd}><Plus />Add provider</Button>{/snippet}
-		{#if providers.length === 0}
+		{#if !loaded}<div class="px-4 py-3"><Skeleton class="h-16 w-full" /></div>
+		{:else if providers.length === 0}
 			<p class="px-4 py-3 text-md text-muted-foreground">
 				Add Telegram or email to receive alerts.
 			</p>

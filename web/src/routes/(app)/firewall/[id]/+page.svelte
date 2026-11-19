@@ -15,6 +15,7 @@
 	import HostSettings from '#lib/components/hashi/firewall/HostSettings.svelte';
 	import { Button } from '#lib/components/ui/button/index.ts';
 	import { Label } from '#lib/components/ui/label/index.ts';
+	import { Skeleton } from '#lib/components/ui/skeleton/index.ts';
 	import * as Tabs from '#lib/components/ui/tabs/index.ts';
 	import { ChevronLeft, X } from '@lucide/svelte';
 	import { api, problemText, type Schemas } from '#lib/api/client.ts';
@@ -355,4 +356,7 @@
 			</Panel>
 		</Tabs.Content>
 	</Tabs.Root>
+{:else if !error}
+	<Skeleton class="mb-4 h-28 rounded-2xl" />
+	<Skeleton class="h-80 rounded-2xl" />
 {/if}

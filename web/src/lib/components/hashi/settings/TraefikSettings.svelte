@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { Skeleton } from '#lib/components/ui/skeleton/index.ts';
 	import { Plus } from '@lucide/svelte';
 	// Settings → Services and Traefik (09 §2, 10c §1.2): which of your middlewares every user HTTP service gets. The
 	// names come from the file on the Traefik page; saving sends that file back unchanged.
@@ -72,5 +73,6 @@
 			{/each}
 		</ul>
 		<div class="px-4 py-3"><SaveBar {saver} dirty={draft.dirty} onsave={save} /></div>
+	{:else}<div class="px-4 py-3"><Skeleton class="h-24 w-full" /></div>
 	{/if}
 </Panel>

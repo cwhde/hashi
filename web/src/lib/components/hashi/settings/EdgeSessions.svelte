@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { Skeleton } from '#lib/components/ui/skeleton/index.ts';
 	// How long a sign-in at the edge lasts (06 §7). Providers themselves are connections (10c §1.2).
 	import { onMount } from 'svelte';
 	import Panel from '#lib/components/hashi/Panel.svelte';
@@ -55,5 +56,6 @@
 			/>
 		</div>
 		<div class="mt-3"><SaveBar {saver} dirty={draft.dirty} onsave={save} /></div>
+	{:else}<Skeleton class="h-40 rounded-2xl" />
 	{/if}
 </Panel>

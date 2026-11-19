@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { Skeleton } from '#lib/components/ui/skeleton/index.ts';
 	// Settings → Public pages (10c §1.2, bug 65): the two public pages on or off, and how the dashboard starts. Which
 	// service shows on them is an instant switch on App display.
 	import { onMount } from 'svelte';
@@ -89,4 +90,5 @@
 		</div>
 	</Panel>
 	<SaveBar {saver} dirty={draft.dirty} onsave={save} />
+{:else}<Skeleton class="h-40 rounded-2xl" />
 {/if}

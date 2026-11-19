@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { Skeleton } from '#lib/components/ui/skeleton/index.ts';
 	// Settings → Appearance (09 §2): theme, your own theme, comfort, the Overview's widgets. A choice here applies and
 	// saves at once (bug 39); only the custom theme editor has a Save, because it is a form.
 	import { onMount } from 'svelte';
@@ -147,4 +148,5 @@
 		>
 			{saver.note.msg}
 		</p>{/if}
+{:else}<Skeleton class="h-40 rounded-2xl" />
 {/if}

@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { Skeleton } from '#lib/components/ui/skeleton/index.ts';
 	import { onMount } from 'svelte';
 	import Panel from '#lib/components/hashi/Panel.svelte';
 	import Mono from '#lib/components/hashi/Mono.svelte';
@@ -56,6 +57,7 @@
 </script>
 
 {#if error}<p role="alert" class="text-md text-bad-text">{error}</p>{/if}
+{#if !loaded && !error}<Skeleton class="h-40 rounded-2xl" />{/if}
 {#if loaded && items.length === 0 && !error}
 	<Panel title="No AdGuard instance">
 		<Button size="sm" variant="outline" href="/connections">Go to Connections</Button>

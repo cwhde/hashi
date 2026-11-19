@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { Skeleton } from '#lib/components/ui/skeleton/index.ts';
 	import { onMount } from 'svelte';
 	import Panel from '../Panel.svelte';
 	import RuleEntryList from './RuleEntryList.svelte';
@@ -186,6 +187,7 @@
 				rules can deny or ask for sign-in.{:else}If Hashi is unreachable this service stays open.{/if}
 		</p>
 	</div>
+{:else if !error}<Skeleton class="h-40 rounded-2xl" />
 {/if}
 
 <Sheet.Root open={!!editing} onOpenChange={(o) => !o && (editing = null)}>

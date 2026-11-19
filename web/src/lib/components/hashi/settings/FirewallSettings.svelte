@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { Skeleton } from '#lib/components/ui/skeleton/index.ts';
 	import Choice from '#lib/components/hashi/Choice.svelte';
 	import HelpTip from '#lib/components/hashi/HelpTip.svelte';
 	import { Label } from '#lib/components/ui/label/index.ts';
@@ -68,4 +69,5 @@
 		</div>
 	</Panel>
 	<SaveBar {saver} dirty={draft.dirty} onsave={save} />
+{:else}<Skeleton class="h-40 rounded-2xl" />
 {/if}

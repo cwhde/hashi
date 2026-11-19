@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { Skeleton } from '#lib/components/ui/skeleton/index.ts';
 	import { onMount } from 'svelte';
 	import HistoryStrip from '#lib/components/hashi/HistoryStrip.svelte';
 	import StatusBadge from '#lib/components/hashi/StatusBadge.svelte';
@@ -66,6 +67,12 @@
 	{/if}
 	{#if data?.updated_at}
 		<p class="mt-2 text-sm text-muted-foreground">Updated {time(data.updated_at)}.</p>
+	{/if}
+	{#if !data && !stale}
+		<Skeleton class="mt-4 h-12 rounded-2xl" />
+		<div class="mt-6 space-y-3">
+			{#each [0, 1, 2, 3, 4] as i (i)}<Skeleton class="h-16 rounded-2xl" />{/each}
+		</div>
 	{/if}
 	{#if data && data.endpoints.length === 0}
 		<p class="mt-6 text-md text-muted-foreground">Nothing is listed here yet.</p>

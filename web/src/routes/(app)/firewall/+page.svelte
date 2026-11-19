@@ -10,6 +10,7 @@
 	import SetBadge from '#lib/components/hashi/ipsets/SetBadge.svelte';
 	import IpSetPicker from '#lib/components/hashi/ipsets/IpSetPicker.svelte';
 	import { Button } from '#lib/components/ui/button/index.ts';
+	import { Skeleton } from '#lib/components/ui/skeleton/index.ts';
 	import { Plus, ArrowUpRight, X } from '@lucide/svelte';
 	import { api, problemText, type Schemas } from '#lib/api/client.ts';
 	import { withReauth } from '#lib/auth/reauth.ts';
@@ -23,6 +24,7 @@
 	let pick = $state({ allow: '', block: '' });
 	let note = $state('');
 	let error = $state('');
+	let loaded = $state(false);
 	const setOf = (id: string) => sets.find((s) => s.id === id);
 
 	onMount(async () => {
@@ -38,6 +40,8 @@
 			sets = await listSets();
 		} catch (e) {
 			error = problemText(e);
+		} finally {
+			loaded = true;
 		}
 	});
 
@@ -70,88 +74,97 @@
 		{note} <a class="underline" href="/changes">Open changes</a>
 	</p>{/if}
 
-<Panel title="Global policy" class="mb-4">
-	{#snippet help()}<HelpTip topic="overlapping addresses"
-			><p>Where allow and block overlap, the longer prefix wins; on a tie, block.</p></HelpTip
-		>{/snippet}
-	<div class="grid gap-6 md:grid-cols-2">
-		{#each [{ key: 'allow', label: 'Always allow' }, { key: 'block', label: 'Block' }] as side (side.key)}
-			{@const k = side.key as 'allow' | 'block'}
-			<div class="min-w-0 space-y-2">
-				<div class="text-md font-medium">{side.label}</div>
-				<div class="flex gap-2">
-					<div class="min-w-0 flex-1">
-						<IpSetPicker bind:value={pick[k]} {sets} exclude={bind[k]} id="pick-{k}" />
+{#if !loaded}
+	<Skeleton class="mb-4 h-48 rounded-2xl" />
+	<div class="grid gap-4 lg:grid-cols-2">
+		<Skeleton class="h-56 rounded-2xl" /><Skeleton class="h-56 rounded-2xl" />
+	</div>
+{:else}
+	<Panel title="Global policy" class="mb-4">
+		{#snippet help()}<HelpTip topic="overlapping addresses"
+				><p>Where allow and block overlap, the longer prefix wins; on a tie, block.</p></HelpTip
+			>{/snippet}
+		<div class="grid gap-6 md:grid-cols-2">
+			{#each [{ key: 'allow', label: 'Always allow' }, { key: 'block', label: 'Block' }] as side (side.key)}
+				{@const k = side.key as 'allow' | 'block'}
+				<div class="min-w-0 space-y-2">
+					<div class="text-md font-medium">{side.label}</div>
+					<div class="flex gap-2">
+						<div class="min-w-0 flex-1">
+							<IpSetPicker bind:value={pick[k]} {sets} exclude={bind[k]} id="pick-{k}" />
+						</div>
+						<Button
+							variant="outline"
+							disabled={!pick[k]}
+							onclick={async () => {
+								await put({ ...bind, [k]: [...bind[k], pick[k]] });
+								pick[k] = '';
+							}}><Plus />Add</Button
+						>
 					</div>
-					<Button
-						variant="outline"
-						disabled={!pick[k]}
-						onclick={async () => {
-							await put({ ...bind, [k]: [...bind[k], pick[k]] });
-							pick[k] = '';
-						}}><Plus />Add</Button
+					<ul class="divide-y rounded-xl border text-md" aria-label={side.label}>
+						{#each bind[k] as id (id)}
+							<li class="flex min-h-10 items-center gap-2 px-3 py-1.5">
+								<span class="min-w-0 flex-1"
+									>{#if setOf(id)}<SetBadge set={setOf(id)!} />{:else if sets.length}<Mono
+											>{id}</Mono
+										>{:else}<span class="inline-block h-4 w-28 animate-pulse rounded bg-surface-2"
+										></span>{/if}</span
+								>
+								<Button
+									variant="ghost"
+									size="icon-xs"
+									aria-label="Remove {setOf(id)?.slug ?? 'set'}"
+									onclick={() => put({ ...bind, [k]: bind[k].filter((x) => x !== id) })}
+									><X /></Button
+								>
+							</li>
+						{/each}
+						{#if k === 'allow'}<li
+								class="flex min-h-10 items-center px-3 py-1.5 text-muted-foreground"
+							>
+								hashi-hosts (always)
+							</li>{/if}
+						{#if k === 'block' && !bind[k].length}<li
+								class="flex min-h-10 items-center px-3 py-1.5 text-muted-foreground"
+							>
+								Nothing blocked
+							</li>{/if}
+					</ul>
+				</div>
+			{/each}
+		</div>
+	</Panel>
+
+	<div class="grid gap-4 lg:grid-cols-2">
+		{#each hosts as h (h.id)}
+			<Panel>
+				<div class="flex items-start gap-3">
+					<div class="min-w-0 flex-1">
+						<div class="flex flex-wrap items-center gap-2 text-lg font-semibold">
+							{h.name}<StatusBadge state={healthState(h)} /><Tag
+								>{h.edge_mode === 'managed' ? 'managed' : 'external NAT'}</Tag
+							>
+						</div>
+						<div class="text-sm text-muted-foreground"><Mono>{h.public_ip}</Mono></div>
+					</div>
+					<Button variant="ghost" size="icon-sm" href="/firewall/{h.id}" aria-label="Open {h.name}"
+						><ArrowUpRight /></Button
 					>
 				</div>
-				<ul class="divide-y rounded-xl border text-md" aria-label={side.label}>
-					{#each bind[k] as id (id)}
-						<li class="flex min-h-10 items-center gap-2 px-3 py-1.5">
-							<span class="min-w-0 flex-1"
-								>{#if setOf(id)}<SetBadge set={setOf(id)!} />{:else if sets.length}<Mono>{id}</Mono
-									>{:else}<span class="inline-block h-4 w-28 animate-pulse rounded bg-surface-2"
-									></span>{/if}</span
-							>
-							<Button
-								variant="ghost"
-								size="icon-xs"
-								aria-label="Remove {setOf(id)?.slug ?? 'set'}"
-								onclick={() => put({ ...bind, [k]: bind[k].filter((x) => x !== id) })}><X /></Button
-							>
-						</li>
-					{/each}
-					{#if k === 'allow'}<li
-							class="flex min-h-10 items-center px-3 py-1.5 text-muted-foreground"
-						>
-							hashi-hosts (always)
-						</li>{/if}
-					{#if k === 'block' && !bind[k].length}<li
-							class="flex min-h-10 items-center px-3 py-1.5 text-muted-foreground"
-						>
-							Nothing blocked
-						</li>{/if}
-				</ul>
-			</div>
+				<dl class="mt-4 grid grid-cols-[8rem_1fr] gap-y-2 text-md">
+					<dt class="text-muted-foreground">Subnets</dt>
+					<dd><Mono>{h.subnets.join(', ')}</Mono></dd>
+					<dt class="text-muted-foreground">Forwards to</dt>
+					<dd><Mono>{h.internal_traefik_ip}</Mono></dd>
+					<dt class="text-muted-foreground">NetBird</dt>
+					<dd>{h.netbird_mode}</dd>
+					<dt class="text-muted-foreground">Last apply</dt>
+					<dd>{h.last_applied_at ? dateTime(h.last_applied_at) : 'never'}</dd>
+				</dl>
+			</Panel>
+		{:else}
+			<p class="text-md text-muted-foreground">No firewall hosts yet.</p>
 		{/each}
 	</div>
-</Panel>
-
-<div class="grid gap-4 lg:grid-cols-2">
-	{#each hosts as h (h.id)}
-		<Panel>
-			<div class="flex items-start gap-3">
-				<div class="min-w-0 flex-1">
-					<div class="flex flex-wrap items-center gap-2 text-lg font-semibold">
-						{h.name}<StatusBadge state={healthState(h)} /><Tag
-							>{h.edge_mode === 'managed' ? 'managed' : 'external NAT'}</Tag
-						>
-					</div>
-					<div class="text-sm text-muted-foreground"><Mono>{h.public_ip}</Mono></div>
-				</div>
-				<Button variant="ghost" size="icon-sm" href="/firewall/{h.id}" aria-label="Open {h.name}"
-					><ArrowUpRight /></Button
-				>
-			</div>
-			<dl class="mt-4 grid grid-cols-[8rem_1fr] gap-y-2 text-md">
-				<dt class="text-muted-foreground">Subnets</dt>
-				<dd><Mono>{h.subnets.join(', ')}</Mono></dd>
-				<dt class="text-muted-foreground">Forwards to</dt>
-				<dd><Mono>{h.internal_traefik_ip}</Mono></dd>
-				<dt class="text-muted-foreground">NetBird</dt>
-				<dd>{h.netbird_mode}</dd>
-				<dt class="text-muted-foreground">Last apply</dt>
-				<dd>{h.last_applied_at ? dateTime(h.last_applied_at) : 'never'}</dd>
-			</dl>
-		</Panel>
-	{:else}
-		<p class="text-md text-muted-foreground">No firewall hosts yet.</p>
-	{/each}
-</div>
+{/if}

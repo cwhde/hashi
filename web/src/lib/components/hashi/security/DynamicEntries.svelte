@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { Skeleton } from '#lib/components/ui/skeleton/index.ts';
 	// The entries of dynamic-challenge or dynamic-blocked (05a §8): filled by the abuse engine; an entry can be added
 	// by hand with an optional duration, ended, or (challenged) banned now or given its failures back.
 	import { onMount } from 'svelte';
@@ -19,6 +20,7 @@
 	const isChallenge = $derived(setId === 'sys-dynamic-challenge');
 
 	let rows = $state<Schemas['CounterRow'][]>([]);
+	let loaded = $state(false);
 	let total = $state(0);
 	let address = $state('');
 	let minutes = $state<number | undefined>();
@@ -29,6 +31,7 @@
 		const r = await api.GET('/api/security/counters', {
 			params: { query: { state: isChallenge ? 'challenged' : 'banned', limit: 500 } }
 		});
+		loaded = true;
 		if (r.error || !r.data) {
 			error = problemText(r.error);
 			return;
@@ -164,9 +167,13 @@
 					</DropdownMenu.Root>
 				</li>
 			{:else}
-				<li class="px-4 py-8 text-center text-muted-foreground">
-					{isChallenge ? 'Nobody is challenged right now.' : 'Nobody is banned right now.'}
-				</li>
+				{#if loaded}
+					<li class="px-4 py-8 text-center text-muted-foreground">
+						{isChallenge ? 'Nobody is challenged right now.' : 'Nobody is banned right now.'}
+					</li>
+				{:else}
+					<li class="px-4 py-3"><Skeleton class="h-16 w-full" /></li>
+				{/if}
 			{/each}
 		</ul>
 	</Panel>

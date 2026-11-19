@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { Skeleton } from '#lib/components/ui/skeleton/index.ts';
 	// Settings → Monitoring and notifications (10c §1.2): what a new check starts with, how long results stay, and where
 	// alerts go. Deliveries are history and live in Activity.
 	import { onMount } from 'svelte';
@@ -97,5 +98,6 @@
 		</div>
 		<div class="mt-3"><SaveBar {saver} dirty={draft.dirty} onsave={save} /></div>
 	</Panel>
+{:else}<Skeleton class="h-40 rounded-2xl" />
 {/if}
 <Notifications />

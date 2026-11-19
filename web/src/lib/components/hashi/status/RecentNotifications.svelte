@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { Skeleton } from '#lib/components/ui/skeleton/index.ts';
 	import { onMount } from 'svelte';
 	import Panel from '#lib/components/hashi/Panel.svelte';
 	import { Button } from '#lib/components/ui/button/index.ts';
@@ -10,6 +11,7 @@
 	let deliveries = $state<Schemas['NotificationDelivery'][]>([]);
 	let target = $state<string | null>(null);
 	let error = $state('');
+	let loaded = $state(false);
 
 	onMount(async () => {
 		const [d, r, p] = await Promise.all([
@@ -17,6 +19,7 @@
 			api.GET('/api/notifications/route'),
 			api.GET('/api/notifications/providers')
 		]);
+		loaded = true;
 		if (!d.data || !r.data || !p.data) {
 			error = problemText(d.error ?? r.error ?? p.error);
 			return;
@@ -37,14 +40,17 @@
 {#if error}<p role="alert" class="mb-3 text-md text-bad-text">{error}</p>{/if}
 <Panel
 	title="Recent notifications"
-	description={target
-		? `Alerts go to ${target}.`
-		: 'No alerts are sent until you choose a provider.'}
+	description={!loaded
+		? ''
+		: target
+			? `Alerts go to ${target}.`
+			: 'No alerts are sent until you choose a provider.'}
 >
 	{#snippet actions()}<Button variant="outline" size="sm" href="/settings?category=monitoring"
 			><Settings />Notification settings</Button
 		>{/snippet}
-	{#if deliveries.length === 0}
+	{#if !loaded && !error}<Skeleton class="h-24 w-full" />
+	{:else if deliveries.length === 0}
 		<p class="text-md text-muted-foreground">Nothing sent yet.</p>
 	{/if}
 	<ul class="space-y-2.5 text-md">

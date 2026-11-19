@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { Skeleton } from '#lib/components/ui/skeleton/index.ts';
 	import { onMount } from 'svelte';
 	import StatusDot from '#lib/components/hashi/StatusDot.svelte';
 	import { Input } from '#lib/components/ui/input/index.ts';
@@ -83,6 +84,11 @@
 		<p role="alert" class="mb-4 text-md text-warn-text">
 			Could not refresh. What you see may be out of date.
 		</p>
+	{/if}
+	{#if !data && !failed}
+		<div class="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+			{#each [0, 1, 2, 3, 4, 5, 6, 7] as i (i)}<Skeleton class="h-20 rounded-2xl" />{/each}
+		</div>
 	{/if}
 	{#if data && data.apps.length === 0}
 		<p class="text-md text-muted-foreground">No apps are listed here yet.</p>

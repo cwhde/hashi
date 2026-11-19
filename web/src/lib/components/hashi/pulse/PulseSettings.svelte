@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { Skeleton } from '#lib/components/ui/skeleton/index.ts';
 	import { Draft, guardUnsaved } from '#lib/unsaved.svelte.ts';
 	import { onMount } from 'svelte';
 	import Panel from '#lib/components/hashi/Panel.svelte';
@@ -66,5 +67,6 @@
 			</div>
 		</div>
 	</Panel>
+{:else if !error}<Skeleton class="h-40 rounded-2xl" />
 {/if}
 {#if error}<p role="alert" class="mt-3 text-md text-bad-text">{error}</p>{/if}

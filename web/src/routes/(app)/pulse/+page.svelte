@@ -5,6 +5,7 @@
 	import Tag from '#lib/components/hashi/Tag.svelte';
 	import { Button } from '#lib/components/ui/button/index.ts';
 	import * as Table from '#lib/components/ui/table/index.ts';
+	import { Skeleton } from '#lib/components/ui/skeleton/index.ts';
 	import { Plus } from '@lucide/svelte';
 	import { api, problemText, type Schemas } from '#lib/api/client.ts';
 	import { dateTime } from '#lib/format.ts';
@@ -14,14 +15,19 @@
 	type Agent = Schemas['PulseAgent'];
 	let agents = $state<Agent[]>([]);
 	let error = $state('');
+	let loaded = $state(false);
 
 	async function load() {
 		const r = await api.GET('/api/pulse/agents');
 		if (!r.data) throw r.error;
 		agents = r.data.agents;
+		loaded = true;
 	}
 	onMount(() => {
-		load().catch((e) => (error = problemText(e)));
+		load().catch((e) => {
+			error = problemText(e);
+			loaded = true;
+		});
 		const t = setInterval(() => void load().catch(() => {}), 30000);
 		return () => clearInterval(t);
 	});
@@ -81,11 +87,19 @@
 					</Table.Cell>
 				</Table.Row>
 			{:else}
-				<Table.Row>
-					<Table.Cell colspan={5} class="px-4 py-4 text-md text-muted-foreground"
-						>No agents yet.</Table.Cell
-					>
-				</Table.Row>
+				{#if loaded}
+					<Table.Row>
+						<Table.Cell colspan={5} class="px-4 py-4 text-md text-muted-foreground"
+							>No agents yet.</Table.Cell
+						>
+					</Table.Row>
+				{:else}
+					{#each [0, 1, 2, 3] as i (i)}
+						<Table.Row>
+							<Table.Cell colspan={5} class="px-4"><Skeleton class="h-6 w-full" /></Table.Cell>
+						</Table.Row>
+					{/each}
+				{/if}
 			{/each}
 		</Table.Body>
 	</Table.Root>
