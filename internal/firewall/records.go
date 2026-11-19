@@ -1,6 +1,7 @@
 package firewall
 
 import (
+	"cmp"
 	"context"
 	"git.juzo.io/juzo/hashi/internal/adguard"
 	"net/netip"
@@ -120,11 +121,18 @@ func GenerateRecords(root string, hosts []Effective, svcs []services.Service) []
 	for _, g := range out {
 		hostNames[g.Name] = true
 	}
-	for _, s := range svcs {
+	// HTTP services first: a stream sharing an HTTP service's name (a game and its web map, bug 132) leaves the record
+	// to it, and further streams on a name already given a record add nothing.
+	ordered := slices.Clone(svcs)
+	slices.SortStableFunc(ordered, func(a, b services.Service) int {
+		return cmp.Compare(boolInt(a.Stream()), boolInt(b.Stream()))
+	})
+	for _, s := range ordered {
 		name := strings.TrimSuffix(s.HostName, ".") + "."
 		if !s.Renderable() || s.HostName == "" || hostNames[name] {
 			continue // a service named like a host record leaves it to the host
 		}
+		before := len(out)
 		src := "service " + s.Name
 		home, matched := homeHost(s, hosts, root)
 		if matched && !published(home) {
@@ -151,6 +159,9 @@ func GenerateRecords(root string, hosts []Effective, svcs []services.Service) []
 			if vals := publicV4(s); len(vals) > 0 {
 				out = append(out, dns.Generated{Name: name, Type: "A", Values: vals, Source: src})
 			}
+		}
+		if len(out) > before {
+			hostNames[name] = true
 		}
 	}
 	return out
@@ -280,4 +291,11 @@ func (m *Manager) Publication(ctx context.Context, resolve services.TargetResolv
 		p.Reason = home.Row.Name + " has no internal Traefik address, so there is no AdGuard rewrite."
 	}
 	return p, nil
+}
+
+func boolInt(b bool) int {
+	if b {
+		return 1
+	}
+	return 0
 }

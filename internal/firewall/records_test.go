@@ -197,3 +197,25 @@ func TestSSHAddrs(t *testing.T) {
 		t.Fatal(got)
 	}
 }
+
+// Bug 132: a game's TCP and UDP streams on its web map's name give one record, the map's, not three competing ones.
+func TestStreamsSharingANameGiveOneRecord(t *testing.T) {
+	a := host("a", "edge-a", "192.0.2.1", "10.40.4.0/24")
+	b := host("b", "edge-b", "192.0.2.2", "10.40.8.0/24")
+	game := svc("game", "mc2.example.com", "10.40.8.7") // behind edge-b
+	game.Kind, game.PublicPort = services.KindTCP, 25565
+	bedrock := svc("bedrock", "mc2.example.com", "10.40.8.7")
+	bedrock.Kind, bedrock.PublicPort = services.KindUDP, 19132
+	webmap := svc("map", "mc2.example.com", "10.40.4.9") // behind edge-a: the HTTP service's record wins
+	got := lines(GenerateRecords("example.com", []Effective{a, b}, []services.Service{game, bedrock, webmap}))
+	n := 0
+	for _, l := range got {
+		if strings.HasPrefix(l, "mc2.example.com. ") {
+			n++
+		}
+	}
+	if n != 1 {
+		t.Fatalf("want one record for the shared name:\n%s", strings.Join(got, "\n"))
+	}
+	has(t, got, "mc2.example.com. CNAME on.edge-a.example.com.")
+}

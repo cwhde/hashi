@@ -65,7 +65,6 @@ All open entries are planned into the 0.13 bug round (slices 13.1 onwards in `do
 | 123 | later | reported | App display | A switch to turn all on or off, for the app dashboard and the status page. (owner) | 2026-11-19 |
 | 124 | visual | reported | Settings → Edge protection | Looks unorganised. (owner) | 2026-11-19 |
 | 125 | visual | reported | Settings → Firewall | "NetBird mode a new host starts with" is not understood. (owner) | 2026-11-19 |
-| 132 | function | reported | Services, same domain twice | Minecraft: an HTTP service (map plugin) on mc2.<domain>, then a TCP/UDP forward for the game on the same domain fails. Both must work on one name. Urgent (owner wants to play). (owner) | 2026-11-19 |
 | 133 | function | reported | DNS → SRV record | Check that an SRV record (`_minecraft._tcp.mc2`) can be added next to the service's own record. (owner) | 2026-11-19 |
 | 134 | function | reported | Root domain service rules | Search Console reports crawl problems on the root domain's site. The owner only wants the admin page behind SSO; the rules look odd. Make the site indexable again. (owner) | 2026-11-19 |
 | 135 | function | reported | Security → address page | Show everything Hashi knows about an address: ASN and AS name, country, network, which sets contain it, counters, events. Something similar on IP sets, harder. (owner) | 2026-11-19 |

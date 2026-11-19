@@ -250,3 +250,28 @@ func TestListMarksInvalid(t *testing.T) {
 		t.Errorf("got %+v", all)
 	}
 }
+
+// Bug 132: a game server's web map (HTTP) and its game ports (TCP and UDP) share one name. Only two HTTP services on
+// one name clash, because HTTP is routed by name; streams are routed by their port.
+func TestStreamsShareANameWithHTTP(t *testing.T) {
+	ctx := context.Background()
+	st := newStore(t)
+	m := web()
+	m.Name, m.Slug, m.HostName = "Map", "map", "mc2.example.com"
+	if _, err := Create(ctx, st.Q, m, now); err != nil {
+		t.Fatal(err)
+	}
+	for _, k := range []string{KindTCP, KindUDP} {
+		g := web()
+		g.Name, g.Slug, g.Kind, g.HostName, g.PublicPort = "Game "+k, "game-"+k, k, "mc2.example.com", 25565
+		g.Target.Port = 25565
+		if _, err := Create(ctx, st.Q, g, now); err != nil {
+			t.Fatalf("%s on the map's name: %v", k, err)
+		}
+	}
+	again := web()
+	again.Slug, again.HostName = "map2", "mc2.example.com"
+	if _, err := Create(ctx, st.Q, again, now); !errors.Is(err, ErrTaken) {
+		t.Errorf("a second HTTP service on the name: %v", err)
+	}
+}

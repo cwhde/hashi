@@ -464,7 +464,9 @@ func taken(ctx context.Context, q *db.Queries, s Service) error {
 		return err
 	}
 	for _, r := range rows {
-		if r.ID != s.ID && (r.Slug == s.Slug || (s.HostName != "" && r.HostName == s.HostName)) {
+		// Only HTTP is routed by name, so a stream may share its name with anything (bug 132).
+		sameName := s.HostName != "" && r.HostName == s.HostName && !s.Stream() && r.Kind != KindTCP && r.Kind != KindUDP
+		if r.ID != s.ID && (r.Slug == s.Slug || sameName) {
 			return ErrTaken
 		}
 		if r.ID != s.ID && s.Stream() && r.Kind == s.Kind && int(r.PublicPort.Int64) == s.PublicPort {
