@@ -57,7 +57,7 @@ PR A, status, public pages and alerts:
 - [x] Pause/Resume sends only paused (59); saving a stale check form is refused, not silently overwriting (82)
 - [x] Script schedule preview says which time zone (85)
 - [x] Grouped alert names the host when the checks behind one Traefik or firewall host go down together (12; grouping itself shipped in 13.4 as 144)
-- [ ] Status placeholders stuck (107): one more reproduction try with a throttled network; fix only if reproduced
+- [x] Status placeholders stuck (107): not reproduced in 15 more visits on prod; moved to Unverified
 - [x] Flaky Pocket ID test (16): read the secret after create when the answer has none
 
 PR B, plans tell the truth:
@@ -1092,6 +1092,7 @@ Decisions made in S0:
 
 ## Unverified
 
+- 107, Status list once stuck on placeholder cards for more than 4 s (13.4 walk). Not reproduced in 27 visits on prod (12 on 2026-11-19 with beta.3: 0.65–0.88 s; 15 on 2026-11-19 with beta.5: 0.38–0.81 s). Moved out of bugs.md; comes back with a reproduction.
 - 13.1, flaky CI tests (old bugs 11, 16, 33), not reproduced locally. Each now leaves evidence for the next time:
   `TestIntegrationRescueRollback` hang in `docker exec` (a test `Shell` call now stops after 2 min and names the
   command; suspect: the systemd shim's background timer); `TestIntegrationPocketID` client without `createdSecret`
