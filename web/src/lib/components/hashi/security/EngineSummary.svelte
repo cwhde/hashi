@@ -33,28 +33,96 @@
 			busy = false;
 		}
 	}
-	const num = (label: string, key: keyof Schemas['EngineSettings'], unit = '') => ({
-		label,
-		key,
-		unit
-	});
-	const fields = [
-		num('Challenge after requests', 'rate_requests'),
-		num('… within', 'rate_window_seconds', 's'),
-		num('Challenge after WAF matches', 'waf_violations'),
-		num('… within', 'waf_window_seconds', 's'),
-		num('Challenge lasts (0: until solved)', 'challenge_expiry_seconds', 's'),
-		num('Ban after requests without solving', 'challenge_max_failed'),
-		num('CAPTCHA pass lasts', 'captcha_clearance_hours', 'h'),
-		num('New connections per minute from one address', 'tcp_new_per_minute'),
-		num('… burst', 'tcp_burst'),
-		num('Open connections from one address', 'tcp_max_concurrent'),
-		num('First ban', 'ban_base_seconds', 's'),
-		num('Ban factor', 'ban_k'),
-		num('Longest ban', 'ban_max_seconds', 's'),
-		num('Permanent from ban number (0: never)', 'ban_permanent_after'),
-		num('Counters drop by one after quiet', 'counter_decay_seconds', 's')
+	type Key = keyof Schemas['EngineSettings'];
+	// One row per setting: a complete name, the boxes, and their units (bug 140). Durations show in a readable unit and
+	// are stored in seconds; factor converts.
+	type Box = { key: Key; unit: string; factor?: number; step?: string; joiner?: string };
+	type Row = { label: string; boxes: Box[]; note?: string };
+	const groups: { title: string; meters?: boolean; rows: Row[] }[] = [
+		{
+			title: 'Challenge',
+			rows: [
+				{
+					label: 'Request limit',
+					boxes: [
+						{ key: 'rate_requests', unit: 'requests' },
+						{ key: 'rate_window_seconds', unit: 's', joiner: 'in' }
+					]
+				},
+				{
+					label: 'Web firewall matches',
+					boxes: [
+						{ key: 'waf_violations', unit: 'matches' },
+						{ key: 'waf_window_seconds', unit: 's', joiner: 'in' }
+					]
+				},
+				{
+					label: 'Challenge expires after',
+					boxes: [{ key: 'challenge_expiry_seconds', unit: 'min', factor: 60 }],
+					note: '0 keeps it until solved'
+				},
+				{
+					label: 'Attempts before a ban',
+					boxes: [{ key: 'challenge_max_failed', unit: 'attempts' }]
+				},
+				{
+					label: 'CAPTCHA pass lasts',
+					boxes: [{ key: 'captcha_clearance_hours', unit: 'h' }]
+				}
+			]
+		},
+		{
+			title: 'Connection limits per address',
+			meters: true,
+			rows: [
+				{
+					label: 'New connections',
+					boxes: [{ key: 'tcp_new_per_minute', unit: 'per min' }]
+				},
+				{ label: 'Short bursts up to', boxes: [{ key: 'tcp_burst', unit: 'connections' }] },
+				{
+					label: 'Open connections',
+					boxes: [{ key: 'tcp_max_concurrent', unit: 'at once' }]
+				}
+			]
+		},
+		{
+			title: 'Bans',
+			rows: [
+				{ label: 'First ban', boxes: [{ key: 'ban_base_seconds', unit: 'min', factor: 60 }] },
+				{ label: 'Each next ban', boxes: [{ key: 'ban_k', unit: '× longer', step: '0.1' }] },
+				{
+					label: 'Longest ban',
+					boxes: [{ key: 'ban_max_seconds', unit: 'days', factor: 86400, step: '0.5' }]
+				},
+				{
+					label: 'Permanent after',
+					boxes: [{ key: 'ban_permanent_after', unit: 'bans' }],
+					note: '0 never bans for good'
+				},
+				{
+					label: 'Forget one offence after',
+					boxes: [{ key: 'counter_decay_seconds', unit: 'quiet days', factor: 86400, step: '0.5' }]
+				}
+			]
+		}
 	];
+	const growth: Record<string, string> = {
+		constant: 'Same length',
+		linear: 'Fixed step',
+		exponential: 'Multiplied'
+	};
+	const growthText = (x: Schemas['EngineSettings']) =>
+		x.ban_function === 'exponential'
+			? `×${x.ban_k} each time`
+			: x.ban_function === 'linear'
+				? `+${span(x.ban_base_seconds * x.ban_k)} each time`
+				: 'Same length each time';
+	const read = (b: Box) => (form![b.key] as number) / (b.factor ?? 1);
+	const write = (b: Box, v: number) => {
+		const n = Number(v) * (b.factor ?? 1);
+		(form as Record<string, unknown>)[b.key] = b.key === 'ban_k' ? n : Math.round(n);
+	};
 	onMount(async () => {
 		const r = await api.GET('/api/settings/engine');
 		if (r.error || !r.data) error = problemText(r.error);
@@ -65,7 +133,7 @@
 		if (s % 86400 === 0) return `${s / 86400} d`;
 		if (s >= 86400) return `${Math.floor(s / 86400)} d ${Math.round((s % 86400) / 3600)} h`;
 		if (s % 3600 === 0) return `${s / 3600} h`;
-		if (s >= 60) return `${Math.round(s / 60)} min`;
+		if (s >= 120 || s % 60 === 0) return `${Math.round(s / 60)} min`;
 		return `${s} s`;
 	}
 	const bans = $derived.by(() => {
@@ -100,38 +168,36 @@
 			{#snippet actions()}<Button size="sm" variant="outline" onclick={() => (form = { ...e! })}
 					><Pencil />Edit</Button
 				>{/snippet}
-			<dl class="grid grid-cols-[1fr_auto] gap-y-2.5 text-md">
-				<dt>Challenge after WAF matches</dt>
-				<dd class="tnum">{e.waf_violations} in {span(e.waf_window_seconds)}</dd>
-				<dt>Challenge after requests</dt>
-				<dd class="tnum">{e.rate_requests} in {span(e.rate_window_seconds)}</dd>
-				<dt>Challenge lasts</dt>
-				<dd class="tnum">
-					{e.challenge_expiry_seconds ? span(e.challenge_expiry_seconds) : 'until solved'}
+			<dl class="grid grid-cols-[1fr_auto] gap-x-4 gap-y-2.5 text-md">
+				<dt>Request limit</dt>
+				<dd class="tnum text-right">{e.rate_requests} requests in {span(e.rate_window_seconds)}</dd>
+				<dt>Web firewall matches</dt>
+				<dd class="tnum text-right">{e.waf_violations} in {span(e.waf_window_seconds)}</dd>
+				<dt>Challenge expires after</dt>
+				<dd class="tnum text-right">
+					{e.challenge_expiry_seconds ? span(e.challenge_expiry_seconds) : 'never'}
 				</dd>
-				<dt>Ban after requests without solving</dt>
-				<dd class="tnum">{e.challenge_max_failed}</dd>
+				<dt>Attempts before a ban</dt>
+				<dd class="tnum text-right">{e.challenge_max_failed}</dd>
 				<dt>CAPTCHA pass lasts</dt>
-				<dd class="tnum">{span(e.captcha_clearance_hours * 3600)}</dd>
-				<dt>Counters drop by one after</dt>
-				<dd class="tnum">{span(e.counter_decay_seconds)} quiet</dd>
-				<dt>Web firewall by default</dt>
-				<dd>{e.waf_default_mode.replace('_', ' ')}</dd>
-				<dt>Connection limits in the firewall</dt>
-				<dd>
+				<dd class="tnum text-right">{span(e.captcha_clearance_hours * 3600)}</dd>
+				<dt>Forget one offence after</dt>
+				<dd class="tnum text-right">{span(e.counter_decay_seconds)} quiet</dd>
+				<dt>Default web firewall</dt>
+				<dd class="text-right">{e.waf_default_mode === 'headers_only' ? 'Headers only' : 'Off'}</dd>
+				<dt>Connection limits</dt>
+				<dd class="tnum text-right">
 					{e.meters_enabled
-						? `${e.tcp_new_per_minute}/min, ${e.tcp_max_concurrent} open per address`
-						: 'off'}
+						? `${e.tcp_new_per_minute} new per min, ${e.tcp_max_concurrent} open per address`
+						: 'Off'}
 				</dd>
 				<dt>Blocklists refresh every</dt>
-				<dd class="tnum">{span(e.feed_refresh_seconds)}</dd>
+				<dd class="tnum text-right">{span(e.feed_refresh_seconds)}</dd>
 			</dl>
 		</Panel>
 		<Panel
 			title="Ban length"
-			description="{e.ban_function} from {span(e.ban_base_seconds)}, at most {span(
-				e.ban_max_seconds
-			)}"
+			description="{growthText(e)}, from {span(e.ban_base_seconds)} up to {span(e.ban_max_seconds)}"
 		>
 			<ol class="grid grid-cols-[3rem_1fr_4.5rem] items-center gap-x-2 gap-y-1.5 text-md">
 				{#each bans as t, i (i)}
@@ -154,7 +220,7 @@
 {/if}
 
 <Sheet.Root open={!!form} onOpenChange={(o) => !o && (form = null)}>
-	<Sheet.Content class="w-full sm:max-w-lg">
+	<Sheet.Content class="w-full sm:max-w-xl">
 		<Sheet.Header>
 			<Sheet.Title>Abuse engine</Sheet.Title>
 			<Sheet.Description
@@ -162,43 +228,61 @@
 			>
 		</Sheet.Header>
 		{#if form}
-			<div class="space-y-4 overflow-y-auto px-4 pb-4">
-				<div class="space-y-1.5">
-					<Label for="eg-waf">Web firewall for services without their own setting</Label>
+			<div class="space-y-6 overflow-y-auto px-4 pb-4">
+				<div class="flex items-center justify-between gap-4">
+					<Label for="eg-waf">Default web firewall</Label>
 					<Select.Root type="single" bind:value={form.waf_default_mode}>
-						<Select.Trigger id="eg-waf" class="w-full"
-							>{form.waf_default_mode === 'headers_only' ? 'headers only' : 'off'}</Select.Trigger
+						<Select.Trigger id="eg-waf" class="w-40"
+							>{form.waf_default_mode === 'headers_only' ? 'Headers only' : 'Off'}</Select.Trigger
 						>
 						<Select.Content>
-							<Select.Item value="headers_only">headers only</Select.Item>
-							<Select.Item value="disabled">off</Select.Item>
+							<Select.Item value="headers_only">Headers only</Select.Item>
+							<Select.Item value="disabled">Off</Select.Item>
 						</Select.Content>
 					</Select.Root>
 				</div>
-				<label class="flex items-center gap-2 text-md"
-					><Switch bind:checked={form.meters_enabled} />Connection limits in the firewall</label
-				>
-				<div class="grid gap-3 sm:grid-cols-2">
-					{#each fields as f (f.key + f.label)}
-						<div class="space-y-1.5">
-							<Label for="eg-{f.key}">{f.label}{f.unit ? ` (${f.unit})` : ''}</Label>
-							<Input
-								id="eg-{f.key}"
-								type="number"
-								step={f.key === 'ban_k' ? '0.1' : '1'}
-								bind:value={form[f.key] as number}
-							/>
+				{#each groups as g (g.title)}
+					<section class="space-y-3">
+						<div class="flex items-center justify-between gap-4 border-b pb-1.5">
+							<h3 class="text-base font-semibold">{g.title}</h3>
+							{#if g.meters}<Switch
+									bind:checked={form.meters_enabled}
+									aria-label="Connection limits in the firewall"
+								/>{/if}
 						</div>
-					{/each}
-				</div>
-				<div class="space-y-1.5">
-					<Label for="eg-fn">Ban length grows</Label>
+						{#if !g.meters || form.meters_enabled}
+							{#each g.rows as r (r.label)}
+								<div class="grid grid-cols-[1fr_auto] items-center gap-x-4 gap-y-1">
+									<Label for="eg-{r.boxes[0]?.key}" class="leading-snug">{r.label}</Label>
+									<div class="flex flex-col items-end gap-1.5 text-md text-muted-foreground">
+										{#each r.boxes as b (b.key)}
+											<div class="flex items-center gap-1.5">
+												{#if b.joiner}<span>{b.joiner}</span>{/if}
+												<Input
+													id="eg-{b.key}"
+													type="number"
+													min="0"
+													step={b.step ?? '1'}
+													class="tnum w-20 text-right"
+													aria-label="{r.label} ({b.unit || 'number'})"
+													bind:value={() => read(b), (v: number) => write(b, v)}
+												/><span class="w-24">{b.unit}</span>
+											</div>
+										{/each}
+									</div>
+									{#if r.note}<p class="col-span-2 text-sm text-muted-foreground">{r.note}</p>{/if}
+								</div>
+							{/each}
+						{/if}
+					</section>
+				{/each}
+				<div class="flex items-center justify-between gap-4">
+					<Label for="eg-fn">How bans grow</Label>
 					<Select.Root type="single" bind:value={form.ban_function}>
-						<Select.Trigger id="eg-fn" class="w-full">{form.ban_function}</Select.Trigger>
+						<Select.Trigger id="eg-fn" class="w-40">{growth[form.ban_function]}</Select.Trigger>
 						<Select.Content>
-							<Select.Item value="constant">constant</Select.Item>
-							<Select.Item value="linear">linear</Select.Item>
-							<Select.Item value="exponential">exponential</Select.Item>
+							{#each Object.entries(growth) as [v, l] (v)}<Select.Item value={v}>{l}</Select.Item
+								>{/each}
 						</Select.Content>
 					</Select.Root>
 				</div>
