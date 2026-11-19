@@ -1115,7 +1115,7 @@ Decisions made in S0:
 
 ## Log
 
-- 2026-11-19 · deploy `v0.13.4-beta.4` (`530a613`, the owner's OK) · smoke ok (readyz, version, SPA, both public pages). Security hourly rollup ran: first run 168 hours in 3.7 s; catches up over the next runs. Sign-in page redesign (136), stream message (137), hourly rollup and retention (99).
+- 2026-11-19 · deploy `v0.13.4-beta.4` (`530a613`, the owner's OK) · smoke ok (readyz, version, SPA, both public pages). Security hourly rollup ran: first run 168 hours in 3.7 s, caught up within about 15 min. Dashboard call on prod after: 1h 0.04 s, 24h 0.40 s, 7d 0.16 s (was 2.2 s), 30d 0.35 s (was 5.7 s). Sign-in page redesign (136), stream message (137), hourly rollup and retention (99).
 - 2026-11-19 · deploy `v0.13.4-beta.3` (`50b68e7`, the owner's OK) · smoke ok (readyz, version, SPA, both public pages),
   schema 28 → 29 (streams may share a name). Release run 1253 green. In it: 120, 126, 127, 128–132, 135, skeletons.
   Then, with the owner's yes: the root site's rules cut to the admin page and everything under it → sign-in, fallback
