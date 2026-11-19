@@ -45,7 +45,7 @@
 					><ActionTag action={r.action ?? 'none'} groups={r.auth?.groups} /></span
 				>
 				<span class="col-span-2 truncate text-sm text-muted-foreground md:col-span-1"
-					>{r.origin}{#if r.note}<span class="hidden lg:inline"> · {r.note}</span>{/if}</span
+					>{r.origin}{#if r.note}{' '}<span class="hidden lg:inline"> · {r.note}</span>{/if}</span
 				>
 			{/if}
 		</li>

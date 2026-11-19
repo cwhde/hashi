@@ -310,7 +310,7 @@
 				<dd class="truncate">
 					{#if pub?.host_id}<a href="/firewall/{pub.host_id}" class="hover:underline"
 							>{pub.host_name}</a
-						>{#if pub.rewrite}<span class="text-muted-foreground">
+						>{#if pub.rewrite}{' '}<span class="text-muted-foreground">
 								· home <Mono>{pub.rewrite}</Mono></span
 							>{/if}{:else}<span class="text-muted-foreground">no firewall host</span>{/if}
 				</dd>

@@ -165,7 +165,7 @@
 			>
 				{#if lookup.country}<span title={lookup.country}>{country(lookup.country)}</span>{/if}
 				{#if lookup.asn}<span
-						><Mono>AS{lookup.asn}</Mono>{#if lookup.as_name}
+						><Mono>AS{lookup.asn}</Mono>{#if lookup.as_name}{' '}
 							<span class="text-foreground">{lookup.as_name}</span>{/if}</span
 					>{/if}
 				{#if lookup.network}<span>network <Mono>{lookup.network}</Mono></span>{/if}
@@ -262,13 +262,13 @@
 				<dl class="mt-3 grid grid-cols-[auto_1fr] gap-x-4 gap-y-1.5 text-md">
 					<dt class="text-muted-foreground">Ban counter</dt>
 					<dd class="tnum">
-						{counter.ban_count}{#if counter.last_ban}<span class="text-muted-foreground">
+						{counter.ban_count}{#if counter.last_ban}{' '}<span class="text-muted-foreground">
 								· last ban {dateTime(counter.last_ban)}</span
 							>{/if}
 					</dd>
 					<dt class="text-muted-foreground">Challenge counter</dt>
 					<dd class="tnum">
-						{counter.challenge_count}{#if counter.last_challenge}<span
+						{counter.challenge_count}{#if counter.last_challenge}{' '}<span
 								class="text-muted-foreground"
 							>
 								· last challenge {dateTime(counter.last_challenge)}</span
@@ -299,10 +299,10 @@
 				>
 					<span class="tnum text-muted-foreground" title={dateTime(e.at)}>{dateTime(e.at)}</span
 					><span class="truncate"
-						>{eventLabel(e.type)}{#if e.path}<span class="text-muted-foreground">
+						>{eventLabel(e.type)}{#if e.path}{' '}<span class="text-muted-foreground">
 								{e.method}
 								{e.path}</span
-							>{/if}{#if e.rules.length}<span class="text-muted-foreground">
+							>{/if}{#if e.rules.length}{' '}<span class="text-muted-foreground">
 								· rules {e.rules.join(', ')}</span
 							>{/if}</span
 					><span class="hidden truncate text-muted-foreground md:inline"

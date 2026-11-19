@@ -57,7 +57,7 @@
 			{h.name}<StatusBadge state={h.health} />
 		</h1>
 		<p class="text-md text-muted-foreground">
-			{h.os} · nft 1.1.3 · <Mono>{h.publicIp}</Mono>{#if h.publicIp6}
+			{h.os} · nft 1.1.3 · <Mono>{h.publicIp}</Mono>{#if h.publicIp6}{' '}
 				· <Mono>{h.publicIp6}</Mono>{/if}
 		</p>
 	</div>

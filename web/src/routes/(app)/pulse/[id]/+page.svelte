@@ -180,7 +180,7 @@
 			<dl class="mt-4 grid grid-cols-[9rem_minmax(0,1fr)] gap-y-1.5 text-md">
 				<dt class="text-muted-foreground">Public address</dt>
 				<dd>
-					<Mono>{agent.public_ip || '—'}</Mono>{#if agent.public_ip_source === 'reported'}
+					<Mono>{agent.public_ip || '—'}</Mono>{#if agent.public_ip_source === 'reported'}{' '}
 						<Tag>self-reported</Tag>{/if}
 				</dd>
 				{#if agent.reach_port}

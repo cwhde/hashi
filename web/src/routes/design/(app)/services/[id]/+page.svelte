@@ -155,7 +155,7 @@
 					<ol class="space-y-0.5">
 						<li><Mono>{r.domain}</Mono></li>
 						{#each chain as c, i (c)}<li class="text-muted-foreground">
-								→ <Mono class="text-foreground">{c}.example.com</Mono>{#if i === 2}<span>
+								→ <Mono class="text-foreground">{c}.example.com</Mono>{#if i === 2}{' '}<span>
 										A</span
 									>{/if}
 							</li>{/each}

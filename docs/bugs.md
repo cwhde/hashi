@@ -42,7 +42,6 @@ All open entries are planned into the 0.13 bug round (slices 13.1 onwards in `do
 | 145 | visual | reported | Public status page → top banner | "6 services are down. Others are working." — drop "Others are working". The banner and the "Updated …" line look off together: the timestamp sits tight under the banner with a bigger gap before the first card, so it belongs to neither. (owner) | 2026-11-19 |
 | 146 | visual | reported | Public apps page → Search | In Firefox the Search button looks broken before it is first clicked; after clicking it, and after leaving it, it looks right. Not checked in Chrome yet. (owner) | 2026-11-19 |
 | 147 | visual | reported | Public apps page → header | Shows "48 / 54 hosts online · 1 / 1 Linux firewall hosts available". Up/down counts belong on the status page, not the app dashboard: remove them. Some spacing on the page is off too (owner didn't say where; look for it). (owner) | 2026-11-19 |
-| 148 | visual | reported | Many pages (e.g. Security → address page, Recent events) | Missing spaces between words: "AS6730Sunrise GmbH" on an address page, "Refused by the WAFGET" in Recent events. Likely two text pieces in adjacent tags with the whitespace between them lost; sweep the whole app, not just these two. (owner) | 2026-11-19 |
 
 ## Details
 

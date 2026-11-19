@@ -168,7 +168,7 @@
 									{c.name}<StatusBadge state={healthOf(c.health)} />
 								</div>
 								<div class="text-sm text-muted-foreground">
-									SSH <Mono>{c.user}@{c.host}:{c.port}</Mono>{#if c.os_name}<span
+									SSH <Mono>{c.user}@{c.host}:{c.port}</Mono>{#if c.os_name}{' '}<span
 											>&nbsp;· {c.os_name}</span
 										>{/if}
 								</div>
@@ -242,9 +242,9 @@
 								<div class="min-w-0 flex-1">
 									<div class="font-medium">{k.names.join(', ')}</div>
 									<div class="text-sm text-muted-foreground">
-										{#if k.issuer}<span>{k.issuer}&nbsp;·&nbsp;</span>{/if}{distText(
+										{#if k.issuer}<span>{k.issuer}&nbsp;·&nbsp;</span>{' '}{/if}{distText(
 											k
-										)}{#if k.last_renewal_result === 'failed'}
+										)}{#if k.last_renewal_result === 'failed'}{' '}
 											<span class="text-bad-text">
 												· last renewal failed: {k.last_renewal_error}</span
 											>{/if}

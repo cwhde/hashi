@@ -270,7 +270,8 @@
 						</span>
 						<div class={cn('min-w-0 flex-1 space-y-2 pt-1', st === 'next' && 'opacity-60')}>
 							<p class="font-medium">
-								{copy[s].title}<span class="sr-only">
+								{copy[s].title}<span class="sr-only"
+									>{' '}
 									({st === 'done' ? 'done' : st === 'current' ? 'current step' : 'next'})</span
 								>
 							</p>

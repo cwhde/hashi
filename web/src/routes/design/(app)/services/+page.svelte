@@ -93,7 +93,7 @@
 						</div>
 						<div class="mt-0.5 text-xs text-muted-foreground">
 							{#if r.upstreamSet}follows <span class="font-medium">{r.upstreamSet}</span> ·
-							{/if}on {r.host}{#if r.entry}
+								{' '}{/if}on {r.host}{#if r.entry}{' '}
 								· enters via {r.entry}{/if}
 						</div>
 					</Table.Cell>

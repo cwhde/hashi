@@ -39,7 +39,10 @@ export default defineConfig(
 		// 'svelte/button-has-type': 'error'
 		rules: {
 			// The SPA is always served at / by the Go binary (no base path), so resolve() on every link adds nothing.
-			'svelte/no-navigation-without-resolve': 'off'
+			'svelte/no-navigation-without-resolve': 'off',
+			// {' '} keeps a space Svelte would drop at the edge of a tag or block (bug 148, scripts/check-spaces.mjs);
+			// this rule calls every string literal useless and has no exception for it.
+			'svelte/no-useless-mustaches': 'off'
 		}
 	}
 );

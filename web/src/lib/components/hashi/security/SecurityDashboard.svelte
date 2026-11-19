@@ -232,10 +232,10 @@
 										>{country(e.country)}</span
 									>{/if}<AddressLink address={e.address} class="truncate" /></span
 							><span class="truncate"
-								>{eventLabel(e.type)}{#if e.path}<span class="text-muted-foreground">
+								>{eventLabel(e.type)}{#if e.path}{' '}<span class="text-muted-foreground">
 										{e.method}
 										{e.path}</span
-									>{/if}{#if e.rules.length}<span class="text-muted-foreground">
+									>{/if}{#if e.rules.length}{' '}<span class="text-muted-foreground">
 										· rules {e.rules.join(', ')}</span
 									>{/if}</span
 							><span class="hidden truncate text-muted-foreground md:inline"

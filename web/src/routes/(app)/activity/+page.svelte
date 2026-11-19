@@ -179,7 +179,7 @@
 				<p class="p-4 text-md text-muted-foreground">Nothing recorded yet.</p>
 			{:else if shown.length === 0}
 				<p class="p-4 text-md text-muted-foreground">
-					No loaded entry matches the filter.{#if cursor}
+					No loaded entry matches the filter.{#if cursor}{' '}
 						Older entries are searched once you load them.{/if}
 				</p>
 			{:else}
@@ -240,7 +240,7 @@
 								><Table.Cell class="pl-4 font-medium">{j.kind}</Table.Cell><Table.Cell class="tnum"
 									>{j.last_run
 										? dateTime(j.last_run.started_at)
-										: 'never'}{#if j.last_run?.duration_ms != null}<span
+										: 'never'}{#if j.last_run?.duration_ms != null}{' '}<span
 											class="text-muted-foreground"
 										>
 											· {j.last_run.duration_ms} ms</span

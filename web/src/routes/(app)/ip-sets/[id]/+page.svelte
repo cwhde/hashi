@@ -267,7 +267,7 @@
 			<div>
 				<dt class="text-xs text-muted-foreground">Kind</dt>
 				<dd>
-					{kindLabel[s.kind]}{#if s.address_set}<span class="text-muted-foreground">
+					{kindLabel[s.kind]}{#if s.address_set}{' '}<span class="text-muted-foreground">
 							· addresses only</span
 						>{/if}
 				</dd>
@@ -477,7 +477,7 @@
 						{#each history as h (h.id)}
 							<li class="grid grid-cols-[8rem_minmax(0,1fr)] gap-3 px-4 py-2.5">
 								<span class="text-muted-foreground">{dateTime(h.at)}</span><span
-									>{historyText[h.action] ?? h.action}{#if h.detail.note}<span
+									>{historyText[h.action] ?? h.action}{#if h.detail.note}{' '}<span
 											class="text-muted-foreground"
 										>
 											· {h.detail.note}</span

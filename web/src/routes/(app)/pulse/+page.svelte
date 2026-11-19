@@ -65,11 +65,11 @@
 							>{/if}
 					</Table.Cell>
 					<Table.Cell
-						><Mono>{a.selected_ip || '—'}</Mono>{#if a.pinned_ip}
+						><Mono>{a.selected_ip || '—'}</Mono>{#if a.pinned_ip}{' '}
 							<Tag>chosen</Tag>{/if}</Table.Cell
 					>
 					<Table.Cell class="hidden md:table-cell"
-						><Mono>{a.public_ip || '—'}</Mono>{#if a.public_ip_source === 'reported'}
+						><Mono>{a.public_ip || '—'}</Mono>{#if a.public_ip_source === 'reported'}{' '}
 							<Tag>self-reported</Tag>{/if}</Table.Cell
 					>
 					<Table.Cell class="hidden sm:table-cell">

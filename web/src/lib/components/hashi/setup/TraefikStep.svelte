@@ -327,7 +327,7 @@
 				<li class="flex items-center gap-2">
 					<Check
 						class="size-4 text-ok-text"
-					/>{#if conn.existing_binary || conn.existing_configs.length}
+					/>{#if conn.existing_binary || conn.existing_configs.length}{' '}
 						Existing Traefik: {[conn.existing_binary, ...conn.existing_configs]
 							.filter(Boolean)
 							.join(', ')}

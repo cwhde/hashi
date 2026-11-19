@@ -83,7 +83,9 @@
 						/>{/if}
 				</div>
 				<div class="min-w-0 text-sm text-muted-foreground">
-					<span class="sm:block">{item.subsystem}</span><span class="sm:hidden">&nbsp;·&nbsp;</span>
+					<span class="sm:block">{item.subsystem}</span><span class="sm:hidden"
+						>{' '}&nbsp;·&nbsp;</span
+					>
 					<span class="truncate sm:block">{item.target}</span>
 				</div>
 				<div class="min-w-0 space-y-0.5">

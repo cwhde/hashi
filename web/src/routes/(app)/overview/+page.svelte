@@ -288,7 +288,7 @@
 							</div>
 							<div class="truncate text-sm text-muted-foreground">
 								{#if h.public_ip}<Mono>{h.public_ip}</Mono> ·
-								{/if}{h.last_applied_at
+									{' '}{/if}{h.last_applied_at
 									? `applied ${dateTime(h.last_applied_at)}`
 									: 'not applied yet'}
 							</div>
@@ -305,7 +305,7 @@
 							<div class="truncate text-sm text-muted-foreground">
 								{t.installed_version
 									? `v${t.installed_version.replace(/^v/, '')}`
-									: 'not installed yet'}{#if t.last_validated_at}
+									: 'not installed yet'}{#if t.last_validated_at}{' '}
 									· checked {dateTime(t.last_validated_at)}{/if}
 							</div>
 						</a>

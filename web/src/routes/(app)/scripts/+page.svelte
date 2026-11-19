@@ -569,8 +569,8 @@
 									>
 										<Tag tone={tone[r.status]}>{statusText[r.status]}</Tag>
 										<span class="min-w-0 flex-1 truncate"
-											>{fmt(r.started_at)} · {r.host_name}{#if r.exit_code !== undefined && r.exit_code !== 0}
-												· exit {r.exit_code}{/if}{#if duration(r)}
+											>{fmt(r.started_at)} · {r.host_name}{#if r.exit_code !== undefined && r.exit_code !== 0}{' '}
+												· exit {r.exit_code}{/if}{#if duration(r)}{' '}
 												· {duration(r)}{/if}</span
 										>
 										<span class="hidden text-muted-foreground sm:inline"

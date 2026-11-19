@@ -207,7 +207,7 @@
 					>{/if}
 			</h1>
 			<p class="text-md text-muted-foreground">
-				{host.facts?.os ?? 'Not read yet'}{#if host.facts}
+				{host.facts?.os ?? 'Not read yet'}{#if host.facts}{' '}
 					· nft {host.facts.nft_version}{/if} · <Mono>{host.public_ip}</Mono>
 			</p>
 		</div>

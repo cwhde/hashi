@@ -97,7 +97,7 @@
 		<div>
 			<dt class="text-xs text-muted-foreground">Kind</dt>
 			<dd>
-				{kindLabel[s.kind]}{#if s.addressSet}<span class="text-muted-foreground">
+				{kindLabel[s.kind]}{#if s.addressSet}{' '}<span class="text-muted-foreground">
 						· addresses only</span
 					>{/if}
 			</dd>
@@ -335,7 +335,7 @@
 						<li class="grid grid-cols-[8rem_minmax(0,1fr)_auto] items-center gap-3 px-4 py-2.5">
 							<span class="text-muted-foreground">{r.at}</span>
 							<span class="tnum"
-								>{r.parsed.toLocaleString()} parsed · +{r.added} −{r.removed}{#if r.note}<span
+								>{r.parsed.toLocaleString()} parsed · +{r.added} −{r.removed}{#if r.note}{' '}<span
 										class="text-muted-foreground"
 									>
 										· {r.note}</span
