@@ -371,8 +371,8 @@ type PublicApp struct {
 
 // PublicApps is the dashboard's data.
 type PublicApps struct {
-	Apps                      []PublicApp
-	UpdatedAt                 time.Time
+	Apps      []PublicApp
+	UpdatedAt time.Time
 }
 
 // cache keeps public answers for 15 s (07 §7, §8): visitors never cause database work per request.
