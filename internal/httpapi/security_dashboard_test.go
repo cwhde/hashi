@@ -198,3 +198,64 @@ func TestDynamicEntriesByHand(t *testing.T) {
 		t.Fatal("still banned after removal")
 	}
 }
+
+// The 7 and 30 day dashboards read the rolled hours plus the newest minutes (bug 99): the same numbers before the
+// rollup, after it, and once the old minutes are gone.
+func TestSecurityDashboardReadsHours(t *testing.T) {
+	ctx := context.Background()
+	st := storetest.New(t)
+	log := slog.New(slog.NewTextHandler(io.Discard, nil))
+	s := &Server{Store: st, Log: log, Security: security.NewEngine(st, log, time.Now)}
+	now := time.Now()
+	recent := now.Add(-10*time.Minute).Unix() / 60 * 60_000
+	for _, b := range []db.AddSecurityBucketParams{
+		{BucketStart: now.Add(-5*24*time.Hour).Unix() / 60 * 60_000, Country: "CN", Decision: security.DecisionDeny, RequestCount: 40, DeniedCount: 40},
+		{BucketStart: now.Add(-3*time.Hour).Unix() / 60 * 60_000, Country: "US", Decision: security.DecisionChallenge, RequestCount: 5, ChallengedCount: 5},
+		{BucketStart: recent, Country: "CN", Decision: security.DecisionDeny, RequestCount: 2, DeniedCount: 2},
+		{BucketStart: recent, Decision: security.DecisionAllow, RequestCount: 30},
+	} {
+		if err := st.Q.AddSecurityBucket(ctx, b); err != nil {
+			t.Fatal(err)
+		}
+	}
+	for _, at := range []int64{now.Add(-5*24*time.Hour).Unix() / 60 * 60_000, recent} {
+		if err := st.Q.AddSecurityTop(ctx, db.AddSecurityTopParams{BucketStart: at, Address: "198.51.100.7", RequestCount: 3, DeniedCount: 3}); err != nil {
+			t.Fatal(err)
+		}
+	}
+	read := func() string {
+		t.Helper()
+		r := gen.GetSecurityDashboardParamsRange("30d")
+		res, err := s.GetSecurityDashboard(ctx, gen.GetSecurityDashboardRequestObject{Params: gen.GetSecurityDashboardParams{Range: &r}})
+		if err != nil {
+			t.Fatal(err)
+		}
+		d := gen.SecurityDashboard(res.(gen.GetSecurityDashboard200JSONResponse))
+		var series int
+		for _, p := range d.Series {
+			series += p.Denied + p.Challenged + p.Allowed
+		}
+		return fmt.Sprintf("totals %d/%d/%d series %d countries %v top %v", d.Totals.Allowed, d.Totals.Denied, d.Totals.Challenged,
+			series, d.Countries, d.TopAddresses)
+	}
+	before := read()
+	if want := "totals 30/42/5 series 77"; before[:len(want)] != want {
+		t.Fatalf("minutes only: %s", before)
+	}
+	if _, err := security.NewTelemetry(st, time.Now).Rollup(ctx); err != nil {
+		t.Fatal(err)
+	}
+	if got := read(); got != before {
+		t.Fatalf("after the rollup\n%s\nwant\n%s", got, before)
+	}
+	// The old minutes gone, as retention would after 30 days: the hours carry them.
+	if _, err := st.Q.DeleteOldSecurityMinutes(ctx, now.Add(-2*time.Hour).UnixMilli()); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := st.Q.DeleteOldSecurityTopMinutes(ctx, now.Add(-2*time.Hour).UnixMilli()); err != nil {
+		t.Fatal(err)
+	}
+	if got := read(); got != before {
+		t.Fatalf("from hours\n%s\nwant\n%s", got, before)
+	}
+}

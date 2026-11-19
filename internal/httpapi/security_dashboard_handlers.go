@@ -1,9 +1,11 @@
 package httpapi
 
 import (
+	"cmp"
 	"context"
 	"encoding/json"
 	"net/netip"
+	"slices"
 	"time"
 
 	"git.juzo.io/juzo/hashi/internal/httpapi/gen"
@@ -53,9 +55,22 @@ func (s *Server) GetSecurityDashboard(ctx context.Context, req gen.GetSecurityDa
 			f(p)
 		}
 	}
-	decisions, err := q.SecurityDecisionSeries(ctx, db.SecurityDecisionSeriesParams{Step: step, Since: since})
+	sp, err := s.dashboardSplit(ctx, rng, since, now)
 	if err != nil {
 		return nil, err
+	}
+	decisions, err := q.SecurityDecisionSeries(ctx, db.SecurityDecisionSeriesParams{Step: step, Since: sp.minutes})
+	if err != nil {
+		return nil, err
+	}
+	if sp.hourly() {
+		hours, err := q.SecurityHourDecisionSeries(ctx, db.SecurityHourDecisionSeriesParams{Step: step, Since: since, Until: sp.until})
+		if err != nil {
+			return nil, err
+		}
+		for _, h := range hours {
+			decisions = append(decisions, db.SecurityDecisionSeriesRow(h))
+		}
 	}
 	for _, d := range decisions {
 		n := int(d.Requests)
@@ -93,22 +108,11 @@ func (s *Server) GetSecurityDashboard(ctx context.Context, req gen.GetSecurityDa
 		}
 	}
 
-	if err := s.dashboardAddresses(ctx, since, &out); err != nil {
+	if err := s.dashboardAddresses(ctx, since, sp, &out); err != nil {
 		return nil, err
 	}
-	countries, err := q.SecurityRefusedByCountry(ctx, since)
-	if err != nil {
+	if err := s.dashboardRefused(ctx, since, sp, &out); err != nil {
 		return nil, err
-	}
-	for _, c := range countries {
-		out.Countries = append(out.Countries, gen.SecurityCountry{Country: c.Country, Refused: int(c.Refused)})
-	}
-	svcs, err := q.SecurityRefusedByService(ctx, since)
-	if err != nil {
-		return nil, err
-	}
-	for _, v := range svcs {
-		out.Services = append(out.Services, gen.SecurityService{ServiceId: v.ServiceID, Name: v.Name, Refused: int(v.Refused)})
 	}
 	if err := s.dashboardMeters(ctx, since, &out); err != nil {
 		return nil, err
@@ -126,12 +130,102 @@ func (s *Server) GetSecurityDashboard(ctx context.Context, req gen.GetSecurityDa
 	return gen.GetSecurityDashboard200JSONResponse(out), nil
 }
 
-// dashboardAddresses lists the most refused addresses with where they stand now.
-func (s *Server) dashboardAddresses(ctx context.Context, since int64, out *gen.SecurityDashboard) error {
-	top, err := s.Store.R.SecurityTopRefused(ctx, since)
+// split says which part of a period comes from the hourly tables: [since, until) from hours, minutes from minutes on.
+// Short periods read minutes only (until = since).
+type split struct{ since, until, minutes int64 }
+
+func (p split) hourly() bool { return p.until > p.since }
+
+// hourlyRanges are the periods long enough to read the rolled hours (bug 99); their steps are whole hours.
+var hourlyRanges = map[string]bool{"7d": true, "30d": true}
+
+func (s *Server) dashboardSplit(ctx context.Context, rng string, since int64, now time.Time) (split, error) {
+	p := split{since, since, since}
+	if !hourlyRanges[rng] {
+		return p, nil
+	}
+	rolled, err := security.RolledUntil(ctx, s.Store.R)
+	if err != nil {
+		return p, err
+	}
+	if rolled > since {
+		p.until = min(rolled, now.UnixMilli())
+		p.minutes = p.until
+	}
+	return p, nil
+}
+
+// dashboardRefused adds up refusals per country and per service, hours and minutes, and keeps the top 8 of each.
+func (s *Server) dashboardRefused(ctx context.Context, since int64, sp split, out *gen.SecurityDashboard) error {
+	q := s.Store.R
+	countries, err := q.SecurityRefusedByCountry(ctx, sp.minutes)
 	if err != nil {
 		return err
 	}
+	svcs, err := q.SecurityRefusedByService(ctx, sp.minutes)
+	if err != nil {
+		return err
+	}
+	if sp.hourly() {
+		hc, err := q.SecurityHourRefusedByCountry(ctx, db.SecurityHourRefusedByCountryParams{Since: since, Until: sp.until})
+		if err != nil {
+			return err
+		}
+		for _, c := range hc {
+			countries = append(countries, db.SecurityRefusedByCountryRow(c))
+		}
+		hs, err := q.SecurityHourRefusedByService(ctx, db.SecurityHourRefusedByServiceParams{Since: since, Until: sp.until})
+		if err != nil {
+			return err
+		}
+		for _, v := range hs {
+			svcs = append(svcs, db.SecurityRefusedByServiceRow(v))
+		}
+	}
+	byCountry := map[string]int{}
+	for _, c := range countries {
+		if _, ok := byCountry[c.Country]; !ok {
+			out.Countries = append(out.Countries, gen.SecurityCountry{Country: c.Country})
+		}
+		byCountry[c.Country] += int(c.Refused)
+	}
+	for i := range out.Countries {
+		out.Countries[i].Refused = byCountry[out.Countries[i].Country]
+	}
+	slices.SortStableFunc(out.Countries, func(a, b gen.SecurityCountry) int { return cmp.Compare(b.Refused, a.Refused) })
+	out.Countries = out.Countries[:min(len(out.Countries), 8)]
+
+	bySvc := map[string]int{}
+	for _, v := range svcs {
+		if _, ok := bySvc[v.ServiceID]; !ok {
+			out.Services = append(out.Services, gen.SecurityService{ServiceId: v.ServiceID, Name: v.Name})
+		}
+		bySvc[v.ServiceID] += int(v.Refused)
+	}
+	for i := range out.Services {
+		out.Services[i].Refused = bySvc[out.Services[i].ServiceId]
+	}
+	slices.SortStableFunc(out.Services, func(a, b gen.SecurityService) int { return cmp.Compare(b.Refused, a.Refused) })
+	out.Services = out.Services[:min(len(out.Services), 8)]
+	return nil
+}
+
+// dashboardAddresses lists the most refused addresses with where they stand now.
+func (s *Server) dashboardAddresses(ctx context.Context, since int64, sp split, out *gen.SecurityDashboard) error {
+	top, err := s.Store.R.SecurityTopRefused(ctx, sp.minutes)
+	if err != nil {
+		return err
+	}
+	if sp.hourly() {
+		hours, err := s.Store.R.SecurityHourTopRefused(ctx, db.SecurityHourTopRefusedParams{Since: since, Until: sp.until})
+		if err != nil {
+			return err
+		}
+		for _, h := range hours {
+			top = append(top, db.SecurityTopRefusedRow(h))
+		}
+	}
+	top = mergeTop(top)
 	live := map[string]security.Entry{}
 	state := map[string]gen.SecurityTopAddressState{}
 	if s.Security != nil {
@@ -163,7 +257,30 @@ func (s *Server) dashboardAddresses(ctx context.Context, since int64, out *gen.S
 	return nil
 }
 
-// keyAddr reads a counter key: an address, or an IPv6 /64.
+// mergeTop adds up the rows of one address and keeps the 10 most refused (then most requests).
+func mergeTop(rows []db.SecurityTopRefusedRow) []db.SecurityTopRefusedRow {
+	at := map[string]int{}
+	var out []db.SecurityTopRefusedRow
+	for _, r := range rows {
+		i, ok := at[r.Address]
+		if !ok {
+			at[r.Address] = len(out)
+			out = append(out, r)
+			continue
+		}
+		out[i].Requests += r.Requests
+		out[i].Denied += r.Denied
+		out[i].Challenged += r.Challenged
+	}
+	slices.SortStableFunc(out, func(a, b db.SecurityTopRefusedRow) int {
+		if c := cmp.Compare(b.Denied+b.Challenged, a.Denied+a.Challenged); c != 0 {
+			return c
+		}
+		return cmp.Compare(b.Requests, a.Requests)
+	})
+	return out[:min(len(out), 10)]
+}
+
 // securityEvent is one event row as the dashboard and the address page show it, with the address's country for the
 // flag (bug 120).
 func (s *Server) securityEvent(e db.ListRecentSecurityEventsRow) gen.SecurityEvent {
@@ -185,6 +302,7 @@ func (s *Server) securityEvent(e db.ListRecentSecurityEventsRow) gen.SecurityEve
 	return ev
 }
 
+// keyAddr reads a counter key: an address, or an IPv6 /64.
 func keyAddr(k string) (netip.Addr, bool) {
 	if a, err := netip.ParseAddr(k); err == nil {
 		return a, true

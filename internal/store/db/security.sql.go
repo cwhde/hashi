@@ -95,6 +95,34 @@ func (q *Queries) AddSecurityTop(ctx context.Context, arg AddSecurityTopParams) 
 	return err
 }
 
+const clearSecurityHours = `-- name: ClearSecurityHours :exec
+DELETE FROM security_buckets_1h WHERE bucket_start >= ?1 AND bucket_start < ?2
+`
+
+type ClearSecurityHoursParams struct {
+	FromAt int64
+	ToAt   int64
+}
+
+func (q *Queries) ClearSecurityHours(ctx context.Context, arg ClearSecurityHoursParams) error {
+	_, err := q.db.ExecContext(ctx, clearSecurityHours, arg.FromAt, arg.ToAt)
+	return err
+}
+
+const clearSecurityTopHours = `-- name: ClearSecurityTopHours :exec
+DELETE FROM security_ip_top_1h WHERE bucket_start >= ?1 AND bucket_start < ?2
+`
+
+type ClearSecurityTopHoursParams struct {
+	FromAt int64
+	ToAt   int64
+}
+
+func (q *Queries) ClearSecurityTopHours(ctx context.Context, arg ClearSecurityTopHoursParams) error {
+	_, err := q.db.ExecContext(ctx, clearSecurityTopHours, arg.FromAt, arg.ToAt)
+	return err
+}
+
 const deleteDynamicElement = `-- name: DeleteDynamicElement :exec
 DELETE FROM ip_set_elements WHERE id = ? AND ip_set_id IN ('sys-dynamic-challenge', 'sys-dynamic-blocked')
 `
@@ -102,6 +130,66 @@ DELETE FROM ip_set_elements WHERE id = ? AND ip_set_id IN ('sys-dynamic-challeng
 func (q *Queries) DeleteDynamicElement(ctx context.Context, id string) error {
 	_, err := q.db.ExecContext(ctx, deleteDynamicElement, id)
 	return err
+}
+
+const deleteOldSecurityEvents = `-- name: DeleteOldSecurityEvents :execrows
+DELETE FROM security_events WHERE occurred_at < ?
+`
+
+func (q *Queries) DeleteOldSecurityEvents(ctx context.Context, occurredAt int64) (int64, error) {
+	result, err := q.db.ExecContext(ctx, deleteOldSecurityEvents, occurredAt)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
+}
+
+const deleteOldSecurityHours = `-- name: DeleteOldSecurityHours :execrows
+DELETE FROM security_buckets_1h WHERE bucket_start < ?
+`
+
+func (q *Queries) DeleteOldSecurityHours(ctx context.Context, bucketStart int64) (int64, error) {
+	result, err := q.db.ExecContext(ctx, deleteOldSecurityHours, bucketStart)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
+}
+
+const deleteOldSecurityMinutes = `-- name: DeleteOldSecurityMinutes :execrows
+DELETE FROM security_buckets_1m WHERE bucket_start < ?
+`
+
+func (q *Queries) DeleteOldSecurityMinutes(ctx context.Context, bucketStart int64) (int64, error) {
+	result, err := q.db.ExecContext(ctx, deleteOldSecurityMinutes, bucketStart)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
+}
+
+const deleteOldSecurityTopHours = `-- name: DeleteOldSecurityTopHours :execrows
+DELETE FROM security_ip_top_1h WHERE bucket_start < ?
+`
+
+func (q *Queries) DeleteOldSecurityTopHours(ctx context.Context, bucketStart int64) (int64, error) {
+	result, err := q.db.ExecContext(ctx, deleteOldSecurityTopHours, bucketStart)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
+}
+
+const deleteOldSecurityTopMinutes = `-- name: DeleteOldSecurityTopMinutes :execrows
+DELETE FROM security_ip_top_1m WHERE bucket_start < ?
+`
+
+func (q *Queries) DeleteOldSecurityTopMinutes(ctx context.Context, bucketStart int64) (int64, error) {
+	result, err := q.db.ExecContext(ctx, deleteOldSecurityTopMinutes, bucketStart)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
 }
 
 const getAccessLogCursor = `-- name: GetAccessLogCursor :one
@@ -276,6 +364,19 @@ func (q *Queries) InsertSecurityEvent(ctx context.Context, arg InsertSecurityEve
 		arg.MetadataJson,
 	)
 	return err
+}
+
+const lastSecurityHour = `-- name: LastSecurityHour :one
+SELECT CAST(COALESCE(MAX(bucket_start), 0) AS INTEGER) FROM security_buckets_1h
+`
+
+// Hourly rollup of the security minutes (01 section 4.3). Each run replaces the last few hours, so access-log lines
+// read late still count.
+func (q *Queries) LastSecurityHour(ctx context.Context) (int64, error) {
+	row := q.db.QueryRowContext(ctx, lastSecurityHour)
+	var column_1 int64
+	err := row.Scan(&column_1)
+	return column_1, err
 }
 
 const listAddressCounters = `-- name: ListAddressCounters :many
@@ -679,6 +780,17 @@ func (q *Queries) ListSecurityEventsForAddress(ctx context.Context, arg ListSecu
 	return items, nil
 }
 
+const nextSecurityMinute = `-- name: NextSecurityMinute :one
+SELECT CAST(COALESCE(MIN(bucket_start), 0) AS INTEGER) FROM security_buckets_1m WHERE bucket_start >= ?
+`
+
+func (q *Queries) NextSecurityMinute(ctx context.Context, bucketStart int64) (int64, error) {
+	row := q.db.QueryRowContext(ctx, nextSecurityMinute, bucketStart)
+	var column_1 int64
+	err := row.Scan(&column_1)
+	return column_1, err
+}
+
 const putAccessLogCursor = `-- name: PutAccessLogCursor :exec
 INSERT INTO access_log_cursors (traefik_connection_id, file, inode, offset, lag_ms, last_read_at, error, updated_at)
 VALUES (?, ?, ?, ?, ?, ?, ?, ?)
@@ -744,6 +856,50 @@ func (q *Queries) PutFirewallHostLink(ctx context.Context, arg PutFirewallHostLi
 	return err
 }
 
+const rollupSecurityHours = `-- name: RollupSecurityHours :exec
+INSERT INTO security_buckets_1h (bucket_start, service_id, root_domain, traefik_connection_id, country, asn, decision,
+    status_class, request_count, denied_count, challenged_count, challenge_failed_count, banned_count)
+SELECT m.bucket_start / 3600000 * 3600000, m.service_id, m.root_domain, m.traefik_connection_id, m.country, m.asn,
+    m.decision, m.status_class, SUM(m.request_count), SUM(m.denied_count), SUM(m.challenged_count),
+    SUM(m.challenge_failed_count), SUM(m.banned_count)
+FROM security_buckets_1m m
+WHERE m.bucket_start >= ?1 AND m.bucket_start < ?2
+GROUP BY 1, 2, 3, 4, 5, 6, 7, 8
+`
+
+type RollupSecurityHoursParams struct {
+	FromAt int64
+	ToAt   int64
+}
+
+func (q *Queries) RollupSecurityHours(ctx context.Context, arg RollupSecurityHoursParams) error {
+	_, err := q.db.ExecContext(ctx, rollupSecurityHours, arg.FromAt, arg.ToAt)
+	return err
+}
+
+const rollupSecurityTopHours = `-- name: RollupSecurityTopHours :exec
+INSERT INTO security_ip_top_1h (bucket_start, address, service_id, request_count, denied_count, challenged_count)
+SELECT r.hour, r.address, r.service_id, r.requests, r.denied, r.challenged FROM (
+    SELECT m.bucket_start / 3600000 * 3600000 AS hour, m.address, m.service_id, SUM(m.request_count) AS requests,
+        SUM(m.denied_count) AS denied, SUM(m.challenged_count) AS challenged,
+        ROW_NUMBER() OVER (PARTITION BY m.bucket_start / 3600000
+            ORDER BY SUM(m.denied_count) + SUM(m.challenged_count) DESC, SUM(m.request_count) DESC) AS place
+    FROM security_ip_top_1m m
+    WHERE m.bucket_start >= ?1 AND m.bucket_start < ?2
+    GROUP BY 1, 2, 3
+) r WHERE r.place <= 500
+`
+
+type RollupSecurityTopHoursParams struct {
+	FromAt int64
+	ToAt   int64
+}
+
+func (q *Queries) RollupSecurityTopHours(ctx context.Context, arg RollupSecurityTopHoursParams) error {
+	_, err := q.db.ExecContext(ctx, rollupSecurityTopHours, arg.FromAt, arg.ToAt)
+	return err
+}
+
 const securityDecisionSeries = `-- name: SecurityDecisionSeries :many
 SELECT CAST(bucket_start / ?1 * ?1 AS INTEGER) AS at, decision,
     CAST(SUM(request_count) AS INTEGER) AS requests
@@ -763,7 +919,8 @@ type SecurityDecisionSeriesRow struct {
 	Requests int64
 }
 
-// Security dashboard (06 section 13): decisions per step, without the response rows of the access log.
+// Security dashboard (06 section 13). Long periods read whole rolled hours from the hourly tables before until and
+// the minutes after; the handler adds both (bug 99). Short periods read minutes only.
 func (q *Queries) SecurityDecisionSeries(ctx context.Context, arg SecurityDecisionSeriesParams) ([]SecurityDecisionSeriesRow, error) {
 	rows, err := q.db.QueryContext(ctx, securityDecisionSeries, arg.Step, arg.Since)
 	if err != nil {
@@ -785,6 +942,17 @@ func (q *Queries) SecurityDecisionSeries(ctx context.Context, arg SecurityDecisi
 		return nil, err
 	}
 	return items, nil
+}
+
+const securityEventBatchEnd = `-- name: SecurityEventBatchEnd :one
+SELECT occurred_at FROM security_events WHERE occurred_at < ? ORDER BY occurred_at LIMIT 1 OFFSET 4999
+`
+
+func (q *Queries) SecurityEventBatchEnd(ctx context.Context, occurredAt int64) (int64, error) {
+	row := q.db.QueryRowContext(ctx, securityEventBatchEnd, occurredAt)
+	var occurred_at int64
+	err := row.Scan(&occurred_at)
+	return occurred_at, err
 }
 
 const securityEventSeries = `-- name: SecurityEventSeries :many
@@ -836,6 +1004,191 @@ func (q *Queries) SecurityEventSeries(ctx context.Context, arg SecurityEventSeri
 	return items, nil
 }
 
+const securityHourBatchEnd = `-- name: SecurityHourBatchEnd :one
+SELECT bucket_start FROM security_buckets_1h WHERE bucket_start < ? ORDER BY bucket_start LIMIT 1 OFFSET 4999
+`
+
+func (q *Queries) SecurityHourBatchEnd(ctx context.Context, bucketStart int64) (int64, error) {
+	row := q.db.QueryRowContext(ctx, securityHourBatchEnd, bucketStart)
+	var bucket_start int64
+	err := row.Scan(&bucket_start)
+	return bucket_start, err
+}
+
+const securityHourDecisionSeries = `-- name: SecurityHourDecisionSeries :many
+SELECT CAST(bucket_start / ?1 * ?1 AS INTEGER) AS at, decision,
+    CAST(SUM(request_count) AS INTEGER) AS requests
+FROM security_buckets_1h
+WHERE bucket_start >= ?2 AND bucket_start < ?3 AND decision != 'response'
+GROUP BY 1, 2 ORDER BY 1
+`
+
+type SecurityHourDecisionSeriesParams struct {
+	Step  int64
+	Since int64
+	Until int64
+}
+
+type SecurityHourDecisionSeriesRow struct {
+	At       int64
+	Decision string
+	Requests int64
+}
+
+func (q *Queries) SecurityHourDecisionSeries(ctx context.Context, arg SecurityHourDecisionSeriesParams) ([]SecurityHourDecisionSeriesRow, error) {
+	rows, err := q.db.QueryContext(ctx, securityHourDecisionSeries, arg.Step, arg.Since, arg.Until)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []SecurityHourDecisionSeriesRow{}
+	for rows.Next() {
+		var i SecurityHourDecisionSeriesRow
+		if err := rows.Scan(&i.At, &i.Decision, &i.Requests); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const securityHourRefusedByCountry = `-- name: SecurityHourRefusedByCountry :many
+SELECT country, CAST(SUM(denied_count + challenged_count) AS INTEGER) AS refused
+FROM security_buckets_1h
+WHERE bucket_start >= ?1 AND bucket_start < ?2 AND decision != 'response'
+GROUP BY country HAVING SUM(denied_count + challenged_count) > 0
+`
+
+type SecurityHourRefusedByCountryParams struct {
+	Since int64
+	Until int64
+}
+
+type SecurityHourRefusedByCountryRow struct {
+	Country string
+	Refused int64
+}
+
+func (q *Queries) SecurityHourRefusedByCountry(ctx context.Context, arg SecurityHourRefusedByCountryParams) ([]SecurityHourRefusedByCountryRow, error) {
+	rows, err := q.db.QueryContext(ctx, securityHourRefusedByCountry, arg.Since, arg.Until)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []SecurityHourRefusedByCountryRow{}
+	for rows.Next() {
+		var i SecurityHourRefusedByCountryRow
+		if err := rows.Scan(&i.Country, &i.Refused); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const securityHourRefusedByService = `-- name: SecurityHourRefusedByService :many
+SELECT b.service_id, COALESCE(s.name, '') AS name, CAST(SUM(b.denied_count + b.challenged_count) AS INTEGER) AS refused
+FROM security_buckets_1h b LEFT JOIN services s ON s.id = b.service_id
+WHERE b.bucket_start >= ?1 AND b.bucket_start < ?2 AND b.decision != 'response'
+GROUP BY b.service_id HAVING SUM(b.denied_count + b.challenged_count) > 0
+`
+
+type SecurityHourRefusedByServiceParams struct {
+	Since int64
+	Until int64
+}
+
+type SecurityHourRefusedByServiceRow struct {
+	ServiceID string
+	Name      string
+	Refused   int64
+}
+
+func (q *Queries) SecurityHourRefusedByService(ctx context.Context, arg SecurityHourRefusedByServiceParams) ([]SecurityHourRefusedByServiceRow, error) {
+	rows, err := q.db.QueryContext(ctx, securityHourRefusedByService, arg.Since, arg.Until)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []SecurityHourRefusedByServiceRow{}
+	for rows.Next() {
+		var i SecurityHourRefusedByServiceRow
+		if err := rows.Scan(&i.ServiceID, &i.Name, &i.Refused); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const securityHourTopRefused = `-- name: SecurityHourTopRefused :many
+SELECT address, CAST(SUM(request_count) AS INTEGER) AS requests, CAST(SUM(denied_count) AS INTEGER) AS denied,
+    CAST(SUM(challenged_count) AS INTEGER) AS challenged
+FROM security_ip_top_1h
+WHERE bucket_start >= ?1 AND bucket_start < ?2
+GROUP BY address HAVING SUM(denied_count) + SUM(challenged_count) > 0
+ORDER BY SUM(denied_count) + SUM(challenged_count) DESC, SUM(request_count) DESC
+LIMIT 100
+`
+
+type SecurityHourTopRefusedParams struct {
+	Since int64
+	Until int64
+}
+
+type SecurityHourTopRefusedRow struct {
+	Address    string
+	Requests   int64
+	Denied     int64
+	Challenged int64
+}
+
+func (q *Queries) SecurityHourTopRefused(ctx context.Context, arg SecurityHourTopRefusedParams) ([]SecurityHourTopRefusedRow, error) {
+	rows, err := q.db.QueryContext(ctx, securityHourTopRefused, arg.Since, arg.Until)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []SecurityHourTopRefusedRow{}
+	for rows.Next() {
+		var i SecurityHourTopRefusedRow
+		if err := rows.Scan(
+			&i.Address,
+			&i.Requests,
+			&i.Denied,
+			&i.Challenged,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const securityMeterBans = `-- name: SecurityMeterBans :many
 SELECT COALESCE(e.firewall_host_id, '') AS host_id, COALESCE(h.name, '') AS host, CAST(COUNT(*) AS INTEGER) AS bans
 FROM security_events e LEFT JOIN firewall_hosts h ON h.id = e.firewall_host_id
@@ -872,12 +1225,23 @@ func (q *Queries) SecurityMeterBans(ctx context.Context, since int64) ([]Securit
 	return items, nil
 }
 
+const securityMinuteBatchEnd = `-- name: SecurityMinuteBatchEnd :one
+SELECT bucket_start FROM security_buckets_1m WHERE bucket_start < ? ORDER BY bucket_start LIMIT 1 OFFSET 4999
+`
+
+// Retention (01 section 4.3): each batch ends before its 5000th row, so one delete stays small.
+func (q *Queries) SecurityMinuteBatchEnd(ctx context.Context, bucketStart int64) (int64, error) {
+	row := q.db.QueryRowContext(ctx, securityMinuteBatchEnd, bucketStart)
+	var bucket_start int64
+	err := row.Scan(&bucket_start)
+	return bucket_start, err
+}
+
 const securityRefusedByCountry = `-- name: SecurityRefusedByCountry :many
 SELECT country, CAST(SUM(denied_count + challenged_count) AS INTEGER) AS refused
 FROM security_buckets_1m
 WHERE bucket_start >= ?1 AND decision != 'response'
 GROUP BY country HAVING SUM(denied_count + challenged_count) > 0
-ORDER BY 2 DESC LIMIT 8
 `
 
 type SecurityRefusedByCountryRow struct {
@@ -913,7 +1277,6 @@ SELECT b.service_id, COALESCE(s.name, '') AS name, CAST(SUM(b.denied_count + b.c
 FROM security_buckets_1m b LEFT JOIN services s ON s.id = b.service_id
 WHERE b.bucket_start >= ?1 AND b.decision != 'response'
 GROUP BY b.service_id HAVING SUM(b.denied_count + b.challenged_count) > 0
-ORDER BY 3 DESC LIMIT 8
 `
 
 type SecurityRefusedByServiceRow struct {
@@ -945,6 +1308,28 @@ func (q *Queries) SecurityRefusedByService(ctx context.Context, since int64) ([]
 	return items, nil
 }
 
+const securityTopHourBatchEnd = `-- name: SecurityTopHourBatchEnd :one
+SELECT bucket_start FROM security_ip_top_1h WHERE bucket_start < ? ORDER BY bucket_start LIMIT 1 OFFSET 4999
+`
+
+func (q *Queries) SecurityTopHourBatchEnd(ctx context.Context, bucketStart int64) (int64, error) {
+	row := q.db.QueryRowContext(ctx, securityTopHourBatchEnd, bucketStart)
+	var bucket_start int64
+	err := row.Scan(&bucket_start)
+	return bucket_start, err
+}
+
+const securityTopMinuteBatchEnd = `-- name: SecurityTopMinuteBatchEnd :one
+SELECT bucket_start FROM security_ip_top_1m WHERE bucket_start < ? ORDER BY bucket_start LIMIT 1 OFFSET 4999
+`
+
+func (q *Queries) SecurityTopMinuteBatchEnd(ctx context.Context, bucketStart int64) (int64, error) {
+	row := q.db.QueryRowContext(ctx, securityTopMinuteBatchEnd, bucketStart)
+	var bucket_start int64
+	err := row.Scan(&bucket_start)
+	return bucket_start, err
+}
+
 const securityTopRefused = `-- name: SecurityTopRefused :many
 SELECT address, CAST(SUM(request_count) AS INTEGER) AS requests, CAST(SUM(denied_count) AS INTEGER) AS denied,
     CAST(SUM(challenged_count) AS INTEGER) AS challenged
@@ -952,7 +1337,7 @@ FROM security_ip_top_1m
 WHERE bucket_start >= ?1
 GROUP BY +address HAVING SUM(denied_count) + SUM(challenged_count) > 0
 ORDER BY SUM(denied_count) + SUM(challenged_count) DESC, SUM(request_count) DESC
-LIMIT 10
+LIMIT 100
 `
 
 type SecurityTopRefusedRow struct {
@@ -962,6 +1347,7 @@ type SecurityTopRefusedRow struct {
 	Challenged int64
 }
 
+// The 100 most refused addresses of each table; the handler adds them up and keeps 10.
 // "+address": group without the address index, so SQLite reads only the period through the primary key instead of
 // the whole table (bug 99).
 func (q *Queries) SecurityTopRefused(ctx context.Context, since int64) ([]SecurityTopRefusedRow, error) {

@@ -692,6 +692,22 @@ type SecretRecord struct {
 	UpdatedAt  int64
 }
 
+type SecurityBuckets1h struct {
+	BucketStart          int64
+	ServiceID            string
+	RootDomain           string
+	TraefikConnectionID  string
+	Country              string
+	Asn                  int64
+	Decision             string
+	StatusClass          string
+	RequestCount         int64
+	DeniedCount          int64
+	ChallengedCount      int64
+	ChallengeFailedCount int64
+	BannedCount          int64
+}
+
 type SecurityBuckets1m struct {
 	BucketStart          int64
 	ServiceID            string
@@ -728,6 +744,15 @@ type SecurityEvent struct {
 	RequestID           string
 	Suppressed          int64
 	MetadataJson        string
+}
+
+type SecurityIpTop1h struct {
+	BucketStart     int64
+	Address         string
+	ServiceID       string
+	RequestCount    int64
+	DeniedCount     int64
+	ChallengedCount int64
 }
 
 type SecurityIpTop1m struct {

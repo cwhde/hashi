@@ -418,6 +418,11 @@ func Run(ctx context.Context, cfg Config, log *slog.Logger, ready func(adminAddr
 	if err := runner.Register(ctx, jobs.Job{Kind: security.SweepJobKind, Interval: security.SweepJobInterval, RunsLocked: true, Run: abuse.Sweep}); err != nil {
 		return err
 	}
+	// Hourly rollup and retention of the security tables (01 §4.3, bug 99).
+	telemetry := security.NewTelemetry(st, time.Now)
+	if err := runner.Register(ctx, jobs.Job{Kind: security.TelemetryJobKind, Interval: security.TelemetryJobInterval, RunsLocked: true, Run: telemetry.Run}); err != nil {
+		return err
+	}
 	// Feeds (06 §8): each one refreshed on the engine's interval, emptied when stale.
 	fetcher := feeds.NewFetcher(Version)
 	fetcher.AllowInternal = devBuild // the dev build's stand-in feeds run on loopback
