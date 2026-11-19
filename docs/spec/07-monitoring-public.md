@@ -69,6 +69,9 @@ through third parties, so they never carry check targets, internal addresses or 
 
 - Enabled by default (setting). Shows only endpoints marked public: name, group, state, 60-minute strip, uptime summary.
 - Never shows internal hostnames, IPs, error bodies or admin links.
+- Categories (the endpoints' groups): Settings → Public pages sets their order, hides single categories,
+  or turns categories off for one list sorted by name. Hidden categories are left out on the server, not by the page.
+  The admin Status page uses the same order when grouped by group and never hides anything.
 - Failed refresh shows a visible "data may be stale since …" banner rather than silently showing empty/stale data.
 - `GET /api/public/status` (cached 15 s).
 
