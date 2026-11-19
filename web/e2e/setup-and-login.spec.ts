@@ -198,7 +198,8 @@ test('setup with a passkey, then sign in with it', async ({ page, request }) => 
 	const fwChecks = page.getByRole('list', { name: 'Checks' });
 	await expect(fwChecks).toContainText('nftables 1.1.3');
 	await expect(fwChecks).toContainText('NetBird 0.81.3');
-	await page.getByLabel('NetBird', { exact: true }).selectOption('routing');
+	await page.getByLabel('NetBird', { exact: true }).click();
+	await page.getByRole('option', { name: 'This host also routes NetBird traffic to its networks' }).click();
 	await page.getByRole('button', { name: 'Save settings' }).click();
 	await expect(page.getByLabel('NetBird', { exact: true })).toHaveValue('routing');
 	await page.getByLabel(/Hashi may manage its own firewall table/).check();
@@ -504,9 +505,11 @@ test('setup with a passkey, then sign in with it', async ({ page, request }) => 
 	await page.getByRole('button', { name: 'Add connection' }).click();
 	await page.getByRole('menuitem', { name: 'Firewall host' }).click();
 	await page.getByLabel('Name').fill('home-a');
-	await page.getByLabel('How it is reached').selectOption('external_nat');
+	await page.getByLabel('How it is reached').click();
+	await page.getByRole('option', { name: 'Behind a router I configure myself' }).click();
 	await page.getByLabel('Public address').fill('198.51.100.40');
-	await page.getByLabel('Public traffic enters through').selectOption({ label: 'edge-a' });
+	await page.getByLabel('Public traffic enters through').click();
+	await page.getByRole('option', { name: 'edge-a' }).click();
 	await page.getByLabel("Traefik's address on this network").fill('10.33.0.10');
 	await page.getByLabel('Networks behind this host').fill('10.33.0.0/24');
 	await page.getByRole('button', { name: 'Save' }).click();

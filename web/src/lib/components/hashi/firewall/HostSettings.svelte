@@ -1,6 +1,7 @@
 <script lang="ts">
 	// What validation found, and the settings that depend on it: networks, NetBird, and the choice to drop all other
 	// inbound connections (05 §2, §5). Nothing here reaches the host until a plan is approved.
+	import Choice from '#lib/components/hashi/Choice.svelte';
 	import { onMount, untrack } from 'svelte';
 	import { api } from '#lib/api/client.ts';
 	import { Button } from '#lib/components/ui/button/index.ts';
@@ -83,17 +84,16 @@
 	</div>
 	<div class="space-y-1.5">
 		<Label for="fs-nb">NetBird</Label>
-		<select
+		<Choice
 			id="fs-nb"
 			bind:value={mode}
-			class="h-10 w-full rounded-[10px] border bg-transparent px-3 text-md"
-		>
-			<option value="disabled">Not used on this host</option>
-			<option value="peer" disabled={!nb}>This host is a NetBird peer</option>
-			<option value="routing" disabled={!nb}
-				>This host also routes NetBird traffic to its networks</option
-			>
-		</select>
+			class="h-10"
+			options={[
+				{ value: 'disabled', label: 'Not used on this host' },
+				{ value: 'peer', label: 'This host is a NetBird peer', disabled: !nb },
+				{ value: 'routing', label: 'This host also routes NetBird traffic to its networks', disabled: !nb }
+			]}
+		/>
 	</div>
 	<label class="flex items-start gap-2.5 text-md">
 		<input type="checkbox" bind:checked={drop} class="mt-0.5 accent-primary" />

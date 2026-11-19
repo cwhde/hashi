@@ -1,5 +1,6 @@
 <script lang="ts">
 	// The parts of a service beyond its upstream: a stream's public port (04 §1.2) and the routing override (03 §5.1).
+	import Choice from '#lib/components/hashi/Choice.svelte';
 	import { onMount } from 'svelte';
 	import { Input } from '#lib/components/ui/input/index.ts';
 	import { Label } from '#lib/components/ui/label/index.ts';
@@ -46,14 +47,14 @@
 		{#if hosts.length > 1}
 			<div class="space-y-1.5">
 				<Label for="sx-entry">Public traffic enters through</Label>
-				<select
+				<Choice
 					id="sx-entry"
 					bind:value={entryHost}
-					class="h-10 w-full rounded-[10px] border bg-transparent px-3 text-md"
-				>
-					<option value="">The host it runs on</option>
-					{#each hosts as h (h.id)}<option value={h.id}>{h.name}</option>{/each}
-				</select>
+					options={[
+						{ value: '', label: 'The host it runs on' },
+						...hosts.map((h) => ({ value: h.id, label: h.name }))
+					]}
+				/>
 			</div>
 		{/if}
 	</div>{/if}

@@ -3,7 +3,7 @@
 	import { onMount } from 'svelte';
 	import Tag from '#lib/components/hashi/Tag.svelte';
 	import HelpTip from '#lib/components/hashi/HelpTip.svelte';
-	import AddressLink from '#lib/components/hashi/security/AddressLink.svelte';
+	import AddressLink from '#lib/components/hashi/ipsets/AddressLink.svelte';
 	import { Button } from '#lib/components/ui/button/index.ts';
 	import { Input } from '#lib/components/ui/input/index.ts';
 	import { Label } from '#lib/components/ui/label/index.ts';

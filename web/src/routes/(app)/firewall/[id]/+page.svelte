@@ -1,4 +1,5 @@
 <script lang="ts">
+	import Choice from '#lib/components/hashi/Choice.svelte';
 	import { hrefWithTab, tabFrom } from '#lib/url-tab.ts';
 	import { onMount } from 'svelte';
 	import { page } from '$app/state';
@@ -243,14 +244,12 @@
 			</Panel>
 			<Panel title="Public entry">
 				<Label for="entry">Enters through</Label>
-				<select
+				<Choice
 					id="entry"
 					bind:value={entry}
-					class="mt-1.5 h-10 w-full rounded-[10px] border bg-transparent px-3 text-md"
-				>
-					<option value="">{name} itself</option>
-					{#each others as o (o.id)}<option value={o.id}>{o.name}</option>{/each}
-				</select>
+					class="mt-1.5 h-10"
+					options={[{ value: '', label: `${name} itself` }, ...others.map((o) => ({ value: o.id, label: o.name }))]}
+				/>
 				<Button
 					class="mt-3"
 					size="sm"

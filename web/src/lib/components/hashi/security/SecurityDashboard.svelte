@@ -4,7 +4,7 @@
 	import Tag from '#lib/components/hashi/Tag.svelte';
 	import Sparkline from '#lib/components/hashi/Sparkline.svelte';
 	import * as ToggleGroup from '#lib/components/ui/toggle-group/index.ts';
-	import AddressLink from '#lib/components/hashi/security/AddressLink.svelte';
+	import AddressLink from '#lib/components/hashi/ipsets/AddressLink.svelte';
 	import { TriangleAlert } from '@lucide/svelte';
 	import { api, problemText, type Schemas } from '#lib/api/client.ts';
 	import { dateTime, time } from '#lib/format.ts';
