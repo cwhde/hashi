@@ -1105,6 +1105,16 @@ Decisions made in S0:
 
 ## Log
 
+- 2026-11-19 · deploy `v0.13.4-beta.3` (`50b68e7`, the owner's OK) · smoke ok (readyz, version, SPA, both public pages),
+  schema 28 → 29 (streams may share a name). Release run 1253 green. In it: 120, 126, 127, 128–132, 135, skeletons.
+  Then, with the owner's yes: the root site's rules cut to the admin page and everything under it → sign-in, fallback
+  open (as a crawler: home and news 200, unknown pages and the sitemap 404 instead of 401, admin 401); the Git service's
+  WAF exclusions + 930120, 932260, 932130, 933135, 942100, 942190, 942151, 942360, 920600 (no block there since the
+  save). The four game-server stream services got the names their map services use (accepted on prod, 132 proven); a
+  second game SRV record added and applied; both SRV records answer at the provider's nameserver and both Java servers
+  answer the status ping by name. Bedrock (UDP) does not answer even on the game host itself: the game server's setup,
+  not Hashi. CI runs 1248–1251 red with no code cause: the runners' Proxmox host at full CPU (a game server allowed
+  12 GB, Gitea, CI); the e2e walk got 7 minutes, run 1254 green in every job.
 - 2026-11-19 · prod, the owner's OK · deleted pre-migration copies v1–v26 (disk 83 % → 77 %, v27 kept); DNS: all 69
   importable records imported ("68 labelled, verified", low risk, auto-applied; only NS/SOA stay unowned); codeman's
   upstream moved from its IP set to its Pulse agent (Traefik unchanged), set deleted. Other owner sets stay until rules
