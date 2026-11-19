@@ -283,7 +283,9 @@ Area files list the detailed endpoints.
 One resolver is used everywhere a client IP matters (bootstrap restriction, admin session binding, forward auth, rate
 limiting, Pulse public IP):
 
-- Trusted-proxy CIDR list (setting; high-risk to change). Forwarding headers (`X-Forwarded-For`, `X-Real-IP`, `Forwarded`)
+- Trusted-proxy CIDR list (setting; high-risk to change). Private ranges only (RFC 1918, loopback, `100.64.0.0/10`,
+  `fc00::/7`, link-local): a public or whole-internet range would make every visitor a proxy, so any client could claim
+  any address. The setting refuses them (bug 48); a remote edge is recognised by the edge token below instead. Forwarding headers (`X-Forwarded-For`, `X-Real-IP`, `Forwarded`)
   are honoured only when the direct peer is trusted; the chain is walked right-to-left, skipping trusted hops.
 - IPv4-mapped IPv6 normalized to IPv4; zones stripped; result canonicalized.
 - Unparseable → fail closed.

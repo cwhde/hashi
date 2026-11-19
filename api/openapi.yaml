@@ -116,6 +116,7 @@ paths:
       summary: Delete a reusable rule set nothing attaches
       tags: [rule-sets]
       x-hashi-scopes: [security.manage]
+      x-hashi-reauth: true
       parameters:
         - { name: id, in: path, required: true, schema: { type: string } }
       responses:
@@ -1103,6 +1104,7 @@ paths:
       summary: Remove a user monitor; other endpoints follow what they watch
       tags: [monitor]
       x-hashi-scopes: [admin.write]
+      x-hashi-reauth: true
       parameters:
         - { name: id, in: path, required: true, schema: { type: string } }
       responses:
@@ -1647,8 +1649,12 @@ paths:
     post:
       operationId: previewAgentDNS
       summary: The rewrites agent DNS wants right now; changes nothing
+      description: With a body, the names follow those settings instead of the stored ones (a draft, bug 84); nothing is saved.
       tags: [settings]
       x-hashi-scopes: [admin.read]
+      requestBody:
+        required: false
+        content: { application/json: { schema: { $ref: "#/components/schemas/AgentDNSSettings" } } }
       responses:
         "200":
           description: Wanted rewrites
@@ -2583,6 +2589,7 @@ paths:
       summary: Delete a user set that nothing uses (409 lists what still uses it)
       tags: [ip-sets]
       x-hashi-scopes: [security.manage]
+      x-hashi-reauth: true
       parameters:
         - { name: id, in: path, required: true, schema: { type: string } }
       responses:

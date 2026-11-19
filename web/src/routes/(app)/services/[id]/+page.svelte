@@ -67,7 +67,10 @@
 	const system = $derived(svc?.origin === 'system');
 	// Unsaved edits: leaving the page asks first (bug 40). A save reloads, which marks the new state saved.
 	const draft = new Draft(() => [edit, extra, targetsText]);
-	guardUnsaved(() => draft.dirty);
+	// The WAF tab keeps its own draft and saves with this page's Save (bug 65).
+	let waf = $state<ReturnType<typeof ServiceWaf>>();
+	const wafDirty = $derived(!!waf?.draft.dirty);
+	guardUnsaved(() => draft.dirty || wafDirty);
 
 	async function load() {
 		const [s, r] = await Promise.all([
@@ -166,7 +169,8 @@
 			}
 			const res = await api.PUT('/api/services/{id}', { params: { path: { id } }, body });
 			if (res.error || !res.data) throw res.error;
-			outcome = saveText(res.data);
+			const wafPlans = wafDirty && waf ? await waf.save() : [];
+			outcome = saveText({ ...res.data, plans: [...res.data.plans, ...wafPlans] });
 		});
 
 	const toggle = () =>
@@ -261,7 +265,7 @@
 						onclick={() => (delOpen = true)}
 						disabled={!!busy}><Trash2 />Delete</Button
 					>
-					<Button size="sm" onclick={save} disabled={!!busy}
+					<Button size="sm" onclick={save} disabled={!!busy || !(draft.dirty || wafDirty)}
 						>{busy === 'save' ? 'Publishing…' : 'Save and publish'}</Button
 					>
 				</div>
@@ -569,7 +573,7 @@
 				</Panel>{/if}
 		</Tabs.Content>
 
-		<Tabs.Content value="waf"><ServiceWaf serviceId={id} /></Tabs.Content>
+		<Tabs.Content value="waf"><ServiceWaf serviceId={id} bind:this={waf} /></Tabs.Content>
 
 		<Tabs.Content value="monitoring">
 			<Panel title="Monitoring">

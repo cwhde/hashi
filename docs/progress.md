@@ -46,6 +46,36 @@ and the service deleted (its hidden set went with it). Found: "Let the agent cho
 as the agent still reported it (the beat keeps the current address); fixed with a reproducing test, ships with the next
 release. Not done on prod: adding a Traefik or firewall host from Connections (no spare machine; covered by e2e).
 
+### 13.4 checklist (two PRs: A settings in their place, B text and disclosure)
+
+PR A (36, 38, 39, 46, 48, 49, 51, 65, 84, 98):
+- [x] Spec: which deletes ask for a passkey (51, 02 §2 + 10c §5); trusted proxies and bootstrap networks take
+      private ranges only (48, 49); no Account category, sign-in providers and GeoIP are connections
+- [x] Server: trusted proxies refuse whole-internet and public ranges on save; bootstrap networks private only;
+      irreversible deletes (check with history, script, IP set, rule set, connection, agent) need a recent passkey
+- [x] Settings split into one component per category (46), in 10c §1.2 order: General, Security, Edge protection,
+      Services and Traefik, DNS and agent names, Firewall, Pulse, Monitoring and notifications, Public pages,
+      Appearance; old `?category=` links land on the new home; no leftover footer (38)
+- [x] Security (36): passkeys, vault, admin sessions, recovery networks, trusted proxies
+- [x] Edge protection: Challenge, Sessions, Engine move from the Security page, which keeps Dashboard and Counters
+      with a gear link; sign-in providers and GeoIP are on Connections
+- [x] Monitoring and notifications: monitor defaults + channels; sent alerts leave the Status page for Activity
+- [x] DNS and agent names: switch and domain here, preview uses the draft (84); DNS shows names read-only
+- [x] Services and Traefik: middlewares on every service; the Traefik page keeps the file editor
+- [x] Public pages: dashboard + page-wide public options; App display keeps per-service instant switches (65)
+- [x] Appearance: comfort switches save at once like the theme cards (39)
+- [x] WAF draft saves with the service's Save; no "Save WAF" (65)
+- [x] A refused CSRF token fetches the session again and retries once (98)
+- [x] e2e follows the moves; make check, integration (httpapi), e2e
+
+PR B (61, 62, 78, 93, 94):
+- [ ] A help-text counter in `make check` (report only) with the baseline
+- [ ] Every page through the 10c §7 checklist: descriptions cut by the deletion test, no eyebrows, More options
+      sections and conditional fields; below 40 help sentences app-wide
+- [ ] 61 leftover promises gone; the rule editor offers Pass CAPTCHA
+- [ ] 62 stream services show `20-hashi-stream-services.yml`; 78 an Off service's rendered config says it isn't deployed
+- [ ] make check, integration, e2e
+
 ### 13.3 checklist (two PRs: A fixes and agent targets, B Connections)
 
 PR A:

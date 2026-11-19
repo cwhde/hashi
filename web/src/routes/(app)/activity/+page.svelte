@@ -15,9 +15,10 @@
 	import { Search, Pause, Play } from '@lucide/svelte';
 	import { api, problemText, type Schemas } from '#lib/api/client.ts';
 	import { dateTime } from '#lib/format.ts';
+	import RecentNotifications from '#lib/components/hashi/status/RecentNotifications.svelte';
 
 	// The open tab lives in the address (bug 41).
-	const tabs = ['audit', 'jobs', 'log'];
+	const tabs = ['audit', 'jobs', 'alerts', 'log'];
 	let tab = $state(tabFrom(page.url, tabs));
 	const setTab = (t: string) =>
 		goto(hrefWithTab(page.url, tabs, t), { replace: true, reset: false });
@@ -153,7 +154,12 @@
 	<Tabs.List class="mb-4"
 		><Tabs.Trigger value="audit">Audit log</Tabs.Trigger><Tabs.Trigger value="jobs"
 			>Jobs</Tabs.Trigger
-		><Tabs.Trigger value="log">Live log</Tabs.Trigger></Tabs.List
+		><Tabs.Trigger value="alerts">Alerts sent</Tabs.Trigger><Tabs.Trigger value="log"
+			>Live log</Tabs.Trigger
+		></Tabs.List
+	>
+	<Tabs.Content value="alerts"
+		>{#if tab === 'alerts'}<RecentNotifications />{/if}</Tabs.Content
 	>
 	<Tabs.Content value="audit">
 		<div class="rounded-2xl border bg-card">

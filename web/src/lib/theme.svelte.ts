@@ -149,6 +149,19 @@ class ThemeState {
 		if (r.data) await api.PUT('/api/settings/appearance', { body: { ...r.data, theme: id } });
 	}
 
+	/** Turns solid backgrounds on or off and saves it at once, like a theme card (bug 39); a failed save turns it back. */
+	async saveSolid(on: boolean) {
+		this.setSolid(on);
+		const r = await api.GET('/api/settings/appearance');
+		const w = r.data
+			? await api.PUT('/api/settings/appearance', { body: { ...r.data, reduce_transparency: on } })
+			: r;
+		if (w.error) {
+			this.setSolid(!on);
+			throw w.error;
+		}
+	}
+
 	/** Takes the saved appearance, for a browser that last saw another one. */
 	async sync() {
 		const r = await api.GET('/api/settings/appearance');

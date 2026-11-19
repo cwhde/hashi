@@ -39,6 +39,13 @@ func forbidden(detail string) *Problem {
 	return &Problem{Type: "/problems/forbidden", Title: "Not allowed", Status: http.StatusForbidden, Detail: detail}
 }
 
+// csrfRefused has its own type so the admin app can fetch the session again and retry once: a sign-in in another tab
+// replaces the cookie under an open page (bug 98).
+func csrfRefused() *Problem {
+	return &Problem{Type: "/problems/csrf", Title: "Not allowed", Status: http.StatusForbidden,
+		Detail: "Missing or wrong " + headerCSRF + " header; reload the page."}
+}
+
 func reauthRequired() *Problem {
 	return &Problem{Type: "/problems/reauth-required", Title: "Confirm with your passkey", Status: http.StatusForbidden,
 		Detail: "This action needs a passkey confirmation from the last five minutes."}

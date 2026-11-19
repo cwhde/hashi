@@ -33,7 +33,7 @@
 	title={settings?.domain ?? 'Internal agent names'}
 	description="DNS only, not reverse proxy: stable internal names for Pulse agents"
 >
-	{#snippet actions()}<Button size="sm" variant="outline" href="/settings?category=agent-dns"
+	{#snippet actions()}<Button size="sm" variant="outline" href="/settings?category=dns"
 			>Settings</Button
 		>{/snippet}
 	{#if settings && !settings.enabled}

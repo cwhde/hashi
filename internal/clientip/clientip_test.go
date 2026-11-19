@@ -137,3 +137,21 @@ func TestEdgeLoopbackHopIsSkipped(t *testing.T) {
 		t.Errorf("trusted proxy without token: %v", a)
 	}
 }
+
+// Bugs 48, 49: proxy and bootstrap lists take private ranges only; a public or whole-internet range would let any
+// client claim any address.
+func TestParsePrivatePrefixes(t *testing.T) {
+	for _, ok := range [][]string{
+		{"10.0.0.0/8", "172.16.0.0/12", "192.168.1.0/24", "127.0.0.1", "100.64.0.0/10", "100.110.0.0/16"},
+		{"::1", "fc00::/7", "fd12:3456::/48", "fe80::/10", "169.254.0.0/16"},
+	} {
+		if _, err := ParsePrivatePrefixes(ok); err != nil {
+			t.Errorf("%v refused: %v", ok, err)
+		}
+	}
+	for _, bad := range []string{"0.0.0.0/0", "::/0", "8.8.8.8", "198.51.100.0/24", "10.0.0.0/7", "2001:db8::/32", "nope"} {
+		if _, err := ParsePrivatePrefixes([]string{"10.0.0.0/8", bad}); err == nil {
+			t.Errorf("%s accepted", bad)
+		}
+	}
+}

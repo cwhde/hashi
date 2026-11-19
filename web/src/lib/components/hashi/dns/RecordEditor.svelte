@@ -8,8 +8,7 @@
 	import { Switch } from '#lib/components/ui/switch/index.ts';
 	import { Textarea } from '#lib/components/ui/textarea/index.ts';
 	import * as Select from '#lib/components/ui/select/index.ts';
-	import * as Collapsible from '#lib/components/ui/collapsible/index.ts';
-	import { ChevronDown } from '@lucide/svelte';
+	import MoreOptions from '#lib/components/hashi/MoreOptions.svelte';
 	import type { Schemas } from '#lib/api/client.ts';
 
 	// Inline editor for a manual or imported entry (03 §7, mock: /design/dns). New entries pick name and type; existing
@@ -172,12 +171,8 @@
 			</p>
 		</div>
 	{/if}
-	<Collapsible.Root class="mt-3">
-		<Collapsible.Trigger
-			class="flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
-			><ChevronDown class="size-3.5" />Display, monitoring and dashboard</Collapsible.Trigger
-		>
-		<Collapsible.Content class="mt-2 grid gap-3 sm:grid-cols-3">
+	<MoreOptions class="mt-3">
+		<div class="grid gap-3 sm:grid-cols-3">
 			<div class="space-y-1">
 				<Label for="rec-display" class="text-xs">Display name</Label>
 				<Input id="rec-display" bind:value={f.display} />
@@ -188,8 +183,8 @@
 			<label class="flex items-center gap-2 pt-5 text-md"
 				><Switch bind:checked={f.dashboard} />Show on app dashboard</label
 			>
-		</Collapsible.Content>
-	</Collapsible.Root>
+		</div>
+	</MoreOptions>
 	<div class="mt-3 flex flex-wrap items-center gap-2">
 		{#if onDelete}
 			<Button

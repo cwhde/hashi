@@ -40,7 +40,10 @@ On first boot with no completed setup:
 2. Print them **once** to stdout (container logs) in a clearly delimited block.
 3. Store only an argon2id hash.
 4. Allow bootstrap login only from: `10.0.0.0/8`, `172.16.0.0/12`, `192.168.0.0/16`, `127.0.0.0/8`, `::1/128`, `fc00::/7`
-   (setting `bootstrap.allowed_cidrs`), resolved via the shared client-IP resolver (01-platform.md §8).
+   (setting `bootstrap.allowed_cidrs`), resolved via the shared client-IP resolver (01-platform.md §8). The setting
+   takes private ranges only (the list above plus `100.64.0.0/10` and `fe80::/10`); a public or whole-internet range
+   is refused. After setup the bootstrap login is gone and the setting only decides where a console recovery link
+   (§2) works.
 5. Bootstrap over plain HTTP on a private address is allowed: the bootstrap session cookie is issued without `Secure`
    only when the request is plain HTTP from an allowed range. After step 8 every cookie is `Secure`.
 6. After restart before completion, the same credentials remain valid (hash persisted); a CLI command
@@ -98,9 +101,15 @@ Hashi has exactly one admin user.
 - Adding another passkey (Settings → Account) requires reauthentication, like other privilege changes (§3.2).
 - Recent reauthentication = a fresh passkey assertion within the current session; valid 5 minutes.
 
-Reauthentication is required for: destructive operations, secret reveal/replace, script save/run, firewall/DNS prune,
+Reauthentication is required for: destructive operations (below), secret reveal/replace, script save/run, firewall/DNS prune,
 permanent bans, changes to IP sets bound to firewall positions, global firewall allow/block bindings, Cap settings, internal agent DNS
 domain change, trusted-proxy change, revoking other sessions, vault mode change.
+
+A **destructive operation** is a delete that cannot be undone and is not a plan: a status check with its history, a
+script, an IP set, a rule set, a notification channel, a sign-in provider, and every connection (Traefik host,
+firewall host, AdGuard instance, Pulse agent). Its confirmation names what is lost (10c §5). Deletes in DNS, Traefik
+and on firewall hosts are plans; they need a passkey through plan approval like any other high-risk plan, and a DNS
+prune is always one. (Bug 51.)
 
 ## 3. Admin sessions
 

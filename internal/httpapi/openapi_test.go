@@ -68,3 +68,15 @@ func TestManualSecurityActionsNeedReauth(t *testing.T) {
 		}
 	}
 }
+
+// Destructive operations (02 §2, bug 51): every delete that can't be undone and isn't a plan asks for a fresh passkey.
+func TestIrreversibleDeletesNeedReauth(t *testing.T) {
+	for _, op := range []string{"DeleteMonitorEndpoint", "DeleteScript", "DeleteIPSet", "DeleteRuleSet",
+		"DeleteNotificationProvider", "DeleteSSOProvider", "RemoveTraefikHost", "DeleteFirewallHost",
+		"DeleteAdGuardConnection", "DeletePulseAgent"} {
+		r, ok := gen.Requirements[op]
+		if !ok || !r.Reauth {
+			t.Errorf("%s: %+v (known %v), want reauth", op, r, ok)
+		}
+	}
+}

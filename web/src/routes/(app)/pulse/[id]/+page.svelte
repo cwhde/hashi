@@ -215,8 +215,7 @@
 							placeholder="Uses the agent's name"
 						/>
 						<p class="text-xs text-muted-foreground">
-							Under the <a href="/settings?category=agent-dns" class="underline">internal domain</a
-							>.
+							Under the <a href="/settings?category=dns" class="underline">internal domain</a>.
 						</p>
 					</div>
 				{/if}

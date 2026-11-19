@@ -124,6 +124,12 @@ func Put(ctx context.Context, q *db.Queries, v Category) error {
 	if err := v.Validate(); err != nil {
 		return err
 	}
+	// Rules that tightened after values were stored apply to new values only (bugs 48, 49).
+	if n, ok := v.(interface{ ValidateNew() error }); ok {
+		if err := n.ValidateNew(); err != nil {
+			return err
+		}
+	}
 	b, err := json.Marshal(v)
 	if err != nil {
 		return err

@@ -11,6 +11,8 @@
 	import TraefikHostSheet from '#lib/components/hashi/connections/TraefikHostSheet.svelte';
 	import FirewallHostSheet from '#lib/components/hashi/connections/FirewallHostSheet.svelte';
 	import PulseAgentSheet from '#lib/components/hashi/connections/PulseAgentSheet.svelte';
+	import SignInProviderSheet from '#lib/components/hashi/connections/SignInProviderSheet.svelte';
+	import GeoIPSheet from '#lib/components/hashi/connections/GeoIPSheet.svelte';
 	import { Button } from '#lib/components/ui/button/index.ts';
 	import { Skeleton } from '#lib/components/ui/skeleton/index.ts';
 	import * as DropdownMenu from '#lib/components/ui/dropdown-menu/index.ts';
@@ -32,20 +34,26 @@
 	let firewall = $state<FirewallHost[]>([]);
 	let agents = $state<Agent[]>([]);
 	let adguard = $state<AdGuard[]>([]);
+	let sso = $state<Schemas['SSOProviders'] | null>(null);
+	let geo = $state<Schemas['GeoIPStatus'] | null>(null);
 	let loaded = $state(false);
 	let error = $state('');
 	let busy = $state(false);
 
 	async function load() {
-		const [z, t, f, p, a] = await Promise.all([
+		const [z, t, f, p, a, o, g] = await Promise.all([
 			api.GET('/api/dns/zones'),
 			api.GET('/api/traefik/connections'),
 			api.GET('/api/firewall/hosts'),
 			api.GET('/api/pulse/agents'),
-			api.GET('/api/adguard/connections')
+			api.GET('/api/adguard/connections'),
+			api.GET('/api/security/sso/providers'),
+			api.GET('/api/security/geoip')
 		]);
-		if (!z.data || !t.data || !f.data || !p.data || !a.data)
-			throw z.error ?? t.error ?? f.error ?? p.error ?? a.error;
+		if (!z.data || !t.data || !f.data || !p.data || !a.data || !o.data || !g.data)
+			throw z.error ?? t.error ?? f.error ?? p.error ?? a.error ?? o.error ?? g.error;
+		sso = o.data;
+		geo = g.data;
 		zones = z.data.zones;
 		traefik = t.data.connections;
 		firewall = f.data.hosts;
@@ -71,7 +79,7 @@
 	}
 
 	// ---- drawers; ?add=<kind> opens one, so feature pages can link here ----
-	type Kind = 'traefik' | 'firewall' | 'pulse' | 'adguard';
+	type Kind = 'traefik' | 'firewall' | 'pulse' | 'adguard' | 'signin';
 	let traefikOpen = $state(false);
 	let traefikConn = $state<Traefik | null>(null);
 	let firewallOpen = $state(false);
@@ -80,16 +88,20 @@
 	let pulseShown = $state<{ agent: Agent; token: string } | null>(null);
 	let adguardOpen = $state(false);
 	let adguardConn = $state<AdGuard | null>(null);
+	let signinOpen = $state(false);
+	let signinProvider = $state<Schemas['SSOProvider'] | null>(null);
+	let geoOpen = $state(false);
 	function add(k: Kind) {
 		if (k === 'traefik') [traefikConn, traefikOpen] = [null, true];
 		if (k === 'firewall') [firewallHost, firewallOpen] = [null, true];
 		if (k === 'pulse') [pulseShown, pulseOpen] = [null, true];
 		if (k === 'adguard') [adguardConn, adguardOpen] = [null, true];
+		if (k === 'signin') [signinProvider, signinOpen] = [null, true];
 	}
 	onMount(() => {
 		reload();
 		const k = page.url.searchParams.get('add');
-		if (k && ['traefik', 'firewall', 'pulse', 'adguard'].includes(k)) {
+		if (k && ['traefik', 'firewall', 'pulse', 'adguard', 'signin'].includes(k)) {
 			add(k as Kind);
 			void goto('/connections', { replace: true, reset: false });
 		}
@@ -302,13 +314,74 @@
 					}
 				]
 			}))
+		},
+		{
+			title: 'Sign-in providers',
+			kind: 'signin',
+			empty: 'No provider yet. Rules that ask for sign-in refuse everyone until there is one.',
+			rows: (sso?.providers ?? []).map((p) => ({
+				key: p.id,
+				name: p.name,
+				detail: p.discovery_error || p.issuer,
+				bad: !!p.discovery_error,
+				health: p.discovery_error ? 'down' : 'up',
+				tags: p.is_default ? ['default'] : [],
+				actions: [
+					{ label: 'Edit', run: () => ([signinProvider, signinOpen] = [p, true]) },
+					{
+						label: 'Remove',
+						danger: true,
+						confirm: {
+							title: `Remove ${p.name}?`,
+							body: 'Its edge sessions end, and rules that name it refuse everyone. Hashi refuses while a rule names it.',
+							verb: 'Remove provider'
+						},
+						run: () =>
+							act(() =>
+								withReauth(() =>
+									api.DELETE('/api/security/sso/providers/{id}', {
+										params: { path: { id: p.id } }
+									})
+								)
+							)
+					}
+				]
+			}))
+		},
+		{
+			title: 'GeoIP database',
+			empty: '',
+			rows: geo
+				? [
+						{
+							key: 'geoip',
+							name: geo.account_id ? 'MaxMind' : geo.url ? 'Download address' : 'Not set up',
+							detail:
+								geo.error ||
+								(geo.databases.length
+									? geo.databases.map((d) => d.edition).join(', ')
+									: 'Rules with countries match nobody until it is set up.'),
+							bad: !!geo.error,
+							health: geo.error
+								? 'down'
+								: geo.databases.some((d) => d.stale)
+									? 'degraded'
+									: geo.databases.length
+										? 'up'
+										: 'unknown',
+							checked: geo.databases[0]?.fetched_at,
+							actions: [{ label: 'Edit', run: () => (geoOpen = true) }]
+						}
+					]
+				: []
 		}
 	]);
 	const kinds: [Kind, string][] = [
 		['traefik', 'Traefik host'],
 		['firewall', 'Firewall host'],
 		['pulse', 'Pulse agent'],
-		['adguard', 'AdGuard Home']
+		['adguard', 'AdGuard Home'],
+		['signin', 'Sign-in provider']
 	];
 </script>
 
@@ -392,6 +465,14 @@
 <TraefikHostSheet bind:open={traefikOpen} conn={traefikConn} onsaved={reload} />
 <FirewallHostSheet bind:open={firewallOpen} host={firewallHost} onsaved={reload} />
 <PulseAgentSheet bind:open={pulseOpen} bind:shown={pulseShown} onsaved={reload} />
+<SignInProviderSheet
+	bind:open={signinOpen}
+	provider={signinProvider}
+	first={!sso?.providers.length}
+	callback={sso?.callback_url ?? ''}
+	onsaved={reload}
+/>
+<GeoIPSheet bind:open={geoOpen} {geo} onsaved={reload} />
 <AdGuardSheet
 	bind:open={adguardOpen}
 	conn={adguardConn}

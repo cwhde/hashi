@@ -40,7 +40,8 @@
 	let preview = $state<Schemas['AgentDNSPreview']['rewrites'] | null>(null);
 	async function showPreview() {
 		error = '';
-		const r = await api.POST('/api/settings/internal-agent-dns/preview-sync');
+		// The draft on screen, not the stored settings (bug 84).
+		const r = await api.POST('/api/settings/internal-agent-dns/preview-sync', { body: v! });
 		if (r.data) preview = r.data.rewrites;
 		else error = problemText(r.error);
 	}

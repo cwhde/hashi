@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 
@@ -124,14 +125,22 @@ func TestBootstrapOnlyFromPrivateNetworks(t *testing.T) {
 	c.mustStatus(c.do(http.MethodPost, "/api/auth/bootstrap/login", map[string]string{"username": u, "password": p}), 403)
 }
 
-// The bootstrap networks setting (09 §2 Security) decides where the bootstrap login works: a public range added to it
-// lets that address in.
+// The bootstrap networks setting (09 §2 Security) decides where the bootstrap login works: a private range added to it
+// lets that address in (public ranges are refused, bug 49).
 func TestBootstrapNetworksSetting(t *testing.T) {
 	cfg := newConfig(t)
 	trustLoopbackProxy(t, cfg)
 	st := storetest.Open(t, cfg.DBPath())
 	sec := settings.DefaultOf[settings.Security]()
-	sec.BootstrapAllowedCIDRs = append(sec.BootstrapAllowedCIDRs, "203.0.113.0/24")
+	if err := settings.Put(context.Background(), st.Q, sec); err != nil {
+		t.Fatal(err)
+	}
+	pub := sec
+	pub.BootstrapAllowedCIDRs = append(slices.Clone(sec.BootstrapAllowedCIDRs), "203.0.113.0/24")
+	if err := settings.Put(context.Background(), st.Q, pub); err == nil {
+		t.Fatal("a public bootstrap range was accepted")
+	}
+	sec.BootstrapAllowedCIDRs = append(sec.BootstrapAllowedCIDRs, "100.64.0.0/10")
 	if err := settings.Put(context.Background(), st.Q, sec); err != nil {
 		t.Fatal(err)
 	}
@@ -140,7 +149,7 @@ func TestBootstrapNetworksSetting(t *testing.T) {
 	}
 	in := start(t, cfg)
 	c := in.client()
-	c.header.Set("X-Forwarded-For", "203.0.113.9")
+	c.header.Set("X-Forwarded-For", "100.64.0.9")
 	u, p := in.bootstrapCredentials()
 	c.mustStatus(c.do(http.MethodPost, "/api/auth/bootstrap/login", map[string]string{"username": u, "password": p}), 200)
 }

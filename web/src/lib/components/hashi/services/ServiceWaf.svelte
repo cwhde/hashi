@@ -7,10 +7,11 @@
 	import * as Select from '#lib/components/ui/select/index.ts';
 	import { Plus, Trash2 } from '@lucide/svelte';
 	import { api, problemText, type Schemas } from '#lib/api/client.ts';
-	import { pendingPlans } from '#lib/sync-pending.svelte.ts';
+	import { Draft } from '#lib/unsaved.svelte.ts';
 
 	// WAF per path (06 §9): headers only or off. It runs in forward auth, which never sees request bodies, so the mock's
-	// "enabled" mode is not offered.
+	// "enabled" mode is not offered. The draft saves with the service page's one Save (10c §5, bug 65): the page reads
+	// `draft.dirty` and calls `save()`.
 	let { serviceId }: { serviceId: string } = $props();
 
 	// A path row as the form edits it: mode '' follows the service.
@@ -25,9 +26,8 @@
 	let mode = $state(''); // '' = the default
 	let exclusions = $state('');
 	let paths = $state<Path[]>([]);
-	let note = $state('');
 	let error = $state('');
-	let busy = $state(false);
+	export const draft = new Draft(() => [mode, exclusions, paths]);
 
 	const ids = (s: string) =>
 		s
@@ -45,6 +45,7 @@
 			mode: p.mode ?? '',
 			exclusions: p.exclusions ?? []
 		}));
+		draft.mark();
 	}
 	onMount(async () => {
 		const r = await api.GET('/api/services/{id}/waf', { params: { path: { id: serviceId } } });
@@ -56,9 +57,8 @@
 		!m ? inherit : m === 'headers_only' ? 'headers only' : 'off';
 	const serviceMode = $derived(label(mode, `default (${label(view?.default_mode, '')})`));
 
-	async function save() {
-		busy = true;
-		error = note = '';
+	/** Saves the draft; returns the plans it made. Throws the problem when the server refuses it. */
+	export async function save(): Promise<Schemas['SyncPlan'][]> {
 		const body: Schemas['ServiceWAF'] = {
 			mode: (mode || undefined) as Schemas['WAFMode'] | undefined,
 			exclusions: ids(exclusions),
@@ -71,17 +71,9 @@
 			params: { path: { id: serviceId } },
 			body
 		});
-		busy = false;
-		if (r.error || !r.data) {
-			error = problemText(r.error);
-			return;
-		}
+		if (r.error || !r.data) throw r.error;
 		take(r.data.waf);
-		const waiting = r.data.plans.filter((p) => p.status === 'pending').length;
-		pendingPlans.count += waiting;
-		note = waiting
-			? `Saved. ${waiting} change${waiting === 1 ? '' : 's'} wait under Pending changes.`
-			: 'Saved and applied.';
+		return r.data.plans;
 	}
 </script>
 
@@ -93,11 +85,7 @@
 	</Panel>
 {:else if view}
 	<div class="grid gap-4 lg:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)]">
-		<Panel
-			flush
-			title="Mode per path"
-			description="The most specific path wins. Saving plans every Traefik host."
-		>
+		<Panel flush title="Mode per path" description="The most specific path wins.">
 			{#snippet actions()}<Button
 					size="sm"
 					variant="outline"
@@ -170,9 +158,6 @@
 					Rule IDs for the whole service. Matches count towards a challenge.
 				</p>
 			</div>
-			{#if error}<p role="alert" class="mt-3 text-md text-bad-text">{error}</p>{/if}
-			{#if note}<p role="status" class="mt-3 text-md">{note}</p>{/if}
-			<Button class="mt-4" size="sm" disabled={busy} onclick={save}>Save WAF</Button>
 		</Panel>
 	</div>
 {:else if error}

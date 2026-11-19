@@ -3,6 +3,7 @@
 	import PageHeader from '#lib/components/hashi/PageHeader.svelte';
 	import Panel from '#lib/components/hashi/Panel.svelte';
 	import Mono from '#lib/components/hashi/Mono.svelte';
+	import Tag from '#lib/components/hashi/Tag.svelte';
 	import { Switch } from '#lib/components/ui/switch/index.ts';
 	import { Skeleton } from '#lib/components/ui/skeleton/index.ts';
 	import { api, problemText, type Schemas } from '#lib/api/client.ts';
@@ -58,11 +59,16 @@
 				}
 			})
 		);
-	const setPage = (key: 'public_dashboard_enabled' | 'public_status_enabled', v: boolean) =>
-		look && run(api.PUT('/api/settings/appearance', { body: { ...look, [key]: v } }));
 </script>
 
 <svelte:head><title>App display · Hashi</title></svelte:head>
+
+<!-- A whole page on or off is a setting (10c §1.2, bug 65); here it's shown with a link there. -->
+{#snippet pageState(on: boolean)}
+	<a href="/settings?category=public" class="inline-flex"
+		><Tag tone={on ? 'ok' : 'neutral'}>{on ? 'on' : 'off'}</Tag></a
+	>
+{/snippet}
 
 <PageHeader
 	title="App display"
@@ -97,11 +103,7 @@
 			: 'Loading…'}
 		flush
 	>
-		{#snippet actions()}{#if look}<Switch
-					checked={look.public_dashboard_enabled}
-					onCheckedChange={(v) => setPage('public_dashboard_enabled', v)}
-					aria-label="Public dashboard enabled"
-				/>{/if}{/snippet}
+		{#snippet actions()}{#if look}{@render pageState(look.public_dashboard_enabled)}{/if}{/snippet}
 		{@render reached(pages?.apps)}
 		{#if !loaded}<div class="space-y-2 p-4"><Skeleton class="h-6" /><Skeleton class="h-6" /></div>
 		{:else if services.length === 0}<p class="px-4 py-3 text-md text-muted-foreground">
@@ -129,11 +131,7 @@
 		description="Names, groups, state and history only; never hosts, IPs or errors"
 		flush
 	>
-		{#snippet actions()}{#if look}<Switch
-					checked={look.public_status_enabled}
-					onCheckedChange={(v) => setPage('public_status_enabled', v)}
-					aria-label="Public status enabled"
-				/>{/if}{/snippet}
+		{#snippet actions()}{#if look}{@render pageState(look.public_status_enabled)}{/if}{/snippet}
 		{@render reached(pages?.status)}
 		{#if !loaded}<div class="space-y-2 p-4">
 				<Skeleton class="h-6" /><Skeleton class="h-6" />
