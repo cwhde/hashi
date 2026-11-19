@@ -39,6 +39,17 @@ All open entries are planned into the 0.13 bug round (slices 13.1 onwards in `do
 | 87 | visual | reported | Status → history strip | Always says "60 checks: 0 down, 0 degraded", also before the first check; the strip pads to 60 with unknown and counts those (`lib/monitor.ts`, `HistoryStrip.svelte`). (Codex R-009) | 2026-11-15 |
 | 88 | visual | reported | Status → check detail → charts | 24h, 7d and 30d keep saying "Charts appear after the first full minute of checks" while 1h already has points, and 24h is the default, so a new check looks empty. (Codex R-010) | 2026-11-15 |
 | 89 | later | reported | IP set → Resolved, large feeds | "Showing the first 200 of 1621 ranges." with no way to see more, although the API has a cursor and Items has "Show more". (Codex R-013) | 2026-11-15 |
+| 99 | function | reported | Security → Dashboard | Slow and blank while loading: the dashboard call takes about 2.5 s for 1h and 24h, 7 s for 7d and 13 s for 30d, and the page shows nothing (no placeholder) until it answers. Switching the period keeps the old numbers with no sign that new ones are coming. (13.4 walk) | 2026-11-19 |
+| 100 | visual | reported | Firewall → global policy → Block | The list shows raw set IDs for a moment before the names load. (13.4 walk) | 2026-11-19 |
+| 101 | visual | reported | Dates across the app | Two formats: the firewall page says "Last apply 11/12/2026, 10:11:51 PM", other pages "Nov 15, 2026, 8:58 PM". One format everywhere (`lib/format.ts`). (13.4 walk) | 2026-11-19 |
+| 102 | visual | reported | Firewall host page, Traefik host cards, firewall page | Still against 10c: the Rescue path panel is a paragraph that is always shown; the "Block all other inbound connections" switch carries a long explanation; field notes on the firewall page ("Never dropped and never banned by the abuse engine.", "Dropped before anything else."); "Reach over SSH through an IP set (optional)" is always shown on firewall hosts and Traefik host cards (More options); the host's Settings panel has three Save buttons. (13.4 walk) | 2026-11-19 |
+| 103 | function | reported | Status → the home firewall host's check | The host sits behind a router and has no address, yet its check dials `tcp :22` and has been Down since Nov 8 ("connection refused"). A host without an address should get no TCP check (or one through its agent). (13.4 walk) | 2026-11-19 |
+| 104 | function | reported | Save buttons | Save is enabled with nothing changed on Edge protection → Cap challenge, DNS and agent names, Pulse, Monitoring → Where alerts go ("Save route") and a check's "Checks and settings". The save model wants Save disabled until something differs. (13.4 walk) | 2026-11-19 |
+| 105 | visual | reported | Pulse agent page, Settings → DNS and agent names | The agent's "Port to test from Hashi" shows 0 instead of empty (off); "Remove a stale agent's name after (hours)" is an empty box with no default shown. (13.4 walk) | 2026-11-19 |
+| 106 | visual | reported | Detail pages and panels | Descriptions that 10c removes: system IP sets ("The public addresses of every …" and "Maintained by Hashi. You can use it anywhere but not change it."), the global rule set ("Applies to every service after its own rules.", "Checked top to bottom"), Abuse engine ("Applies to every service" and the note under it), Cap challenge ("Cap runs next to Hashi"), Security dashboard panels ("What happened to addresses …", "Addresses banned by …"). The global rule set's "Used by" panel is empty with no text. (13.4 walk) | 2026-11-19 |
+| 107 | visual | reported | Status list | Once stayed on placeholder cards for more than 4 s although its calls answered within 0.6 s; loaded on the next try. Not measured further. (13.4 walk) | 2026-11-19 |
+| 108 | visual | reported | Leaving a page with unsaved changes | Asks with the browser's own dialog (`confirm()` in `lib/unsaved.svelte.ts`), which looks foreign and blocks the tab; the app's own dialog would match the rest. (13.4 walk) | 2026-11-19 |
+
 ## Details
 
 Checked 2026-11-14 on the production app (read-only: measured in the browser, nothing saved) and in the code. Pixel values
@@ -85,17 +96,3 @@ What the waiting firewall plan shows today:
   noise while it waits.
 - Wanted: a summary of what changes in words (sets and counts added/removed, by feed), the risk reason with its
   consequence, the rollback promise, and the hashes folded away.
-
-### 36 · Settings grouping
-
-The spec puts it there: 10b §3 lists "Account (passkeys, sessions, vault mode)". So the fix starts with a `docs(spec):` change.
-
-What is where today:
-
-- **Account:** Passkeys, Active sessions, Vault.
-- **Security:** Admin sessions (session lifetime settings), Bootstrap networks.
-- **General:** Domains and addresses, Times, Trusted proxies.
-
-So sessions are split over two categories (the list under Account, their settings under Security), and passkeys, the
-vault and trusted proxies, all security settings, sit elsewhere. Proposal for the fix: Security holds passkeys, the vault,
-sessions (list and settings), bootstrap networks and trusted proxies; Account keeps only what is about the person.
