@@ -860,7 +860,7 @@ test('setup with a passkey, then sign in with it', async ({ page, request }) => 
 	await page.getByRole('button', { name: 'Confirm with passkey and save' }).click();
 	await expect(page.getByRole('row', { name: /198\.51\.100\.77/ })).toContainText('4');
 	await page.goto(`${state.baseURL}/activity`);
-	await expect(page.getByRole('row', { name: /security\.counters_edited/ }).first()).toContainText(
+	await expect(page.getByRole('row', { name: /Security counters edited/ }).first()).toContainText(
 		'ban 1 → 4'
 	);
 	// The dynamic sets on the IP sets page: challenge by hand with a duration, then end it.
@@ -981,8 +981,10 @@ test('setup with a passkey, then sign in with it', async ({ page, request }) => 
 	await expect
 		.poll(async () => (await page.request.get(`${state.baseURL}/api/settings/appearance`)).json())
 		.toMatchObject({ reduce_transparency: true });
-	await page.getByRole('button', { name: 'Use Graphite again' }).click();
+	await page.getByRole('button', { name: 'Switch back to Graphite' }).click();
 	await expect(page.locator('html')).toHaveAttribute('data-theme', 'graphite');
+	// With a built-in theme in use the editor offers no switch back (bug 130).
+	await expect(page.getByRole('button', { name: /Switch back to/ })).toHaveCount(0);
 	// Overview widgets (bug 31): hiding one and moving another changes the start page; both are saved at once.
 	const widgetList = page.getByRole('list', { name: 'Overview widgets' }).getByRole('listitem');
 	await page.getByRole('switch', { name: 'Show Recent activity' }).click();

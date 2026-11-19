@@ -11,6 +11,7 @@
 		customVars,
 		isLight,
 		minContrast,
+		theme,
 		themeProblems,
 		themes,
 		type CustomTheme,
@@ -50,8 +51,31 @@
 		['accent', 'Accent', 'Buttons and highlights']
 	] as const;
 
+	// A first custom theme starts from the theme in use, read from the page's own colours (bug 130); Graphite's roles
+	// only when they can't be read.
+	function fromPage(): CustomTheme {
+		if (typeof document === 'undefined') return start;
+		const css = getComputedStyle(document.documentElement);
+		const v = (n: string) => css.getPropertyValue(`--h-${n}`).trim();
+		const t = {
+			canvas: v('canvas'),
+			surface: v('surface'),
+			text: v('text'),
+			muted: v('muted'),
+			border: v('border'),
+			accent: v('accent'),
+			roundness: 'default' as const
+		};
+		const hex = /^#[0-9a-f]{6}$/i;
+		return [t.canvas, t.surface, t.text, t.muted, t.border, t.accent].every((c) => hex.test(c))
+			? t
+			: start;
+	}
+
 	// The draft starts as a copy of the saved theme, once; edits never touch the saved one.
-	let draft = $state<CustomTheme>(untrack(() => structuredClone($state.snapshot(saved) ?? start)));
+	let draft = $state<CustomTheme>(
+		untrack(() => structuredClone($state.snapshot(saved) ?? fromPage()))
+	);
 	let importError = $state('');
 	let fileInput: HTMLInputElement;
 
@@ -246,12 +270,13 @@
 					{importError}
 				</p>{/if}
 			<div class="mt-3 flex flex-wrap justify-end gap-2">
-				{#each themes as t (t.id)}{#if t.id === 'graphite'}<Button
-							variant="ghost"
-							size="sm"
-							disabled={busy}
-							onclick={() => onreset(t.id)}>Use {t.name} again</Button
-						>{/if}{/each}
+				<!-- Only while the custom theme is in use; the cards above switch between built-in ones (bug 130). -->
+				{#if theme.current === 'custom'}{#each themes as t (t.id)}{#if t.id === 'graphite'}<Button
+								variant="ghost"
+								size="sm"
+								disabled={busy}
+								onclick={() => onreset(t.id)}>Switch back to {t.name}</Button
+							>{/if}{/each}{/if}
 				<Button
 					size="sm"
 					disabled={busy || problems.length > 0 || !dirty}

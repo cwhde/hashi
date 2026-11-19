@@ -56,7 +56,6 @@ All open entries are planned into the 0.13 bug round (slices 13.1 onwards in `do
 | 113 | visual | reported | Service → Traffic | "Add header" is a ghost button under each list; Extra middlewares has its own "Write one" outline button in another place and wording. Same look, position and wording ("Add middleware"). (owner) | 2026-11-19 |
 | 114 | visual | reported | Service → Access → sign-in option | With a long sign-in provider name the row overlaps and breaks. Default the provider's display name to something short and cap how long it can be; the row must not break with any length. (owner) | 2026-11-19 |
 | 115 | visual | reported | Service page and everywhere | Too many descriptions still: "They run in the order you pick them", "Set a header on every request; an empty value removes it", the Traefik page's middleware explanation, and many more the owner didn't list one by one. Go through every page with judgement, not only the listed ones. (owner) | 2026-11-19 |
-| 116 | function | reported | DNS | Many records exist that Hashi doesn't own yet. Check whether they can be imported so Hashi owns them, and do it with the owner. The owner has never seen the record editor: check that it is reachable and works. (owner) | 2026-11-19 |
 | 117 | visual | reported | Traefik host cards, firewall host page | "Reach over SSH through an IP set (optional)" is not understood. It is the address Hashi connects to over SSH; it belongs with the connection (Connections), worded as such, and can name a Pulse agent directly. The block's spacing is broken (buttons). (owner) | 2026-11-19 |
 | 118 | visual | reported | Firewall → global policy | Looks bad: the chosen sets sit above the picker; they belong below it. (owner) | 2026-11-19 |
 | 119 | later | reported | Security dashboard and check charts | Hover a chart to read the value at that moment (only while the pointer is on it). Same on a check's charts on Status. (owner) | 2026-11-19 |
@@ -66,10 +65,6 @@ All open entries are planned into the 0.13 bug round (slices 13.1 onwards in `do
 | 123 | later | reported | App display | A switch to turn all on or off, for the app dashboard and the status page. (owner) | 2026-11-19 |
 | 124 | visual | reported | Settings → Edge protection | Looks unorganised. (owner) | 2026-11-19 |
 | 125 | visual | reported | Settings → Firewall | "NetBird mode a new host starts with" is not understood. (owner) | 2026-11-19 |
-| 128 | visual | reported | Overview → Needs attention | Lists every item (16 on prod), so the first row grows very tall and Changes waiting and Service health beside it are mostly empty. Show the worst few and "and N more". (13.4 walk) | 2026-11-19 |
-| 129 | visual | reported | Overview → Recent activity | Shows raw event names (`ip_set.deleted`, `auth.reauth`) and `session:<id>` instead of plain words and who did it. (13.4 walk) | 2026-11-19 |
-| 130 | visual | reported | Settings → Appearance → Custom theme | With Warm Linen in use the editor offers "Use Graphite again" and starts from Graphite's colours. (13.4 walk) | 2026-11-19 |
-| 131 | visual | reported | Status list | The AdGuard group says "1 Failing" although its one non-ok endpoint is Degraded; Pulse agent cards show `self · pulse:<id>` as their line. (13.4 walk) | 2026-11-19 |
 
 ## Details
 

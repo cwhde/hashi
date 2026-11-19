@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { actionText, actorText } from '#lib/activity.ts';
 	import { onMount } from 'svelte';
 	import PageHeader from '#lib/components/hashi/PageHeader.svelte';
 	import Panel from '#lib/components/hashi/Panel.svelte';
@@ -157,7 +158,8 @@
 				detail: f.last_success ? `Last fetched ${dateTime(f.last_success)}` : 'Never fetched',
 				href: `/ip-sets/${f.set_id}`
 			});
-		return out;
+		// Down before slow, so the first rows are the worst (bug 128).
+		return out.toSorted((a, b) => (a.state === 'down' ? 0 : 1) - (b.state === 'down' ? 0 : 1));
 	});
 
 	const live = $derived((endpoints ?? []).filter((e) => !e.paused));
@@ -228,7 +230,7 @@
 		{:else if attention.length === 0}<p class="text-md text-muted-foreground">Nothing needs you.</p>
 		{:else}
 			<ul class="divide-y">
-				{#each attention as r (r.key)}
+				{#each attention.slice(0, 6) as r (r.key)}
 					<li class="flex items-center gap-3 py-2.5">
 						<StatusDot state={r.state} />
 						<div class="min-w-0 flex-1">
@@ -239,6 +241,11 @@
 					</li>
 				{/each}
 			</ul>
+			{#if attention.length > 6}<a
+					href="/status"
+					class="block pt-2 text-sm text-muted-foreground underline-offset-4 hover:underline"
+					>{attention.length - 6} more</a
+				>{/if}
 		{/if}
 	{:else if id === 'health'}
 		{#if !endpoints}{@render waiting()}
@@ -358,10 +365,11 @@
 						<span class="tnum truncate text-muted-foreground">{dateTime(a.at)}</span><span
 							class="min-w-0"
 							><span class="flex items-center gap-2"
-								><Mono class="truncate">{a.action}</Mono>{#if a.outcome !== 'success'}<Tag
-										tone={a.outcome === 'failure' ? 'bad' : 'warn'}>{a.outcome}</Tag
+								><span class="truncate" title={a.action}>{actionText(a.action)}</span
+								>{#if a.outcome !== 'success'}<Tag tone={a.outcome === 'failure' ? 'bad' : 'warn'}
+										>{a.outcome}</Tag
 									>{/if}</span
-							><span class="block truncate text-muted-foreground">{a.actor}</span></span
+							><span class="block truncate text-muted-foreground">{actorText(a.actor)}</span></span
 						>
 					</li>
 				{/each}

@@ -17,7 +17,11 @@ export const uptimeText = (v: number | undefined) =>
 /** How an endpoint is checked, in words: the first check's type and target. */
 export function checkSummary(e: Endpoint): string {
 	const c = e.checks.find((x) => x.role === 'internal') ?? e.checks[0];
-	return c ? `${c.type} · ${c.target}` : 'no checks';
+	if (!c) return 'no checks';
+	// Self checks read Hashi's own state; their target is an internal key, not an address (bug 131).
+	if (c.type === 'self')
+		return c.target.startsWith('pulse:') ? 'heartbeat from the agent' : 'Hashi itself';
+	return `${c.type} · ${c.target}`;
 }
 
 export const sourceText: Record<string, string> = {
@@ -26,6 +30,8 @@ export const sourceText: Record<string, string> = {
 	firewall_host: 'Firewall host',
 	traefik: 'Traefik host',
 	hashi: 'Hashi',
+	adguard: 'AdGuard',
+	pulse: 'Pulse agent',
 	user: 'Your check'
 };
 

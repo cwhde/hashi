@@ -126,12 +126,13 @@
 	{/if}
 	<div class="space-y-6">
 		{#each groups as [name, items] (name)}
-			{@const failing = (items ?? []).filter(
-				(m) => m.state === 'down' || m.state === 'degraded'
-			).length}
+			{@const down = (items ?? []).filter((m) => m.state === 'down').length}
+			{@const slow = (items ?? []).filter((m) => m.state === 'degraded').length}
 			<section>
 				<h2 class="mb-2 flex items-center gap-2 text-base font-semibold capitalize">
-					{name}{#if failing}<Tag tone="bad">{failing} failing</Tag>{/if}
+					{name}{#if down}<Tag tone="bad">{down} down</Tag>{/if}{#if slow}<Tag tone="warn"
+							>{slow} slow</Tag
+						>{/if}
 				</h2>
 				<div class="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
 					{#each items ?? [] as m (m.id)}

@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { actionText, actorText } from '#lib/activity.ts';
 	import { page } from '$app/state';
 	import { goto } from '$app/navigation';
 	import { hrefWithTab, tabFrom } from '#lib/url-tab.ts';
@@ -30,7 +31,7 @@
 	let filter = $state('');
 	const shown = $derived(
 		(events ?? []).filter((e) =>
-			`${e.action} ${e.actor} ${e.target} ${e.ip} ${e.outcome}`
+			`${actionText(e.action)} ${e.action} ${actorText(e.actor)} ${e.actor} ${e.target} ${e.ip} ${e.outcome}`
 				.toLowerCase()
 				.includes(filter.toLowerCase())
 		)
@@ -197,11 +198,12 @@
 						>{#each shown as e (e.id)}<Table.Row
 								><Table.Cell class="tnum pl-4">{dateTime(e.at)}</Table.Cell><Table.Cell
 									class="font-medium"
-									>{e.action}{#if counterLine(e)}<span
+									><span title={e.action}>{actionText(e.action)}</span>{#if counterLine(e)}<span
 											class="block font-normal whitespace-normal text-muted-foreground"
 											>{counterLine(e)}</span
 										>{/if}</Table.Cell
-								><Table.Cell class="hidden md:table-cell"><Mono>{e.actor}</Mono></Table.Cell
+								><Table.Cell class="hidden md:table-cell"
+									><span title={e.actor}>{actorText(e.actor)}</span></Table.Cell
 								><Table.Cell class="hidden text-muted-foreground lg:table-cell"
 									>{e.target}</Table.Cell
 								><Table.Cell class="hidden md:table-cell"><Mono>{e.ip}</Mono></Table.Cell
