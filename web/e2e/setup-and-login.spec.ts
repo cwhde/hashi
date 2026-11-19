@@ -582,10 +582,24 @@ test('setup with a passkey, then sign in with it', async ({ page, request }) => 
 	await expect(page.getByRole('heading', { name: 'E2E port' })).toBeVisible();
 	// A new check opens on 1h, the range that charts first, and says when its chart starts (bug 88).
 	await expect(page.getByRole('radio', { name: '1h' })).toHaveAttribute('aria-checked', 'true');
-	await expect(page.getByText('The 1h chart starts after the first full minute of checks.')).toBeVisible();
+	await expect(
+		page.getByText('The 1h chart starts after the first full minute of checks.')
+	).toBeVisible();
 	await page.getByRole('switch', { name: 'Show on the public status page' }).click();
 	await page.getByRole('button', { name: 'Save', exact: true }).click();
 	await expect(page.getByRole('status')).toContainText('Saved.');
+	// Pause sends only the pause: an unsaved group edit is neither stored nor lost (bug 59).
+	const checkURL = `${state.baseURL}/api/monitor/endpoints/${page.url().split('/').pop()}`;
+	const group = (await (await page.request.get(checkURL)).json()).endpoint.group;
+	await page.getByLabel('Group', { exact: true }).fill('Unsaved group');
+	await page.getByRole('button', { name: 'Pause' }).click();
+	await expect(page.getByRole('button', { name: 'Resume' })).toBeVisible();
+	const paused = (await (await page.request.get(checkURL)).json()).endpoint;
+	expect([paused.paused, paused.group]).toEqual([true, group]);
+	await expect(page.getByLabel('Group', { exact: true })).toHaveValue('Unsaved group');
+	await page.getByLabel('Group', { exact: true }).fill(group);
+	await page.getByRole('button', { name: 'Resume' }).click();
+	await expect(page.getByRole('button', { name: 'Pause' })).toBeVisible();
 	// The public status page on its own port shows the endpoint, no target, and offers nothing of the admin app.
 	await page.waitForTimeout(16_000); // past the 15 s public cache
 	const pub = await (await request.get(`${state.statusURL}/api/public/status`)).json();
@@ -906,7 +920,8 @@ test('setup with a passkey, then sign in with it', async ({ page, request }) => 
 	await page.getByRole('button', { name: 'New script' }).click();
 	await page.getByLabel('Name', { exact: true }).fill('Disk report');
 	await page.getByLabel('Schedule (cron, host time)').fill('30 3 * * 0');
-	await expect(page.getByText(/^Next: Sun/)).toBeVisible();
+	// Host time as written, not moved into the browser's zone (bug 85).
+	await expect(page.getByText(/^Next, host time: Sun[^,]*03:30/)).toBeVisible();
 	await page.getByRole('button', { name: 'Add variable' }).click();
 	await page.getByLabel('Variable name').fill('KEEP');
 	await page.getByLabel('Value of KEEP').fill('14');
@@ -925,7 +940,7 @@ test('setup with a passkey, then sign in with it', async ({ page, request }) => 
 	await page.getByRole('button', { name: 'Run now' }).click();
 	await expect(page.getByLabel('Output')).toContainText('fake run of disk-report');
 	await expect(page.getByRole('button', { name: /succeeded/ })).toBeVisible();
-	await expect(page.getByText(/^Next: Sun/)).toBeVisible();
+	await expect(page.getByText(/^Next, host time: Sun/)).toBeVisible();
 	await page.screenshot({ path: 'test-results/s11-scripts.png', fullPage: true });
 	// Edge protection settings live in Settings; the Security page only shows what happened (10c §1, bug 36).
 	await page.goto(`${state.baseURL}/security`);

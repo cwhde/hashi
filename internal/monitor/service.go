@@ -50,6 +50,7 @@ var (
 	ErrNotFound = errors.New("endpoint not found")
 	ErrInvalid  = errors.New("invalid")
 	ErrSourced  = errors.New("this endpoint follows what it watches: remove or change that instead")
+	ErrStale    = errors.New("this check was saved elsewhere after you opened it: reload to see the latest")
 )
 
 // Notifier receives state changes, in the transaction that records them.

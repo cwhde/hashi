@@ -226,6 +226,7 @@ type Settings struct {
 	DegradedMs      int64
 	Public          bool
 	RouteProviderID string
+	Version         int64 // the updated_at the form loaded; 0 skips the check (bug 82)
 }
 
 // Update stores an endpoint's settings. Resuming starts the state over: the pause says nothing about what happened.
@@ -251,6 +252,9 @@ func (s *Service) Update(ctx context.Context, id string, v Settings) error {
 		}
 		if err != nil {
 			return err
+		}
+		if v.Version != 0 && v.Version != e.UpdatedAt {
+			return ErrStale
 		}
 		if e.Paused == 1 && !v.Paused {
 			if err := q.SetMonitorEndpointResult(ctx, db.SetMonitorEndpointResultParams{State: StateUnknown, StateSince: now, ID: id}); err != nil {

@@ -3957,6 +3957,9 @@ type MonitorEndpoint struct {
 	Strip          []MonitorStripSample `json:"strip"`
 	TimeoutSeconds int64                `json:"timeout_seconds"`
 	Uptime24h      *float64             `json:"uptime_24h,omitempty"`
+
+	// Version Changes on every settings save; send it back with a save to refuse overwriting a newer one
+	Version int64 `json:"version"`
 }
 
 // MonitorEndpointCreate defines model for MonitorEndpointCreate.
@@ -3996,6 +3999,9 @@ type MonitorEndpointSettings struct {
 	Public          bool    `json:"public"`
 	RouteProviderId *string `json:"route_provider_id,omitempty"`
 	TimeoutSeconds  int64   `json:"timeout_seconds"`
+
+	// Version The endpoint's version the form loaded; a newer stored one refuses the save (409)
+	Version *int64 `json:"version,omitempty"`
 }
 
 // MonitorEvent defines model for MonitorEvent.

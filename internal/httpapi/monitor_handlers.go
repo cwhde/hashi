@@ -21,7 +21,7 @@ func monitorError(err error) error {
 	switch {
 	case errors.Is(err, monitor.ErrNotFound), errors.Is(err, notify.ErrNotFound), errors.Is(err, services.ErrNotFound):
 		return notFound(err.Error())
-	case errors.Is(err, monitor.ErrSourced):
+	case errors.Is(err, monitor.ErrSourced), errors.Is(err, monitor.ErrStale):
 		return conflict(err.Error())
 	case errors.Is(err, monitor.ErrInvalid), errors.Is(err, notify.ErrInvalid):
 		return invalid(err.Error())
@@ -66,7 +66,7 @@ func endpointBody(r monitor.Row, lastErr map[string]string) gen.MonitorEndpoint 
 		checks = append(checks, gen.MonitorCheck{Id: c.ID, Type: c.Type, Role: c.Role, Target: c.Target, Required: c.Required == 1, LastError: emptyNil(lastErr[c.ID])})
 	}
 	since := time.UnixMilli(e.StateSince).UTC()
-	return gen.MonitorEndpoint{PendingDns: boolIf(e.PendingDns == 1), Id: e.ID, Name: e.Name, Group: e.GroupName, SourceType: e.SourceType, SourceId: emptyNil(e.SourceID), State: gen.MonitorState(r.State), StateSince: &since,
+	return gen.MonitorEndpoint{Version: e.UpdatedAt, PendingDns: boolIf(e.PendingDns == 1), Id: e.ID, Name: e.Name, Group: e.GroupName, SourceType: e.SourceType, SourceId: emptyNil(e.SourceID), State: gen.MonitorState(r.State), StateSince: &since,
 		Paused: e.Paused == 1, Public: e.Public == 1, IntervalSeconds: e.IntervalSeconds, TimeoutSeconds: e.TimeoutSeconds, DegradedMs: e.DegradedMs,
 		RouteProviderId: emptyNil(e.RouteProviderID.String), LastCheckAt: millis(e.LastCheckAt), LastLatencyMs: nullInt(e.LastLatencyMs), Uptime24h: r.Uptime24,
 		Checks: checks, Strip: stripBody(r.Strip)}
@@ -139,6 +139,9 @@ func (s *Server) PutMonitorEndpoint(ctx context.Context, req gen.PutMonitorEndpo
 	v := monitor.Settings{Group: b.Group, Paused: b.Paused, Public: b.Public, IntervalSeconds: b.IntervalSeconds, TimeoutSeconds: b.TimeoutSeconds, DegradedMs: b.DegradedMs}
 	if b.RouteProviderId != nil {
 		v.RouteProviderID = *b.RouteProviderId
+	}
+	if b.Version != nil {
+		v.Version = *b.Version
 	}
 	if err := s.Monitor.Update(ctx, req.Id, v); err != nil {
 		return nil, monitorError(err)

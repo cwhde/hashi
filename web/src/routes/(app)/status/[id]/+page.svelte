@@ -45,7 +45,7 @@
 			return;
 		}
 		d = r.data;
-		if (!s || s.paused !== r.data.endpoint.paused) {
+		if (!s) {
 			const e = r.data.endpoint;
 			s = {
 				group: e.group,
@@ -54,7 +54,8 @@
 				interval_seconds: e.interval_seconds,
 				timeout_seconds: e.timeout_seconds,
 				degraded_ms: e.degraded_ms,
-				route_provider_id: e.route_provider_id
+				route_provider_id: e.route_provider_id,
+				version: e.version
 			};
 			draft.mark();
 		}
@@ -86,6 +87,38 @@
 			notice = 'Saved.';
 		} catch (e) {
 			error = problemText(e);
+		} finally {
+			busy = false;
+		}
+	}
+	// Pause and Resume change only that, from what is stored: unsaved edits are neither sent nor lost (bug 59).
+	async function togglePause() {
+		if (!d || !s) return;
+		const e = d.endpoint;
+		const clean = !draft.dirty;
+		error = notice = '';
+		busy = true;
+		try {
+			const r = await api.PUT('/api/monitor/endpoints/{id}', {
+				params: { path: { id } },
+				body: {
+					group: e.group,
+					paused: !e.paused,
+					public: e.public,
+					interval_seconds: e.interval_seconds,
+					timeout_seconds: e.timeout_seconds,
+					degraded_ms: e.degraded_ms,
+					route_provider_id: e.route_provider_id || undefined,
+					version: e.version
+				}
+			});
+			if (r.error) throw r.error;
+			await load();
+			s.paused = d.endpoint.paused;
+			s.version = d.endpoint.version;
+			if (clean) draft.mark();
+		} catch (err) {
+			error = problemText(err);
 		} finally {
 			busy = false;
 		}
@@ -146,11 +179,7 @@
 					href={sourceHref[m.source_type]!(m.source_id)}>{sourceLink[m.source_type]}</Button
 				>{/if}
 			{#if s}
-				<Button
-					variant="outline"
-					size="sm"
-					disabled={busy}
-					onclick={() => s && save({ ...s, paused: !s.paused })}
+				<Button variant="outline" size="sm" disabled={busy} onclick={togglePause}
 					>{m.paused ? 'Resume' : 'Pause'}</Button
 				>
 			{/if}

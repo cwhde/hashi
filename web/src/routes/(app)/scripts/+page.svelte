@@ -20,7 +20,6 @@
 	import { withReauth } from '#lib/auth/reauth.ts';
 	import { reviewItems, triggerText, outcomeText } from '#lib/sync.ts';
 	import { cn } from '#lib/utils.ts';
-	import { timeZone } from '#lib/format.ts';
 
 	type Script = Schemas['Script'];
 	type Run = Schemas['ScriptRun'];
@@ -145,15 +144,16 @@
 		}, 300);
 	});
 
+	// The timer runs on the host's own clock and the server works the schedule out on a zone-free clock (sent as UTC),
+	// so the digits are host time: show them as they are, never in the browser's zone (bug 85).
 	const fmt = (iso: string) =>
 		new Date(iso).toLocaleString(undefined, {
+			timeZone: 'UTC',
 			weekday: 'short',
 			day: 'numeric',
 			month: 'short',
 			hour: '2-digit',
-			minute: '2-digit',
-			timeZone: timeZone(),
-			timeZoneName: timeZone() ? 'short' : undefined
+			minute: '2-digit'
 		});
 
 	function body(): Schemas['ScriptInput'] {
@@ -406,7 +406,7 @@
 							/>
 							{#if previewError}<p class="text-xs text-bad-text">{previewError}</p>
 							{:else if preview}<p class="text-xs text-muted-foreground">
-									Next: {preview.next.slice(0, 3).map(fmt).join(', ')}
+									Next, host time: {preview.next.slice(0, 3).map(fmt).join(', ')}
 								</p>
 							{:else if !form.schedule.trim()}<p class="text-xs text-muted-foreground">
 									e.g. <Mono>30 3 * * 0</Mono> is Sundays at 03:30

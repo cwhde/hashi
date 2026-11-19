@@ -538,3 +538,36 @@ func TestPublicStatusUpdatedFromPublicChecksOnly(t *testing.T) {
 		t.Fatalf("nothing public, yet updated at %v", v.UpdatedAt)
 	}
 }
+
+// A save made from a form that loaded an older version is refused instead of overwriting what another tab saved
+// (bug 82). Without a version (internal callers) it still saves.
+func TestUpdateRefusesAStaleVersion(t *testing.T) {
+	s, st, _, _ := fixture(t)
+	ctx := t.Context()
+	id, err := s.CreateUser(ctx, "wiki", "G", CheckSpec{Type: TypeTCP, Target: "127.0.0.1:1"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	e, _ := st.R.GetMonitorEndpoint(ctx, id)
+	loaded := e.UpdatedAt
+	at := time.Now()
+	s.now = func() time.Time { return at }
+	at = at.Add(time.Second) // tab A saves after the check was created
+	base := Settings{Group: "Tab A", IntervalSeconds: 60, TimeoutSeconds: 5, Version: loaded}
+	if err := s.Update(ctx, id, base); err != nil {
+		t.Fatal(err)
+	}
+	at = at.Add(time.Second) // tab B, still holding the old version, saves later
+	stale := base
+	stale.Group = "Tab B"
+	if err := s.Update(ctx, id, stale); !errors.Is(err, ErrStale) {
+		t.Fatalf("stale save: %v", err)
+	}
+	if e, _ := st.R.GetMonitorEndpoint(ctx, id); e.GroupName != "Tab A" {
+		t.Fatalf("group %q: the first save must stay", e.GroupName)
+	}
+	stale.Version = 0
+	if err := s.Update(ctx, id, stale); err != nil {
+		t.Fatalf("no version: %v", err)
+	}
+}

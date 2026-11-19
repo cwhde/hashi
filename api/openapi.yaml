@@ -3710,8 +3710,9 @@ components:
         last_error: { type: string }
     MonitorEndpoint:
       type: object
-      required: [id, name, group, source_type, state, paused, public, interval_seconds, timeout_seconds, degraded_ms, checks, strip]
+      required: [id, name, group, source_type, state, paused, public, interval_seconds, timeout_seconds, degraded_ms, checks, strip, version]
       properties:
+        version: { type: integer, format: int64, description: "Changes on every settings save; send it back with a save to refuse overwriting a newer one" }
         pending_dns: { type: boolean }
         id: { type: string }
         name: { type: string }
@@ -3757,6 +3758,7 @@ components:
         timeout_seconds: { type: integer, format: int64 }
         degraded_ms: { type: integer, format: int64 }
         route_provider_id: { type: string }
+        version: { type: integer, format: int64, description: "The endpoint's version the form loaded; a newer stored one refuses the save (409)" }
     MonitorPoint:
       type: object
       required: [at, latency_ms, availability]

@@ -3778,6 +3778,11 @@ export interface components {
             last_error?: string;
         };
         MonitorEndpoint: {
+            /**
+             * Format: int64
+             * @description Changes on every settings save; send it back with a save to refuse overwriting a newer one
+             */
+            version: number;
             pending_dns?: boolean;
             id: string;
             name: string;
@@ -3828,6 +3833,11 @@ export interface components {
             /** Format: int64 */
             degraded_ms: number;
             route_provider_id?: string;
+            /**
+             * Format: int64
+             * @description The endpoint's version the form loaded; a newer stored one refuses the save (409)
+             */
+            version?: number;
         };
         MonitorPoint: {
             /** Format: date-time */
