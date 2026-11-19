@@ -46,6 +46,27 @@ and the service deleted (its hidden set went with it). Found: "Let the agent cho
 as the agent still reported it (the beat keeps the current address); fixed with a reproducing test, ships with the next
 release. Not done on prod: adding a Traefik or firewall host from Connections (no spare machine; covered by e2e).
 
+### 13.5 checklist (two PRs: A status and alerts, B plans tell the truth)
+
+PR A, status, public pages and alerts:
+- [ ] Missing spaces between words, swept app-wide with a check that finds adjacent text tags (148)
+- [ ] Public status banner: "N services are down." only, counts degraded honestly, nothing claimed when nothing is public; "Updated" from public checks only, spacing fixed (145, 80)
+- [ ] Public apps page: no up/down counts in the header (147, makes 79 moot); spacing; Search button drawn right before first focus in Firefox (146)
+- [ ] AdGuard and Pulse checks get their source label and group (86); history strip counts only real checks (87); 24h/7d/30d charts show what exists (88)
+- [ ] Pause/Resume sends only paused (59); saving a stale check form is refused, not silently overwriting (82)
+- [ ] Script schedule preview says which time zone (85)
+- [ ] Grouped alert names the host when the checks behind one Traefik or firewall host go down together (12; grouping itself shipped in 13.4 as 144)
+- [ ] Status placeholders stuck (107): one more reproduction try with a throttled network; fix only if reproduced
+- [ ] Flaky Pocket ID test (16): read the secret after create when the answer has none
+
+PR B, plans tell the truth:
+- [ ] Why blocking 129.73.0.0/16 cut NetBird's management path (34): read-only on prod, then resolve the waiting firewall plan with the owner
+- [ ] The approval screen says what is at stake: addresses blocked, what could stop working, that a failed check rolls back (35)
+- [ ] Service save counts only plans it created (76); TCP/UDP services say "Waiting for approval" until the plan is applied (77)
+
+Gate: the cause of the NetBird check failure is known and the waiting firewall plan is resolved with the owner; the approval
+screen says what is at stake; a real host outage sends one grouped alert.
+
 **13.4 done** (2026-11-19, `v0.13.4-beta.5`). Gate: Settings grouped as 10c §1; owner walked every page over five betas
 and accepted on 2026-11-19. Grouped alerts (144) shipped here, ahead of 13.5's gate, which still needs a real outage.
 
