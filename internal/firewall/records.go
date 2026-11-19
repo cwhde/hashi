@@ -287,7 +287,7 @@ func (m *Manager) Publication(ctx context.Context, resolve services.TargetResolv
 		p.Reason = home.Row.Name + " has no public address yet: nothing to point the record at."
 	case !matched:
 		p.Reason = "No firewall host has this upstream, so it gets no AdGuard rewrite; the public record points at its public address."
-	case s.AdGuardRewrite && p.Rewrite == "":
+	case s.AdGuardRewrite && p.Rewrite == "" && !s.Stream(): // streams never get one (bug 137)
 		p.Reason = home.Row.Name + " has no internal Traefik address, so there is no AdGuard rewrite."
 	}
 	return p, nil

@@ -52,4 +52,16 @@ func TestPublication(t *testing.T) {
 	if err != nil || p.HostID != "" || len(p.Records) != 0 || !strings.Contains(p.Reason, "doesn't know which entry") {
 		t.Fatalf("behind no host: %+v %v", p, err)
 	}
+	// Bug 137: TCP and UDP services never get a rewrite (they're reached on their public port), so the page must not
+	// blame the host's internal Traefik address.
+	game, err := services.Create(ctx, e.st.Q, services.Service{Name: "game", Slug: "game", Kind: services.KindTCP,
+		DomainMode: services.ModeSubdomain, HostName: "game.example.com", Enabled: true, AdGuardRewrite: true, PublicPort: 25565,
+		Target: services.Target{Address: "10.32.0.20", Port: 25565}}, now)
+	if err != nil {
+		t.Fatal(err)
+	}
+	p, err = e.m.Publication(ctx, resolve, game.ID)
+	if err != nil || p.Rewrite != "" || strings.Contains(p.Reason, "internal Traefik") {
+		t.Fatalf("stream: %+v %v", p, err)
+	}
 }

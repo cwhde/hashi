@@ -407,12 +407,14 @@
 								bind:checked={edit.monitoring_visible}
 							/>
 						</div>
-						<div class="flex items-center justify-between gap-3">
-							<Label for="d3">Internal DNS rewrite (AdGuard)</Label><Switch
-								id="d3"
-								bind:checked={edit.adguard_rewrite}
-							/>
-						</div>
+						{#if !isStream(edit.kind)}<!-- TCP and UDP get no rewrite (bug 137) -->
+							<div class="flex items-center justify-between gap-3">
+								<Label for="d3">Internal DNS rewrite (AdGuard)</Label><Switch
+									id="d3"
+									bind:checked={edit.adguard_rewrite}
+								/>
+							</div>
+						{/if}
 					</div>
 				</fieldset>
 			</Panel>

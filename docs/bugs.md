@@ -41,7 +41,6 @@ All open entries are planned into the 0.13 bug round (slices 13.1 onwards in `do
 | 107 | visual | reported | Status list | Once stayed on placeholder cards for more than 4 s although its calls answered within 0.6 s; loaded on the next try. Not measured further. (13.4 walk) | 2026-11-19 |
 | 121 | function | reported | IP sets | Sorting by kind is done (13.4 PR C). Left: delete the sets no longer needed now that services and rules can name a Pulse agent directly; each deletion needs the owner's OK per set. (owner) | 2026-11-19 |
 | 136 | later | reported | Sign-in page | Clean up the login page: a better design, and remove unnecessary text again. (owner) | 2026-11-19 |
-| 137 | function | reported | Service → TCP/UDP with a domain | A stream service with a domain says its firewall host "has no internal Traefik address, so there is no AdGuard rewrite", though both firewall hosts run a Traefik. Check whether the host setting is just empty or the message is wrong. (me, seen while naming the game servers) | 2026-11-19 |
 
 ## Details
 

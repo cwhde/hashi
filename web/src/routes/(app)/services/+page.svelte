@@ -411,12 +411,14 @@
 				<div class="flex items-center justify-between gap-3">
 					<Label for="f2">Monitor</Label><Switch id="f2" bind:checked={form.monitoring} />
 				</div>
-				<div class="flex items-center justify-between gap-3">
-					<Label for="f3">Internal DNS rewrite (AdGuard)</Label><Switch
-						id="f3"
-						bind:checked={form.adguard}
-					/>
-				</div>
+				{#if !isStream(form.kind)}<!-- TCP and UDP get no rewrite (bug 137) -->
+					<div class="flex items-center justify-between gap-3">
+						<Label for="f3">Internal DNS rewrite (AdGuard)</Label><Switch
+							id="f3"
+							bind:checked={form.adguard}
+						/>
+					</div>
+				{/if}
 			</MoreOptions>
 			{#if formError}<p role="alert" class="text-md text-bad-text">{formError}</p>{/if}
 		</form>

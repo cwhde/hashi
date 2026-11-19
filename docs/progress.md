@@ -104,7 +104,7 @@ PR C, the owner's walk (2026-11-19; 31, 75, 99–125). The owner accepts 13.4 on
 PR D, what the walk after beta.2 left (2026-11-19). Already in beta.3: 120, 126, 127, 128–132, 135. The PR C bugs were
 still listed in `bugs.md` although fixed; removed after a check of the code and of prod (103: no check without address).
 - [ ] Sign-in page: cleaner design, text cut (136)
-- [ ] A stream service's "no internal Traefik address" note: wrong message or empty host setting (137)
+- [x] A stream service's "no internal Traefik address" note was the wrong message: streams never get a rewrite; note skips them, switch hidden (137)
 - [ ] Security dashboard 7d and 30d still slow on prod (2.2 s, 5.7 s) (99)
 - [ ] Status placeholders once stuck (107): try to reproduce
 - [ ] With the owner: which IP sets to delete (121)
