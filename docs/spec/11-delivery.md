@@ -163,6 +163,7 @@ Hashi takes over in this order, each step reversible:
   (strict mode) → run global reconcile → review plan before approving any high-risk item.
 - **When locked:** see 02-setup-auth.md §5.5.
 - **Upgrades:** migrations run at start inside a transaction after an automatic pre-migration backup; failure restores
-  the backup and exits non-zero.
+  the backup and exits non-zero. After a successful update the newest 3 pre-migration copies are kept, older ones removed
+  (each is a full copy of the database; kept forever they filled the disk, bug 126).
 - **Observability:** JSON logs to stdout; `/metrics` (Prometheus) on the admin listener behind admin auth or a separate
   bind address.
