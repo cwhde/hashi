@@ -15,7 +15,8 @@
 	let range = $state<Range>('24h');
 	let d = $state<Schemas['SecurityDashboard'] | null>(null);
 	let error = $state('');
-	// While a period loads, the last numbers stay dimmed instead of the page going blank (bug 99).
+	// While a period loads, placeholders stand in for the numbers (bug 99), also when switching periods: dimmed old
+	// numbers looked like a page that hangs.
 	let loading = $state(false);
 	let asked = 0;
 
@@ -103,7 +104,7 @@
 		>
 			{error}
 		</p>{/if}
-	{#if !d && !error}
+	{#if (!d || loading) && !error}
 		<div
 			class="grid grid-cols-2 gap-px overflow-hidden rounded-2xl border md:grid-cols-4"
 			aria-busy="true"
@@ -116,9 +117,8 @@
 		<div class="grid gap-4 xl:grid-cols-3">
 			<Skeleton class="h-64 rounded-2xl xl:col-span-2" /><Skeleton class="h-64 rounded-2xl" />
 		</div>
-	{/if}
-	{#if d}
-		<div class="space-y-4 transition-opacity {loading ? 'opacity-50' : ''}" aria-busy={loading}>
+	{:else if d}
+		<div class="space-y-4">
 			<div
 				class="grid grid-cols-2 divide-x divide-y rounded-2xl border bg-card md:grid-cols-4 md:divide-y-0"
 			>
