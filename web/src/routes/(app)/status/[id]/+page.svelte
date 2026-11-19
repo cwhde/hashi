@@ -175,7 +175,12 @@
 		</p>
 	{:else}
 		<div class="mb-4 grid gap-4 lg:grid-cols-3">
-			<LineChart title="Response time" values={series.map((p) => p.latency_ms)} unit=" ms" />
+			<LineChart
+				title="Response time"
+				values={series.map((p) => p.latency_ms)}
+				unit=" ms"
+				labels={series.map((p) => dateTime(p.at))}
+			/>
 			{#if gaps.length}
 				<LineChart
 					title="Public vs internal gap"
@@ -187,6 +192,8 @@
 				title="Availability"
 				values={series.map((p) => p.availability)}
 				current={uptimeText(series.at(-1)?.availability)}
+				labels={series.map((p) => dateTime(p.at))}
+				format={(v) => uptimeText(v)}
 			/>
 		</div>
 	{/if}

@@ -4,9 +4,11 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"fmt"
 	"net/netip"
 	"strings"
 	"time"
+	"unicode/utf8"
 
 	"git.juzo.io/juzo/hashi/internal/audit"
 	"git.juzo.io/juzo/hashi/internal/edge"
@@ -422,6 +424,9 @@ func orDefault(p *string, def string) string {
 }
 
 // saveProvider stores a provider (id empty: new). It reads the discovery document first, so a mistyped issuer is refused.
+// maxProviderName is the longest sign-in provider name (bug 114).
+const maxProviderName = 32
+
 func (s *Server) saveProvider(ctx context.Context, id string, in gen.SSOProviderInput) (db.OidcProvider, error) {
 	issuer := strings.TrimSpace(in.Issuer) // exactly as the provider names itself, or its tokens fail the issuer check
 	if !strings.HasPrefix(issuer, "https://") {
@@ -429,6 +434,10 @@ func (s *Server) saveProvider(ctx context.Context, id string, in gen.SSOProvider
 	}
 	if strings.TrimSpace(in.Name) == "" || strings.TrimSpace(in.ClientId) == "" {
 		return db.OidcProvider{}, invalid("A provider needs a name and a client ID.")
+	}
+	// The name shows in rule rows and dropdowns; a long one broke them (bug 114).
+	if utf8.RuneCountInString(strings.TrimSpace(in.Name)) > maxProviderName {
+		return db.OidcProvider{}, invalid(fmt.Sprintf("Keep the provider's name to %d characters.", maxProviderName))
 	}
 	if err := s.SSO.Check(ctx, issuer); err != nil {
 		return db.OidcProvider{}, invalid("Could not read that provider: " + err.Error())

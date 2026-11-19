@@ -91,7 +91,7 @@
 		</Sheet.Header>
 		<div class="space-y-3 overflow-y-auto px-4 pb-4 text-md">
 			<div class="space-y-1.5">
-				<Label for="pn">Name</Label><Input id="pn" bind:value={f.name} />
+				<Label for="pn">Name</Label><Input id="pn" bind:value={f.name} maxlength={32} />
 			</div>
 			<div class="space-y-1.5">
 				<Label for="pi">Issuer</Label><Input

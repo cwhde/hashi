@@ -39,14 +39,22 @@
 	let kind = $state<string>('all');
 	let containing = $state<string[] | null>(null);
 	const isAddress = $derived(looksLikeAddress(q) && !q.includes('/'));
+	// Sorted by kind, then name (bug 121): Hashi's own sets, feeds, dynamic sets, then yours.
+	const kindOrder: Record<string, number> = { system: 0, feed: 1, dynamic: 2, user: 3 };
 	const rows = $derived(
-		sets.filter(
-			(s) =>
-				(kind === 'all' || s.kind === kind) &&
-				(isAddress && containing
-					? containing.includes(s.id)
-					: (s.slug + ' ' + s.name + ' ' + s.description).toLowerCase().includes(q.toLowerCase()))
-		)
+		sets
+			.filter(
+				(s) =>
+					(kind === 'all' || s.kind === kind) &&
+					(isAddress && containing
+						? containing.includes(s.id)
+						: (s.slug + ' ' + s.name + ' ' + s.description).toLowerCase().includes(q.toLowerCase()))
+			)
+			.toSorted(
+				(a, b) =>
+					(kindOrder[a.kind] ?? 9) - (kindOrder[b.kind] ?? 9) ||
+					a.slug.localeCompare(b.slug, undefined, { sensitivity: 'base' })
+			)
 	);
 
 	async function load() {

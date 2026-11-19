@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { dateTime } from '#lib/format.ts';
 	import { onMount } from 'svelte';
 	import PageHeader from '#lib/components/hashi/PageHeader.svelte';
 	import Panel from '#lib/components/hashi/Panel.svelte';
@@ -147,7 +148,7 @@
 				<dt class="text-muted-foreground">NetBird</dt>
 				<dd>{h.netbird_mode}</dd>
 				<dt class="text-muted-foreground">Last apply</dt>
-				<dd>{h.last_applied_at ? new Date(h.last_applied_at).toLocaleString() : 'never'}</dd>
+				<dd>{h.last_applied_at ? dateTime(h.last_applied_at) : 'never'}</dd>
 			</dl>
 		</Panel>
 	{:else}

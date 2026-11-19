@@ -1,7 +1,7 @@
 // Helpers for showing sync plans (01-platform.md §5) with PlanReview.
 import type { Schemas } from '#lib/api/client.ts';
 import type { PlanItem } from '#lib/design/mock.ts';
-import { timeZone } from '#lib/format.ts';
+import { dateTime } from '#lib/format.ts';
 
 export type Plan = Schemas['SyncPlan'];
 type Value = Schemas['SyncPlanItemValue'];
@@ -51,14 +51,8 @@ const triggers: Record<Plan['trigger'], string> = {
 	prune: 'Import table'
 };
 
-export const fmtTime = (iso?: string) =>
-	iso
-		? new Date(iso).toLocaleString(undefined, {
-				dateStyle: 'medium',
-				timeStyle: 'short',
-				timeZone: timeZone()
-			})
-		: '';
+/** One date format app-wide (bug 101): the shared `dateTime`. */
+export const fmtTime = (iso?: string) => (iso ? dateTime(iso) : '');
 
 /** "Saved · 28 Oct 2026, 11:04" */
 export const triggerText = (p: Plan) => `${triggers[p.trigger]} · ${fmtTime(p.created_at)}`;

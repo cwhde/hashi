@@ -35,6 +35,30 @@
 	});
 	const Icon = $derived(icons[item.type]);
 	const ref = $derived(item.type === 'set' ? sets.find((s) => s.id === item.set_id) : undefined);
+	// What a host or agent item stands for right now (bug 122): its current addresses, next to its name.
+	const now = $derived.by(() => {
+		if (item.type === 'pulse') {
+			const a = pulseAgents.list.find((x) => x.id === item.agent_id);
+			if (!a) return '';
+			const pub = a.public_ip;
+			const internal = a.selected_ip;
+			return item.scope === 'public'
+				? pub
+				: item.scope === 'internal'
+					? internal
+					: [internal, pub].filter(Boolean).join(', ');
+		}
+		if (item.type === 'host') {
+			const h = firewallHosts.list.find((x) => x.id === item.host_id);
+			if (!h) return '';
+			return item.scope === 'public'
+				? h.public_ip
+				: item.scope === 'internal'
+					? h.subnets.join(', ')
+					: [h.public_ip, ...h.subnets].filter(Boolean).join(', ');
+		}
+		return '';
+	});
 </script>
 
 <div class="flex min-w-0 items-start gap-2.5">
@@ -43,11 +67,13 @@
 		{#if item.type === 'host'}
 			<span class="font-medium">{firewallHosts.name(item.host_id) ?? 'Firewall host'}</span><Tag
 				>{item.scope}</Tag
-			>
+			>{#if now}<Mono class="text-muted-foreground">{now}</Mono>{/if}
 		{:else if item.type === 'pulse'}
 			<span class="font-medium"
 				>{pulseAgents.list.find((a) => a.id === item.agent_id)?.name ?? 'Pulse agent'}</span
-			><Tag>{item.scope}</Tag>{#if item.selector}<Mono>{item.selector}</Mono>{/if}
+			><Tag>{item.scope}</Tag>{#if item.selector}<Mono>{item.selector}</Mono>{/if}{#if now}<Mono
+					class="text-muted-foreground">{now}</Mono
+				>{/if}
 		{:else if item.type === 'set'}
 			{#if ref}<SetBadge set={ref} />{:else}<span class="text-muted-foreground">missing set</span
 				>{/if}

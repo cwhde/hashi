@@ -7,23 +7,37 @@
 	import AddressLink from '#lib/components/hashi/ipsets/AddressLink.svelte';
 	import { TriangleAlert } from '@lucide/svelte';
 	import { api, problemText, type Schemas } from '#lib/api/client.ts';
-	import { dateTime, time } from '#lib/format.ts';
+	import { Skeleton } from '#lib/components/ui/skeleton/index.ts';
+	import { country, dateTime, time } from '#lib/format.ts';
 	import { eventLabel, sourceLabel } from './labels';
 
 	type Range = '1h' | '24h' | '7d' | '30d';
 	let range = $state<Range>('24h');
 	let d = $state<Schemas['SecurityDashboard'] | null>(null);
 	let error = $state('');
+	// While a period loads, the last numbers stay dimmed instead of the page going blank (bug 99).
+	let loading = $state(false);
+	let asked = 0;
 
 	async function load(r: Range) {
 		error = '';
+		loading = true;
+		const mine = ++asked;
 		const res = await api.GET('/api/security/dashboard', { params: { query: { range: r } } });
+		if (mine !== asked) return; // a newer period was picked meanwhile
+		loading = false;
 		if (res.error || !res.data) {
 			error = problemText(res.error);
 			return;
 		}
 		d = res.data;
 	}
+	// Each series point's time, for the values shown on hover (bug 119).
+	const pointLabels = $derived(
+		(d?.series ?? []).map((p) =>
+			p.at ? (range === '1h' || range === '24h' ? time(p.at) : dateTime(p.at)) : ''
+		)
+	);
 	$effect(() => {
 		load(range);
 	});
@@ -89,130 +103,148 @@
 		>
 			{error}
 		</p>{/if}
-	{#if d}
+	{#if !d && !error}
 		<div
-			class="grid grid-cols-2 divide-x divide-y rounded-2xl border bg-card md:grid-cols-4 md:divide-y-0"
+			class="grid grid-cols-2 gap-px overflow-hidden rounded-2xl border md:grid-cols-4"
+			aria-busy="true"
 		>
-			{#each tiles as t (t.k)}
-				<div class="p-4">
+			{#each tiles as t (t.k)}<div class="space-y-2 bg-card p-4">
 					<div class="text-sm text-muted-foreground">{t.k}</div>
-					<div class="tnum text-title font-semibold">{n(d.totals[t.key])}</div>
-					<Sparkline
-						values={d.series.map((p) => p[t.key])}
-						width={200}
-						class="{t.tone} mt-1 w-full"
-					/>
-				</div>
-			{/each}
+					<Skeleton class="h-7 w-20" /><Skeleton class="h-7 w-full" />
+				</div>{/each}
 		</div>
 		<div class="grid gap-4 xl:grid-cols-3">
-			<Panel title="Most refused addresses" class="xl:col-span-2" flush>
-				<ul class="divide-y text-md">
-					{#each d.top_addresses as ip (ip.address)}
-						<li
-							class="grid grid-cols-[minmax(0,9rem)_4rem_minmax(0,1fr)] items-center gap-3 px-4 py-2.5 lg:grid-cols-[10rem_4rem_3rem_5rem_minmax(0,1fr)_8rem]"
-						>
-							<AddressLink address={ip.address} />
-							<span class="tnum text-right">{n(ip.refused)}</span>
-							<span class="hidden text-muted-foreground lg:inline">{ip.country || '—'}</span>
-							<span class="hidden truncate text-muted-foreground lg:inline"
-								>{ip.asn ? `AS${ip.asn}` : ''}</span
+			<Skeleton class="h-64 rounded-2xl xl:col-span-2" /><Skeleton class="h-64 rounded-2xl" />
+		</div>
+	{/if}
+	{#if d}
+		<div class="space-y-4 transition-opacity {loading ? 'opacity-50' : ''}" aria-busy={loading}>
+			<div
+				class="grid grid-cols-2 divide-x divide-y rounded-2xl border bg-card md:grid-cols-4 md:divide-y-0"
+			>
+				{#each tiles as t (t.k)}
+					<div class="p-4">
+						<div class="text-sm text-muted-foreground">{t.k}</div>
+						<div class="tnum text-title font-semibold">{n(d.totals[t.key])}</div>
+						<Sparkline
+							values={d.series.map((p) => p[t.key])}
+							width={200}
+							labels={pointLabels}
+							class="{t.tone} mt-1 w-full"
+						/>
+					</div>
+				{/each}
+			</div>
+			<div class="grid gap-4 xl:grid-cols-3">
+				<Panel title="Most refused addresses" class="xl:col-span-2" flush>
+					<ul class="divide-y text-md">
+						{#each d.top_addresses as ip (ip.address)}
+							<li
+								class="grid grid-cols-[minmax(0,9rem)_4rem_minmax(0,1fr)] items-center gap-3 px-4 py-2.5 lg:grid-cols-[10rem_4rem_4rem_5rem_minmax(0,1fr)_8rem]"
 							>
-							<span class="truncate"
-								>{#if ip.state === 'banned'}<Tag tone="bad">banned</Tag
-									>{:else if ip.state === 'challenged'}<Tag tone="warn">challenged</Tag>{/if}
-								{ip.reason ?? ''}</span
-							>
-							<span class="hidden text-right text-muted-foreground lg:inline"
-								>{ip.until ? `until ${dateTime(ip.until)}` : ''}</span
-							>
-						</li>
-					{:else}
-						<li class="px-4 py-6 text-center text-muted-foreground">
-							Nothing refused in this period.
-						</li>
-					{/each}
-				</ul>
-			</Panel>
-			<Panel title="Refused by country">
-				{#if d.countries.length}
-					<ul class="space-y-2 text-md">
-						{#each d.countries as c (c.country)}
-							<li class="grid grid-cols-[2.5rem_1fr_3.5rem] items-center gap-2">
-								<span>{c.country || '—'}</span><span class="h-1.5 rounded-full bg-surface-2"
-									><span
-										class="block h-full rounded-full bg-bad/70"
-										style="width:{(c.refused / countryMax) * 100}%"
-									></span></span
-								><span class="tnum text-right">{n(c.refused)}</span>
+								<AddressLink address={ip.address} />
+								<span class="tnum text-right">{n(ip.refused)}</span>
+								<span class="hidden text-muted-foreground lg:inline">{country(ip.country)}</span>
+								<span class="hidden truncate text-muted-foreground lg:inline"
+									>{ip.asn ? `AS${ip.asn}` : ''}</span
+								>
+								<span class="truncate"
+									>{#if ip.state === 'banned'}<Tag tone="bad">banned</Tag
+										>{:else if ip.state === 'challenged'}<Tag tone="warn">challenged</Tag>{/if}
+									{ip.reason ?? ''}</span
+								>
+								<span class="hidden text-right text-muted-foreground lg:inline"
+									>{ip.until ? `until ${dateTime(ip.until)}` : ''}</span
+								>
+							</li>
+						{:else}
+							<li class="px-4 py-6 text-center text-muted-foreground">
+								Nothing refused in this period.
 							</li>
 						{/each}
 					</ul>
-				{:else}<p class="text-md text-muted-foreground">Nothing refused in this period.</p>{/if}
-				<div class="mt-4 mb-2 text-sm font-medium text-muted-foreground">
-					Most targeted services
-				</div>
-				<ul class="space-y-1.5 text-md">
-					{#each d.services as s (s.service_id)}<li class="flex justify-between gap-2">
-							<a href="/services/{s.service_id}" class="truncate">{s.name || 'Unknown service'}</a
-							><span class="tnum">{n(s.refused)}</span>
-						</li>{:else}<li class="text-muted-foreground">None</li>{/each}
-				</ul>
-			</Panel>
-		</div>
-		<div class="grid gap-4 lg:grid-cols-2">
-			<Panel title="Challenges">
-				<ul class="space-y-2 text-md">
-					{#each funnel as s (s.k)}
-						<li class="grid grid-cols-[8.5rem_1fr_3.5rem] items-center gap-2">
-							<span>{s.k}</span><span class="h-1.5 rounded-full bg-surface-2"
-								><span
-									class="block h-full rounded-full {s.tone}"
-									style="width:{(s.n / Math.max(1, d.funnel.challenged)) * 100}%"
-								></span></span
-							><span class="tnum text-right">{n(s.n)}</span>
-						</li>
-					{/each}
-				</ul>
-			</Panel>
-			<Panel title="Kernel meters">
+				</Panel>
+				<Panel title="Refused by country">
+					{#if d.countries.length}
+						<ul class="space-y-2 text-md">
+							{#each d.countries as c (c.country)}
+								<li class="grid grid-cols-[3.5rem_1fr_3.5rem] items-center gap-2">
+									<span class="whitespace-nowrap">{country(c.country)}</span><span
+										class="h-1.5 rounded-full bg-surface-2"
+										><span
+											class="block h-full rounded-full bg-bad/70"
+											style="width:{(c.refused / countryMax) * 100}%"
+										></span></span
+									><span class="tnum text-right">{n(c.refused)}</span>
+								</li>
+							{/each}
+						</ul>
+					{:else}<p class="text-md text-muted-foreground">Nothing refused in this period.</p>{/if}
+					<div class="mt-4 mb-2 text-sm font-medium text-muted-foreground">
+						Most targeted services
+					</div>
+					<ul class="space-y-1.5 text-md">
+						{#each d.services as s (s.service_id)}<li class="flex justify-between gap-2">
+								<a href="/services/{s.service_id}" class="truncate">{s.name || 'Unknown service'}</a
+								><span class="tnum">{n(s.refused)}</span>
+							</li>{:else}<li class="text-muted-foreground">None</li>{/each}
+					</ul>
+				</Panel>
+			</div>
+			<div class="grid gap-4 lg:grid-cols-2">
+				<Panel title="Challenges">
+					<ul class="space-y-2 text-md">
+						{#each funnel as s (s.k)}
+							<li class="grid grid-cols-[8.5rem_1fr_3.5rem] items-center gap-2">
+								<span>{s.k}</span><span class="h-1.5 rounded-full bg-surface-2"
+									><span
+										class="block h-full rounded-full {s.tone}"
+										style="width:{(s.n / Math.max(1, d.funnel.challenged)) * 100}%"
+									></span></span
+								><span class="tnum text-right">{n(s.n)}</span>
+							</li>
+						{/each}
+					</ul>
+				</Panel>
+				<Panel title="Kernel meters">
+					<ul class="divide-y text-md">
+						{#each d.meters as m (m.host_id)}
+							<li class="flex justify-between gap-2 py-2">
+								<span class="font-medium">{m.host || 'Unknown host'}</span><span class="tnum"
+									>{n(m.bans)} <span class="text-muted-foreground">banned</span></span
+								>
+							</li>
+						{:else}
+							<li class="py-2 text-muted-foreground">No meter tripped in this period.</li>
+						{/each}
+					</ul>
+				</Panel>
+			</div>
+			<Panel title="Recent events" flush>
 				<ul class="divide-y text-md">
-					{#each d.meters as m (m.host_id)}
-						<li class="flex justify-between gap-2 py-2">
-							<span class="font-medium">{m.host || 'Unknown host'}</span><span class="tnum"
-								>{n(m.bans)} <span class="text-muted-foreground">banned</span></span
-							>
+					{#each d.events as e, i (i)}
+						<li
+							class="grid grid-cols-[4.5rem_minmax(0,9rem)_minmax(0,1fr)_auto] items-center gap-3 px-4 py-2.5 md:grid-cols-[4.5rem_10rem_minmax(0,1fr)_minmax(0,14rem)_6rem]"
+						>
+							<span class="tnum text-muted-foreground">{time(e.at)}</span><AddressLink
+								address={e.address}
+								class="truncate"
+							/><span class="truncate"
+								>{eventLabel(e.type)}{#if e.path}<span class="text-muted-foreground">
+										{e.method}
+										{e.path}</span
+									>{/if}{#if e.rules.length}<span class="text-muted-foreground">
+										· rules {e.rules.join(', ')}</span
+									>{/if}</span
+							><span class="hidden truncate text-muted-foreground md:inline"
+								>{e.service || e.host || sourceLabel(e.source)}</span
+							><Tag tone={sev[e.severity]}>{e.severity}</Tag>
 						</li>
 					{:else}
-						<li class="py-2 text-muted-foreground">No meter tripped in this period.</li>
+						<li class="px-4 py-6 text-center text-muted-foreground">No events in this period.</li>
 					{/each}
 				</ul>
 			</Panel>
 		</div>
-		<Panel title="Recent events" flush>
-			<ul class="divide-y text-md">
-				{#each d.events as e, i (i)}
-					<li
-						class="grid grid-cols-[4.5rem_minmax(0,9rem)_minmax(0,1fr)_auto] items-center gap-3 px-4 py-2.5 md:grid-cols-[4.5rem_10rem_minmax(0,1fr)_minmax(0,14rem)_6rem]"
-					>
-						<span class="tnum text-muted-foreground">{time(e.at)}</span><AddressLink
-							address={e.address}
-							class="truncate"
-						/><span class="truncate"
-							>{eventLabel(e.type)}{#if e.path}<span class="text-muted-foreground">
-									{e.method}
-									{e.path}</span
-								>{/if}{#if e.rules.length}<span class="text-muted-foreground">
-									· rules {e.rules.join(', ')}</span
-								>{/if}</span
-						><span class="hidden truncate text-muted-foreground md:inline"
-							>{e.service || e.host || sourceLabel(e.source)}</span
-						><Tag tone={sev[e.severity]}>{e.severity}</Tag>
-					</li>
-				{:else}
-					<li class="px-4 py-6 text-center text-muted-foreground">No events in this period.</li>
-				{/each}
-			</ul>
-		</Panel>
 	{/if}
 </div>

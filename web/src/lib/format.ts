@@ -36,3 +36,11 @@ export function dateTime(iso: string | undefined): string {
 				timeZoneName: zone ? 'short' : undefined
 			});
 }
+
+/** A country's flag before its code (bug 120): "🇩🇪 DE". Empty or unknown codes stay as they are. */
+export function country(code: string | undefined): string {
+	if (!code) return '—';
+	const cc = code.toUpperCase();
+	if (!/^[A-Z]{2}$/.test(cc)) return cc;
+	return `${String.fromCodePoint(...[...cc].map((c) => 0x1f1e6 + c.charCodeAt(0) - 65))} ${cc}`;
+}

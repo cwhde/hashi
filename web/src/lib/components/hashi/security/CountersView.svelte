@@ -16,7 +16,7 @@
 	import { Search, MoreHorizontal, KeyRound } from '@lucide/svelte';
 	import { api, problemText, type Schemas } from '#lib/api/client.ts';
 	import { withReauth } from '#lib/auth/reauth.ts';
-	import { dateTime } from '#lib/format.ts';
+	import { country, dateTime } from '#lib/format.ts';
 	import { sourceLabel } from './labels';
 
 	type Row = Schemas['CounterRow'];
@@ -253,7 +253,9 @@
 						<AddressLink address={c.address} />
 						{#if c.country || c.asn}<span
 								class="block max-w-48 truncate text-xs text-muted-foreground"
-								>{[c.country, c.asn ? `AS${c.asn}` : ''].filter(Boolean).join(', ')}</span
+								>{[c.country ? country(c.country) : '', c.asn ? `AS${c.asn}` : '']
+									.filter(Boolean)
+									.join(', ')}</span
 							>{/if}
 					</Table.Cell>
 					<Table.Cell class="tnum text-right text-base font-semibold">{c.ban_count}</Table.Cell>

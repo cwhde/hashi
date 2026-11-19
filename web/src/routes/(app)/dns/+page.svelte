@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { dateTime } from '#lib/format.ts';
 	import { guardUnsaved } from '#lib/unsaved.svelte.ts';
 	import { hrefWithTab, tabFrom } from '#lib/url-tab.ts';
 	import { onMount } from 'svelte';
@@ -236,10 +237,7 @@
 	const editable = (r: RRSet) =>
 		!!r.entry && (r.entry.origin === 'user' || r.entry.origin === 'imported') && !r.protected;
 
-	const fmtTime = (iso?: string) =>
-		iso
-			? new Date(iso).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' })
-			: 'never';
+	const fmtTime = (iso?: string) => (iso ? dateTime(iso) : 'never');
 </script>
 
 {#snippet failure(msg: string)}
