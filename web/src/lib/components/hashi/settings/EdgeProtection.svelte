@@ -6,10 +6,7 @@
 	import EdgeSessions from './EdgeSessions.svelte';
 </script>
 
-<div class="space-y-4">
-	<EngineSummary />
-	<div class="grid items-start gap-4 lg:grid-cols-2">
-		<ChallengeSettings />
-		<EdgeSessions />
-	</div>
-</div>
+<EngineSummary>
+	{#snippet left()}<ChallengeSettings />{/snippet}
+	{#snippet right()}<EdgeSessions />{/snippet}
+</EngineSummary>

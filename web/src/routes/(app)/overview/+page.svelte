@@ -316,16 +316,20 @@
 	{:else if id === 'security'}
 		{#if !sec}{@render waiting()}
 		{:else}
-			<div class="grid grid-cols-3 gap-3">
-				{#each [['allowed', 'allowed', 'text-ok-text'], ['challenged', 'challenged', 'text-warn-text'], ['denied', 'blocked', 'text-bad-text']] as const as [k, word, tone] (k)}
-					<a href="/security" class="min-w-0">
-						<div class="tnum text-title font-semibold">{compact.format(sec.totals[k])}</div>
-						<div class="text-xs text-muted-foreground">{word}</div>
+			<!-- One row per decision, spread over the card's height (bug 142). -->
+			<div class="flex h-full flex-col justify-around gap-3">
+				{#each [['allowed', 'Allowed', 'text-ok-text'], ['challenged', 'Challenged', 'text-warn-text'], ['denied', 'Blocked', 'text-bad-text']] as const as [k, word, tone] (k)}
+					<a href="/security" class="grid grid-cols-[6.5rem_1fr] items-center gap-3">
+						<span class="min-w-0">
+							<span class="tnum block text-lg font-semibold">{compact.format(sec.totals[k])}</span>
+							<span class="block text-xs text-muted-foreground">{word}</span>
+						</span>
 						<Sparkline
 							values={sec.series.map((p) => p[k])}
 							labels={sec.series.map((p) => dateTime(p.at))}
-							width={90}
-							class="mt-1 w-full {tone}"
+							width={240}
+							height={36}
+							class="w-full {tone}"
 						/>
 					</a>
 				{/each}

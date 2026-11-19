@@ -23,7 +23,8 @@
 	} = $props();
 </script>
 
-<section class={cn('min-w-0 rounded-2xl border bg-card', className)}>
+<!-- A column: the body fills a card stretched by its grid row, so widgets can use the height (bug 142). -->
+<section class={cn('flex min-w-0 flex-col rounded-2xl border bg-card', className)}>
 	{#if title || actions}
 		<header class="flex min-h-12 items-center gap-3 px-4 py-2.5 {flush ? 'border-b' : ''}">
 			<div class="min-w-0 flex-1">
@@ -37,7 +38,7 @@
 			{#if actions}<div class="flex shrink-0 items-center gap-1.5">{@render actions()}</div>{/if}
 		</header>
 	{/if}
-	<div class={flush ? '' : 'px-4 pb-4 ' + (title || actions ? '' : 'pt-4')}>
+	<div class={'flex-1 ' + (flush ? '' : 'px-4 pb-4 ' + (title || actions ? '' : 'pt-4'))}>
 		{@render children()}
 	</div>
 </section>

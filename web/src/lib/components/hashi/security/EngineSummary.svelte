@@ -1,4 +1,5 @@
 <script lang="ts">
+	import type { Snippet } from 'svelte';
 	import { Skeleton } from '#lib/components/ui/skeleton/index.ts';
 	import HelpTip from '#lib/components/hashi/HelpTip.svelte';
 	import { onMount } from 'svelte';
@@ -15,6 +16,8 @@
 
 	// The abuse engine's numbers (06 §10), as the mock shows them. Editing saves with the passkey; the firewall and the
 	// Traefik hosts are planned again (Pending changes).
+	// Cards placed under each column (bug 142): two columns, so a short card leaves no gap.
+	let { left, right }: { left?: Snippet; right?: Snippet } = $props();
 	let e = $state<Schemas['EngineSettings'] | null>(null);
 	let error = $state('');
 	let form = $state<Schemas['EngineSettings'] | null>(null);
@@ -158,61 +161,73 @@
 
 {#if e}
 	<div class="grid items-start gap-4 lg:grid-cols-2">
-		<Panel title="Abuse engine">
-			{#snippet help()}<HelpTip topic="the abuse engine"
-					><p>
-						Addresses in the firewall's allow list and signed-in users never trigger the request
-						limit.
-					</p></HelpTip
-				>{/snippet}
-			{#snippet actions()}<Button size="sm" variant="outline" onclick={() => (form = { ...e! })}
-					><Pencil />Edit</Button
-				>{/snippet}
-			<dl class="grid grid-cols-[1fr_auto] gap-x-4 gap-y-2.5 text-md">
-				<dt>Request limit</dt>
-				<dd class="tnum text-right">{e.rate_requests} requests in {span(e.rate_window_seconds)}</dd>
-				<dt>Web firewall matches</dt>
-				<dd class="tnum text-right">{e.waf_violations} in {span(e.waf_window_seconds)}</dd>
-				<dt>Challenge expires after</dt>
-				<dd class="tnum text-right">
-					{e.challenge_expiry_seconds ? span(e.challenge_expiry_seconds) : 'never'}
-				</dd>
-				<dt>Attempts before a ban</dt>
-				<dd class="tnum text-right">{e.challenge_max_failed}</dd>
-				<dt>CAPTCHA pass lasts</dt>
-				<dd class="tnum text-right">{span(e.captcha_clearance_hours * 3600)}</dd>
-				<dt>Forget one offence after</dt>
-				<dd class="tnum text-right">{span(e.counter_decay_seconds)} quiet</dd>
-				<dt>Default web firewall</dt>
-				<dd class="text-right">{e.waf_default_mode === 'headers_only' ? 'Headers only' : 'Off'}</dd>
-				<dt>Connection limits</dt>
-				<dd class="tnum text-right">
-					{e.meters_enabled
-						? `${e.tcp_new_per_minute} new per min, ${e.tcp_max_concurrent} open per address`
-						: 'Off'}
-				</dd>
-				<dt>Blocklists refresh every</dt>
-				<dd class="tnum text-right">{span(e.feed_refresh_seconds)}</dd>
-			</dl>
-		</Panel>
-		<Panel
-			title="Ban length"
-			description="{growthText(e)}, from {span(e.ban_base_seconds)} up to {span(e.ban_max_seconds)}"
-		>
-			<ol class="grid grid-cols-[3rem_1fr_4.5rem] items-center gap-x-2 gap-y-1.5 text-md">
-				{#each bans as t, i (i)}
-					<li class="contents">
-						<span class="tnum text-muted-foreground">{i + 1}.</span><span
-							class="h-1.5 rounded-full bg-surface-2"
-							><span
-								class="block h-full rounded-full bg-bad/60"
-								style="width:{((i + 1) / bans.length) * 100}%"
-							></span></span
-						><span class="tnum text-right">{t}</span>
-					</li>
-				{/each}
-			</ol>
-		</Panel>
+		<div class="space-y-4">
+			<Panel title="Abuse engine">
+				{#snippet help()}<HelpTip topic="the abuse engine"
+						><p>
+							Addresses in the firewall's allow list and signed-in users never trigger the request
+							limit.
+						</p></HelpTip
+					>{/snippet}
+				{#snippet actions()}<Button size="sm" variant="outline" onclick={() => (form = { ...e! })}
+						><Pencil />Edit</Button
+					>{/snippet}
+				<dl class="grid grid-cols-[1fr_auto] gap-x-4 gap-y-2.5 text-md">
+					<dt>Request limit</dt>
+					<dd class="tnum text-right">
+						{e.rate_requests} requests in {span(e.rate_window_seconds)}
+					</dd>
+					<dt>Web firewall matches</dt>
+					<dd class="tnum text-right">{e.waf_violations} in {span(e.waf_window_seconds)}</dd>
+					<dt>Challenge expires after</dt>
+					<dd class="tnum text-right">
+						{e.challenge_expiry_seconds ? span(e.challenge_expiry_seconds) : 'never'}
+					</dd>
+					<dt>Attempts before a ban</dt>
+					<dd class="tnum text-right">{e.challenge_max_failed}</dd>
+					<dt>CAPTCHA pass lasts</dt>
+					<dd class="tnum text-right">{span(e.captcha_clearance_hours * 3600)}</dd>
+					<dt>Forget one offence after</dt>
+					<dd class="tnum text-right">{span(e.counter_decay_seconds)} quiet</dd>
+					<dt>Default web firewall</dt>
+					<dd class="text-right">
+						{e.waf_default_mode === 'headers_only' ? 'Headers only' : 'Off'}
+					</dd>
+					<dt>Connection limits</dt>
+					<dd class="tnum text-right">
+						{e.meters_enabled
+							? `${e.tcp_new_per_minute} new per min, ${e.tcp_max_concurrent} open per address`
+							: 'Off'}
+					</dd>
+					<dt>Blocklists refresh every</dt>
+					<dd class="tnum text-right">{span(e.feed_refresh_seconds)}</dd>
+				</dl>
+			</Panel>
+			{@render left?.()}
+		</div>
+		<div class="space-y-4">
+			<Panel
+				title="Ban length"
+				description="{growthText(e)}, from {span(e.ban_base_seconds)} up to {span(
+					e.ban_max_seconds
+				)}"
+			>
+				<ol class="grid grid-cols-[3rem_1fr_4.5rem] items-center gap-x-2 gap-y-1.5 text-md">
+					{#each bans as t, i (i)}
+						<li class="contents">
+							<span class="tnum text-muted-foreground">{i + 1}.</span><span
+								class="h-1.5 rounded-full bg-surface-2"
+								><span
+									class="block h-full rounded-full bg-bad/60"
+									style="width:{((i + 1) / bans.length) * 100}%"
+								></span></span
+							><span class="tnum text-right">{t}</span>
+						</li>
+					{/each}
+				</ol>
+			</Panel>
+			{@render right?.()}
+		</div>
 	</div>
 {:else if error}
 	<p role="alert" class="text-md text-bad-text">{error}</p>
