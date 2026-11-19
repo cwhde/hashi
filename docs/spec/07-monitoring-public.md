@@ -56,7 +56,8 @@ high-risk sync plans and vault-lock events can also notify. Deliveries recorded 
 The cooldown is per check: a second alert for the same check within it waits for its end and goes only if the check is
 still in alarm. Alerts are grouped: a new alert waits a short window (route setting, default 15 s, 0 = off), each further
 alert for the same provider restarts it, and when it ends the waiting alerts go as one message listing them. No alert
-waits longer than 2 minutes for grouping. Recoveries are not delayed.
+waits longer than 2 minutes for grouping. Recoveries are not delayed. When a host's own check (Traefik host, firewall host, Pulse
+agent) is in the group, the message leads with it and names it in the subject ("edge-a and 12 other checks are down").
 
 Providers can be edited: name and settings, with the secret kept unless a new one is given. Setup lives under Settings →
 Notifications; the Status page shows what was sent.
@@ -82,7 +83,7 @@ Heimdall-style launcher of selected entries.
 - Sources: services with dashboard enabled (display name defaults to service name); manual DNS entries with dashboard
   enabled (display name required).
 - Cards link to the public URL; icon from the asset set or per-entry upload.
-- Search collapsed by default; sort selector (name, group, status; default from settings).
+- Search field always shown (bug 146); sort selector (name, group, status; default from settings).
 - Header counts: `x / n hosts online`, `x / n Linux firewall hosts available`.
 - No admin controls. Enabled by default (setting).
 - `GET /api/public/apps` (cached 15 s).
