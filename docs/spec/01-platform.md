@@ -185,12 +185,16 @@ logging in addition to stdout.
 
 | Data | Granularity | Default retention |
 | --- | --- | --- |
-| Monitor raw samples | per check | 30 days |
-| Monitor rollups 1 m / 5 m / 1 h | bucket | 90 d / 180 d / 2 y |
+| Monitor raw samples, rounds (endpoint result) | per round | 30 days (Monitoring setting) |
+| Monitor raw samples, per check | per check | 2 days |
+| Monitor rollups 1 m / 5 m / 1 h | bucket | 2 d / 2 d / 2 y |
 | Security buckets | 1 minute | 30 days (then 1 h rollup 1 y) |
 | Security events | per event | 90 days |
 | Audit events | per event | 2 years |
 | Pulse heartbeats | per heartbeat | 7 days |
+
+The 1- and 5-minute rollups feed only the 1 h and 24 h charts, and per-check samples only the rollups and the last
+error; uptime reads rounds. Kept for months they grew the database ~120 MB a day with 71 endpoints (bug 127).
 
 Retention runs as a job deleting in batches of ≤ 5,000 rows per transaction so it never blocks the writer.
 
