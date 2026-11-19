@@ -98,7 +98,8 @@ PR C, the owner's walk (2026-11-19; 31, 75, 99–125). The owner accepts 13.4 on
       the slow dashboard query held the database; check again on the walk
 - [x] Overview start page from its mock with widgets the owner can turn on/off and reorder (31)
 - [ ] With the owner: which IP sets to delete (121), DNS records to import (116)
-- [ ] make check, integration, e2e; deploy with the owner's OK; the owner walks again and accepts
+- [x] make check, integration, e2e; deploy with the owner's OK (`v0.13.4-beta.2`, 2026-11-19)
+- [ ] The owner walks again and accepts
 
 ### 13.3 checklist (two PRs: A fixes and agent targets, B Connections)
 
@@ -1104,6 +1105,10 @@ Decisions made in S0:
 
 ## Log
 
+- 2026-11-19 · deploy `v0.13.4-beta.2` (`a1c3822`, the owner's OK) · smoke ok (readyz, version, SPA, both public
+  pages), container healthy, schema 27 → 28 (security events index) with no error. PR #73 (the owner's walk) merged
+  green; release image and 6 signed Pulse files published. Disk on the Hashi container 93 % full: old pre-migration
+  backups (bug 126).
 - 2026-11-19 · deploy `v0.13.4-beta.1` (`69d876d`, the owner's OK) · smoke ok (readyz, version, SPA, both public
   pages). PRs #71 (settings in their place) and #72 (text and disclosure) merged, both green; release run 1242 green;
   main CI run 1241 for the version bump cancelled. Also ships 2383c29 (Connections remove asks first) and eb9bf22
