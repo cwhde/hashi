@@ -1,6 +1,7 @@
 package monitor
 
 import (
+	"bytes"
 	"context"
 	"database/sql"
 	"errors"
@@ -10,11 +11,13 @@ import (
 	"time"
 
 	"git.juzo.io/juzo/hashi/internal/ipsets"
+	"git.juzo.io/juzo/hashi/internal/secrets"
 	"git.juzo.io/juzo/hashi/internal/services"
 	"git.juzo.io/juzo/hashi/internal/settings"
 	"git.juzo.io/juzo/hashi/internal/store"
 	"git.juzo.io/juzo/hashi/internal/store/db"
 	"git.juzo.io/juzo/hashi/internal/store/storetest"
+	"git.juzo.io/juzo/hashi/internal/vault"
 )
 
 type recorder struct{ changes []string }
@@ -427,5 +430,51 @@ func TestFirewallHostWithoutAddressGetsNoCheck(t *testing.T) {
 	}
 	if len(checks["home"]) != 0 {
 		t.Fatalf("a host without an address must get no check: %+v", checks["home"])
+	}
+}
+
+// Bug 139: a game server shares its name with its web map (bug 132). The apps page lists web services only, so no two
+// apps link to the same address and a TCP or UDP server never shows as an https link.
+func TestPublicAppsListWebServicesOnly(t *testing.T) {
+	ctx := context.Background()
+	s, st, _, _ := fixture(t)
+	now := time.Now()
+	// Setup steps 2 and 3: a root domain and its DNS zone, so services may have public names.
+	if err := settings.Put(ctx, st.Q, settings.General{RootDomain: "example.com", AdminDomain: "hashi.example.com",
+		InternalURL: "http://192.0.2.5:3340", SyncIntervalSeconds: 3600}); err != nil {
+		t.Fatal(err)
+	}
+	v, _ := vault.New(bytes.Repeat([]byte{7}, vault.KeySize), 1)
+	rec, _ := v.Seal(vault.Service, "dns.token", secrets.New("t"))
+	if err := st.Q.InsertSecret(ctx, rec); err != nil {
+		t.Fatal(err)
+	}
+	if err := st.Q.InsertDNSProvider(ctx, db.InsertDNSProviderParams{ID: "p1", Name: "hetzner", Type: "hetzner", DefaultTtl: 3600,
+		TokenSecretID: rec.ID, Health: "healthy", CreatedAt: 1, UpdatedAt: 1}); err != nil {
+		t.Fatal(err)
+	}
+	if err := st.Q.InsertDNSZone(ctx, db.InsertDNSZoneParams{ID: "z1", ProviderID: "p1", ProviderZoneID: "1", Name: "example.com", ZoneTtl: 3600, CreatedAt: 1}); err != nil {
+		t.Fatal(err)
+	}
+	mk := func(name, kind string, port int) {
+		t.Helper()
+		v := services.Service{Name: name, Slug: name, Kind: kind, DomainMode: services.ModeSubdomain, HostName: "game.example.com",
+			Enabled: true, DashboardVisible: true, Origin: services.OriginUser, Target: services.Target{Address: "10.32.0.20", Port: port}}
+		if kind != services.KindHTTP {
+			v.PublicPort = port
+		}
+		if _, err := services.Create(ctx, st.Q, v, now); err != nil {
+			t.Fatal(err)
+		}
+	}
+	mk("map", services.KindHTTP, 8100)
+	mk("java", services.KindTCP, 25565)
+	mk("bedrock", services.KindUDP, 19132)
+	apps, err := s.PublicApps(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(apps.Apps) != 1 || apps.Apps[0].Name != "map" || apps.HostsTotal != 1 {
+		t.Fatalf("apps %+v: only the web map belongs on the apps page", apps.Apps)
 	}
 }

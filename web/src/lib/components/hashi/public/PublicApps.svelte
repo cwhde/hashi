@@ -97,7 +97,7 @@
 		<section class="mb-8">
 			{#if g}<h2 class="mb-3 text-md font-medium text-muted-foreground">{g}</h2>{/if}
 			<div class="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
-				{#each list ?? [] as a (a.url)}
+				{#each list ?? [] as a (a.name + a.url)}
 					<a
 						href={a.url}
 						class="flex items-center gap-3 rounded-2xl border bg-card p-3.5 transition-colors hover:border-muted-foreground/40"

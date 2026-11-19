@@ -26,7 +26,10 @@
 			api.GET('/api/settings/appearance')
 		]);
 		if (!s.data || !e.data || !a.data) throw s.error ?? e.error ?? a.error;
-		services = s.data.services.filter((x) => x.origin !== 'system' && x.host_name);
+		// Web services only, as on the apps page (bug 139).
+		services = s.data.services.filter(
+			(x) => x.origin !== 'system' && x.host_name && x.kind !== 'tcp' && x.kind !== 'udp'
+		);
 		endpoints = e.data.endpoints;
 		look = a.data;
 		loaded = true;

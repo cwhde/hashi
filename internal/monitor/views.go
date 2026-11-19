@@ -455,7 +455,8 @@ func (s *Service) PublicApps(ctx context.Context) (PublicApps, error) {
 			return PublicApps{}, err
 		}
 		for _, v := range svcs {
-			if v.Renderable() && v.DashboardVisible && v.HostName != "" {
+			// Web services only: a TCP or UDP server has no page to open, and may share its name with one (bug 139).
+			if v.Renderable() && v.DashboardVisible && v.HostName != "" && !v.Stream() {
 				add(v.Name, "https://"+strings.TrimSuffix(v.HostName, ".")+"/", SourceService+"|"+v.ID, "Services")
 			}
 		}
