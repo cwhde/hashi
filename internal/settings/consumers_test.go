@@ -40,7 +40,7 @@ var consumerTests = map[string]string{
 	"dashboard.default_sort":         "web/e2e/setup-and-login.spec.ts::the dashboard starts sorted by name",
 	"dashboard.new_services_visible": "web/e2e/setup-and-login.spec.ts::new services start hidden from it",
 
-	"firewall_defaults.netbird_mode": "web/e2e/setup-and-login.spec.ts::name: 'Peer only'",
+	"firewall_defaults.netbird_mode": "web/e2e/setup-and-login.spec.ts::'The host is a NetBird peer'",
 	"firewall_defaults.mss_clamp":    "internal/firewall/render_test.go::TestRenderMSSClampSetting",
 
 	"internal_agent_dns.enabled":                  "internal/pulse/pulse_test.go::TestAgentDNS",

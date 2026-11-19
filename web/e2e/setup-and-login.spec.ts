@@ -202,8 +202,12 @@ test('setup with a passkey, then sign in with it', async ({ page, request }) => 
 	await page
 		.getByRole('option', { name: 'This host also routes NetBird traffic to its networks' })
 		.click();
-	await page.getByRole('button', { name: 'Save settings' }).click();
-	await expect(page.getByLabel('NetBird', { exact: true })).toHaveValue('routing');
+	await page.getByRole('button', { name: 'Save', exact: true }).click();
+	// Saved: nothing differs any more, so Save is off again (bug 104), and the choice stays.
+	await expect(page.getByRole('button', { name: 'Save', exact: true })).toBeDisabled();
+	await expect(page.getByLabel('NetBird', { exact: true })).toContainText(
+		'This host also routes NetBird traffic to its networks'
+	);
 	await page.getByLabel(/Hashi may manage its own firewall table/).check();
 	await page.getByRole('button', { name: 'Confirm', exact: true }).click();
 	await page.getByRole('button', { name: 'Plan the first apply' }).click();
@@ -530,7 +534,7 @@ test('setup with a passkey, then sign in with it', async ({ page, request }) => 
 	await page.getByLabel("Traefik's address on this network").fill('10.33.0.10');
 	await page.getByLabel('Networks behind this host').fill('10.33.0.0/24');
 	await page.getByRole('button', { name: 'Save' }).click();
-	await expect(page.locator('#entry option:checked')).toHaveText('edge-a');
+	await expect(page.locator('#entry')).toContainText('edge-a');
 	await expect(page.getByText('via.edge-a')).toBeVisible();
 	await page.goto(`${state.baseURL}/firewall`);
 	await page.screenshot({ path: 'test-results/firewall-hosts.png', fullPage: true });
@@ -1029,7 +1033,9 @@ test('setup with a passkey, then sign in with it', async ({ page, request }) => 
 	await page.getByRole('button', { name: 'Save', exact: true }).click();
 	await expect(page.getByRole('status')).toContainText('Checks that exist keep their own values');
 	await page.goto(`${state.baseURL}/settings?category=firewall`);
-	await expect(page.getByRole('radio', { name: 'Peer only' })).toBeChecked();
+	await expect(page.getByLabel('When Hashi finds NetBird on a new host')).toContainText(
+		'The host is a NetBird peer'
+	);
 	await page.screenshot({ path: 'test-results/s11-settings-firewall.png', fullPage: true });
 
 	// S11 visual tests (10-ui §2): every main page in every built-in theme keeps readable contrast (axe), fits a phone
