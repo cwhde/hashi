@@ -1052,6 +1052,16 @@ test('setup with a passkey, then sign in with it', async ({ page, request }) => 
 	expect(await (await page.request.get(`${state.appsURL}/api/public/apps`)).json()).toMatchObject({
 		default_sort: 'name'
 	});
+	// The public pages draw in the browser: a crash there shows "500" while the server answers 200 (bug 139).
+	for (const url of [state.appsURL, state.statusURL]) {
+		const crashes: string[] = [];
+		page.on('pageerror', (e) => crashes.push(e.message));
+		await page.goto(url);
+		await expect(page.getByText('Internal Error')).toHaveCount(0);
+		await expect(page.getByRole('heading', { level: 1 })).toBeVisible();
+		expect(crashes, `${url} threw in the browser`).toEqual([]);
+		page.removeAllListeners('pageerror');
+	}
 	await page.goto(`${state.baseURL}/services`);
 	await page.getByRole('button', { name: 'Add service' }).click();
 	// The switch differs from no default here, so More options stays plain (10c §3.1).
@@ -1108,7 +1118,7 @@ test('setup with a passkey, then sign in with it', async ({ page, request }) => 
 			.toMatchObject({ theme: id });
 		for (const path of pages) {
 			await page.goto(`${state.baseURL}${path}`);
-			await expect(page.locator('main')).toBeVisible();
+			await expect(page.getByRole('heading', { level: 1 })).toBeVisible();
 			await expect(page.locator('html')).toHaveAttribute('data-theme', id!);
 			await expect(page, `title of ${path}`).toHaveTitle(/^[^·]+ · Hashi$/); // bug 60
 			await page.waitForLoadState('networkidle');
