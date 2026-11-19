@@ -287,6 +287,19 @@ test('setup with a passkey, then sign in with it', async ({ page, request }) => 
 	const records = page.getByRole('table', { name: 'DNS records' });
 	await expect(records.getByRole('row', { name: /^svc1 A / })).toContainText('imported');
 	await expect(records.getByRole('row', { name: /^@ SOA / })).toContainText('protected');
+	// A record Hashi doesn't own has a way into the editor: it is marked for import on the Import tab (bug 116).
+	const take = records.getByRole('button', { name: /^Import .+ to edit it$/ }).first();
+	const [, takeName, takeType] = /^Import (.+) (\S+) to edit it$/.exec(
+		(await take.getAttribute('aria-label'))!
+	)!;
+	await take.click();
+	await expect(page).toHaveURL(/\?tab=import$/);
+	const marked = page.getByRole('radiogroup', { name: `Decision for ${takeName} ${takeType}` });
+	await expect(marked.getByRole('radio', { name: 'Import' })).toHaveAttribute(
+		'aria-checked',
+		'true'
+	);
+	await marked.getByRole('radio', { name: 'Leave' }).click();
 	await page.getByRole('tab', { name: 'Import' }).click();
 	await expect(page).toHaveURL(/\?tab=import$/);
 	const svc2 = page.getByRole('radiogroup', { name: 'Decision for svc2 CNAME' });

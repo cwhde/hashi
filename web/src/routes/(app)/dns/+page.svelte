@@ -238,6 +238,23 @@
 		!!r.entry && (r.entry.origin === 'user' || r.entry.origin === 'imported') && !r.protected;
 
 	const fmtTime = (iso?: string) => (iso ? dateTime(iso) : 'never');
+
+	// A record Hashi doesn't own yet can't be edited here (bug 116): this marks it for import and opens the Import tab,
+	// where Save decisions takes it over; then it has the edit button like any other.
+	const importable = (r: RRSet) =>
+		r.origin === 'unmanaged' &&
+		!!importRows
+			.find((i) => rrsetKey(i.rrset) === rrsetKey(r))
+			?.allowed_decisions.includes('import');
+	function takeOver(r: RRSet) {
+		decisions[rrsetKey(r)] = 'import';
+		outcome = {
+			text: `${r.name} ${r.type} is marked for import. Save decisions to let Hashi own it.`,
+			review: false
+		};
+		void setTab('import');
+		tab = 'import';
+	}
 </script>
 
 {#snippet failure(msg: string)}
@@ -383,6 +400,14 @@
 										aria-label="Edit {r.name} {r.type}"
 										onclick={() => (editing = editing === rrsetKey(r) ? null : rrsetKey(r))}
 										><Pencil /></Button
+									>
+								{:else if importable(r)}
+									<Button
+										variant="ghost"
+										size="icon-sm"
+										title="Import it to edit it"
+										aria-label="Import {r.name} {r.type} to edit it"
+										onclick={() => takeOver(r)}><Pencil /></Button
 									>
 								{/if}
 							</span>

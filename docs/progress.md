@@ -81,21 +81,22 @@ PR B (61, 62, 78, 93, 94):
 - [x] make check, integration, e2e
 
 PR C, the owner's walk (2026-11-19; 31, 75, 99–125). The owner accepts 13.4 only when these are fixed:
-- [ ] No way into the mocks on prod: real links for addresses, sets, rule sets and "Review changes"; `/design` only in dev (75, 109)
-- [ ] One dropdown everywhere (the app's Select), no native `<select>` (112)
-- [ ] Service page: "system" tag alone (110), port next to the address (111), Traffic buttons alike (113), Access row
+- [x] No way into the mocks on prod: real links for addresses, sets, rule sets and "Review changes"; `/design` only in dev (75, 109)
+- [x] One dropdown everywhere (the app's Select), no native `<select>` (112)
+- [x] Service page: "system" tag alone (110), port next to the address (111), Traffic buttons alike (113), Access row
       never breaks with a long provider name (114)
-- [ ] Descriptions cut again on every page with judgement, not only the listed ones (102, 106, 115)
-- [ ] SSH address moves to the host's connection as "Hashi connects through", agent or set (117); host Settings panel
+- [x] Descriptions cut again on every page with judgement, not only the listed ones (102, 106, 115)
+- [x] SSH address moves to the host's connection as "Hashi connects through", agent or set (117); host Settings panel
       one Save (102); firewall global policy chosen sets below the picker, names not IDs (100, 118)
-- [ ] Save disabled until something changed everywhere (104); empty-not-zero values (105); one date format (101);
+- [x] Save disabled until something changed everywhere (104); empty-not-zero values (105); one date format (101);
       leaving asks in the app's own dialog (108)
-- [ ] Security: dashboard placeholder while loading and a faster query (99); chart values on hover, also check charts
+- [x] Security: dashboard placeholder while loading and a faster query (99); chart values on hover, also check charts
       (119); flags next to country codes (120)
-- [ ] IP sets sorted by kind (121), agent items show their address (122); App display "all on/off" (123)
-- [ ] Settings → Edge protection reorganised (124); Firewall's NetBird default worded plainly (125)
-- [ ] A host without an address gets no TCP check (103); Status placeholders (107)
-- [ ] Overview start page from its mock with widgets the owner can turn on/off and reorder (31)
+- [x] IP sets sorted by kind (121), agent items show their address (122); App display "all on/off" (123)
+- [x] Settings → Edge protection reorganised (124); Firewall's NetBird default worded plainly (125)
+- [x] A host without an address gets no TCP check (103); Status placeholders (107): not changed, seen once while
+      the slow dashboard query held the database; check again on the walk
+- [x] Overview start page from its mock with widgets the owner can turn on/off and reorder (31)
 - [ ] With the owner: which IP sets to delete (121), DNS records to import (116)
 - [ ] make check, integration, e2e; deploy with the owner's OK; the owner walks again and accepts
 
