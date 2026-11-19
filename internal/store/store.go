@@ -2,6 +2,7 @@
 package store
 
 import (
+	"cmp"
 	"context"
 	"database/sql"
 	"embed"
@@ -12,6 +13,8 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
+	"slices"
+	"strconv"
 	"strings"
 	"time"
 
@@ -140,6 +143,51 @@ func (s *Store) Migrate(ctx context.Context, log *slog.Logger) error {
 		return fmt.Errorf("migrate (database restored from %s): %w", backup, err)
 	}
 	log.Info("schema migrated", "from_version", current, "to_version", target)
+	if backup != "" {
+		// Only after success: a failed update keeps every copy (bug 126).
+		if err := prunePreMigrate(filepath.Dir(backup), keepPreMigrate); err != nil {
+			log.Warn("prune pre-migration backups", "err", err)
+		}
+	}
+	return nil
+}
+
+// keepPreMigrate is how many pre-migration copies stay; older ones are removed after a successful update (bug 126).
+const keepPreMigrate = 3
+
+// prunePreMigrate keeps the keep newest pre-migrate-v<N>-*.db copies in dir, newest by schema version then name.
+func prunePreMigrate(dir string, keep int) error {
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		return err
+	}
+	type copyFile struct {
+		name string
+		ver  int
+	}
+	var copies []copyFile
+	for _, e := range entries {
+		n := e.Name()
+		rest, ok := strings.CutPrefix(n, "pre-migrate-v")
+		if !e.Type().IsRegular() || !ok || !strings.HasSuffix(n, ".db") {
+			continue
+		}
+		v, _, _ := strings.Cut(rest, "-")
+		ver, err := strconv.Atoi(v)
+		if err != nil {
+			continue
+		}
+		copies = append(copies, copyFile{n, ver})
+	}
+	slices.SortFunc(copies, func(a, b copyFile) int {
+		return cmp.Or(cmp.Compare(a.ver, b.ver), cmp.Compare(a.name, b.name))
+	})
+	for len(copies) > keep {
+		if err := os.Remove(filepath.Join(dir, copies[0].name)); err != nil {
+			return err
+		}
+		copies = copies[1:]
+	}
 	return nil
 }
 
@@ -152,7 +200,7 @@ func (s *Store) BackupTo(ctx context.Context, dst string) error {
 	return err
 }
 
-// nightlyPrefix names the daily copies; only files with it are pruned (pre-migration copies stay).
+// nightlyPrefix names the daily copies; only files with it are pruned (pre-migration copies are pruned by Migrate).
 const nightlyPrefix = "hashi-"
 
 // NightlyBackup writes today's copy to <data>/backups/hashi-<YYYY-MM-DD>.db (11-delivery.md §8) and keeps the newest

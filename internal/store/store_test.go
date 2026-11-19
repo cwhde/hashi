@@ -3,6 +3,7 @@ package store
 import (
 	"context"
 	"errors"
+	"fmt"
 	"io"
 	"log/slog"
 	"os"
@@ -180,4 +181,54 @@ func TestLockRefusesSecondHolder(t *testing.T) {
 		t.Fatalf("after unlock: %v", err)
 	}
 	again()
+}
+
+// Bug 126: every update wrote a full pre-migration copy and none was ever removed, so they filled the disk.
+func TestMigrateKeepsThreePreMigrationCopies(t *testing.T) {
+	ctx := context.Background()
+	s := open(t)
+	migs := fstest.MapFS{}
+	for i := 1; i <= 12; i++ {
+		migs[fmt.Sprintf("%05d_m.sql", i)] = &fstest.MapFile{Data: []byte(fmt.Sprintf("-- +goose Up\nCREATE TABLE t%d (v INTEGER);\n", i))}
+	}
+	s.migrations = migs
+	if err := s.Migrate(ctx, quiet()); err != nil {
+		t.Fatal(err)
+	}
+	dir := filepath.Join(filepath.Dir(s.path), "backups")
+	if err := os.MkdirAll(dir, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	// v10 is newer than v9 although it sorts before it as text.
+	old := []string{"pre-migrate-v3-20261001T000000Z.db", "pre-migrate-v9-20261002T000000Z.db",
+		"pre-migrate-v10-20261003T000000Z.db", "pre-migrate-v11-20261004T000000Z.db",
+		"hashi-2026-10-05.db", "notes.txt"}
+	for _, n := range old {
+		if err := os.WriteFile(filepath.Join(dir, n), []byte("x"), 0o600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	migs["00013_m.sql"] = &fstest.MapFile{Data: []byte("-- +goose Up\nCREATE TABLE t13 (v INTEGER);\n")}
+	if err := s.Migrate(ctx, quiet()); err != nil {
+		t.Fatal(err)
+	}
+	got, _ := filepath.Glob(filepath.Join(dir, "*"))
+	names := map[string]bool{}
+	for _, g := range got {
+		names[filepath.Base(g)] = true
+	}
+	for _, n := range []string{"pre-migrate-v10-20261003T000000Z.db", "pre-migrate-v11-20261004T000000Z.db",
+		"hashi-2026-10-05.db", "notes.txt"} {
+		if !names[n] {
+			t.Errorf("%s was removed; kept: %v", n, names)
+		}
+	}
+	for _, n := range []string{"pre-migrate-v3-20261001T000000Z.db", "pre-migrate-v9-20261002T000000Z.db"} {
+		if names[n] {
+			t.Errorf("%s should be pruned; kept: %v", n, names)
+		}
+	}
+	if fresh, _ := filepath.Glob(filepath.Join(dir, "pre-migrate-v12-*.db")); len(fresh) != 1 {
+		t.Errorf("want this update's copy, got %v", fresh)
+	}
 }

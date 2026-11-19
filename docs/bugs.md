@@ -66,7 +66,6 @@ All open entries are planned into the 0.13 bug round (slices 13.1 onwards in `do
 | 123 | later | reported | App display | A switch to turn all on or off, for the app dashboard and the status page. (owner) | 2026-11-19 |
 | 124 | visual | reported | Settings → Edge protection | Looks unorganised. (owner) | 2026-11-19 |
 | 125 | visual | reported | Settings → Firewall | "NetBird mode a new host starts with" is not understood. (owner) | 2026-11-19 |
-| 126 | function | found | Store | Every migration writes a full pre-migration backup to `backups/` and none is ever removed; with a 2 GB database they fill the disk (93 % on prod after 0.13.4-beta.2). Keep the last few, or by age. | 2026-11-19 |
 
 ## Details
 
