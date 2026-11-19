@@ -39,7 +39,6 @@ All open entries are planned into the 0.13 bug round (slices 13.1 onwards in `do
 | 89 | later | reported | IP set → Resolved, large feeds | "Showing the first 200 of 1621 ranges." with no way to see more, although the API has a cursor and Items has "Show more". (Codex R-013) | 2026-11-15 |
 | 107 | visual | reported | Status list | Once stayed on placeholder cards for more than 4 s although its calls answered within 0.6 s; loaded on the next try. Not measured further. (13.4 walk) Tried again on prod 2026-11-19 (0.13.4-beta.3): 12 in-app visits, cards after 0.65–0.88 s each; not reproduced, so not fixed (fix needs a reproduction). | 2026-11-19 |
 | 121 | function | reported | IP sets | Sorting by kind is done (13.4 PR C). Left: delete the sets no longer needed now that services and rules can name a Pulse agent directly; each deletion needs the owner's OK per set. (owner) | 2026-11-19 |
-| 136 | later | reported | Sign-in page | Clean up the login page: a better design, and remove unnecessary text again. (owner) | 2026-11-19 |
 
 ## Details
 

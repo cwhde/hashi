@@ -55,37 +55,40 @@
 
 <svelte:head><title>Sign in · Hashi</title></svelte:head>
 <main class="grid min-h-dvh place-items-center px-4">
-	<div class="w-full max-w-sm rounded-3xl border bg-card p-7">
+	<div class="flex w-full max-w-xs flex-col items-center text-center">
 		<span
-			class="grid size-10 place-items-center rounded-xl bg-primary text-title font-semibold text-primary-foreground"
+			aria-hidden="true"
+			class="grid size-14 place-items-center rounded-2xl bg-primary text-title font-semibold text-primary-foreground"
 			>橋</span
 		>
-		<h1 class="mt-5 text-title font-semibold">Sign in to Hashi</h1>
-		<p class="mt-1 text-md text-muted-foreground">{page.url.host}</p>
+		<h1 class="mt-6 text-title font-semibold">Sign in to Hashi</h1>
 		{#if page.url.searchParams.has('ended') && !failed}
-			<p role="status" class="mt-5 rounded-xl border p-3 text-md">
-				Your session ended: signed out elsewhere, idle too long, or your address changed.
-			</p>
+			<p role="status" class="mt-2 text-md text-muted-foreground">Your session ended.</p>
 		{/if}
 		{#if !supported}
-			<p class="mt-5 rounded-xl border border-warn/30 bg-warn/10 p-3 text-md text-warn-text">
-				Passkeys need HTTPS and a current browser. Open Hashi at its admin domain.
+			<p class="mt-5 w-full rounded-xl border border-warn/30 bg-warn/10 p-3 text-md text-warn-text">
+				Passkeys need HTTPS and a current browser.
 			</p>
 		{/if}
 		{#if failed}
 			<p
 				role="alert"
-				class="mt-5 rounded-xl border border-bad/30 bg-bad/10 p-3 text-md text-bad-text"
+				class="mt-5 w-full rounded-xl border border-bad/30 bg-bad/10 p-3 text-md text-bad-text"
 			>
 				{failed}
 			</p>
 		{/if}
-		<Button class="mt-6 h-10 w-full" onclick={signIn} disabled={busy || !supported}
+		<Button class="mt-8 h-11 w-full" onclick={signIn} disabled={busy || !supported}
 			><Fingerprint />{busy ? 'Waiting for your passkey…' : 'Sign in with a passkey'}</Button
 		>
-		<p class="mt-5 text-sm text-muted-foreground">
-			Lost every passkey? Run <code class="font-mono">hashi admin recover</code> on the server for a one-time
-			link.
-		</p>
+		<details class="group mt-6 text-sm text-muted-foreground">
+			<summary
+				class="cursor-pointer list-none rounded-md px-2 py-1 hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+				>Lost every passkey?</summary
+			>
+			<p class="mt-2">
+				Run <code class="font-mono text-foreground">hashi admin recover</code> on the server.
+			</p>
+		</details>
 	</div>
 </main>

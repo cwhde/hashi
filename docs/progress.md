@@ -103,7 +103,7 @@ PR C, the owner's walk (2026-11-19; 31, 75, 99–125). The owner accepts 13.4 on
 
 PR D, what the walk after beta.2 left (2026-11-19). Already in beta.3: 120, 126, 127, 128–132, 135. The PR C bugs were
 still listed in `bugs.md` although fixed; removed after a check of the code and of prod (103: no check without address).
-- [ ] Sign-in page: cleaner design, text cut (136)
+- [x] Sign-in page: cleaner design, text cut (136): no card or host line, larger mark, "Your session ended.", recovery command behind "Lost every passkey?"
 - [x] A stream service's "no internal Traefik address" note was the wrong message: streams never get a rewrite; note skips them, switch hidden (137)
 - [x] Security dashboard 7d and 30d still slow on prod (2.2 s, 5.7 s) (99): hourly rollup tables and retention (01 §4.3); 30d reads ~98k hour rows instead of 3.4 M minutes, each query 0.02–0.14 s on a read-only in-memory copy on prod (was 0.7–1.2 s)
 - [x] Status placeholders once stuck (107): try to reproduce. Not reproduced on prod (12 visits, 0.65–0.88 s); stays in bugs.md
