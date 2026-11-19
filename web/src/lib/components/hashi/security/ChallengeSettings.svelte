@@ -1,4 +1,6 @@
 <script lang="ts">
+	import MoreOptions from '#lib/components/hashi/MoreOptions.svelte';
+	import { Draft, guardUnsaved } from '#lib/unsaved.svelte.ts';
 	import { onMount } from 'svelte';
 	import Panel from '#lib/components/hashi/Panel.svelte';
 	import HelpTip from '#lib/components/hashi/HelpTip.svelte';
@@ -18,6 +20,8 @@
 	let note = $state('');
 	let error = $state('');
 	let busy = $state(false);
+	const draft = new Draft(() => form);
+	guardUnsaved(() => draft.dirty);
 
 	function take(c: Schemas['CaptchaSettings']) {
 		info = c;
@@ -32,6 +36,7 @@
 			timeout_seconds: c.timeout_seconds,
 			admin_service_id: c.admin_service_id ?? ''
 		};
+		draft.mark();
 	}
 
 	onMount(async () => {
@@ -90,8 +95,8 @@
 </script>
 
 {#if form && info}
-	<div class="grid max-w-3xl gap-4">
-		<Panel title="Cap challenge" description="Cap runs next to Hashi">
+	<div class="min-w-0">
+		<Panel title="Cap challenge">
 			{#snippet help()}<HelpTip topic="the challenge"
 					><p>
 						Too many requests from one address send its browser to the challenge page; ignoring it
@@ -101,17 +106,20 @@
 					<p>Signed-in users and addresses in the firewall allow list never see it.</p></HelpTip
 				>{/snippet}
 			<div class="space-y-3">
-				<label class="flex items-center gap-2 text-md"
-					><Switch bind:checked={form.enabled} />Challenge visitors with a CAPTCHA</label
-				>
+				<div class="flex items-center justify-between gap-3">
+					<Label for="cc-on">Challenge visitors with a CAPTCHA</Label><Switch
+						id="cc-on"
+						bind:checked={form.enabled}
+					/>
+				</div>
 				<div class="space-y-1.5">
 					<Label for="cc-domain">Challenge page</Label>
-					<Input id="cc-domain" bind:value={form.challenge_domain} class="h-10" />
+					<Input id="cc-domain" bind:value={form.challenge_domain} />
 				</div>
 				<div class="space-y-1.5">
 					<Label for="cc-dash">Cap dashboard service</Label>
 					<Select.Root type="single" bind:value={form.admin_service_id}>
-						<Select.Trigger id="cc-dash" class="h-10 w-full">{dashboardName}</Select.Trigger>
+						<Select.Trigger id="cc-dash" class="w-full">{dashboardName}</Select.Trigger>
 						<Select.Content>
 							<Select.Item value="">None</Select.Item>
 							{#each services as s (s.id)}<Select.Item value={s.id}
@@ -123,10 +131,10 @@
 				<div class="space-y-1.5">
 					<Label for="cc-key">Site key</Label>
 					<div class="flex gap-2">
-						<Input id="cc-key" bind:value={form.site_key} class="h-10 font-mono" />
+						<Input id="cc-key" bind:value={form.site_key} class="font-mono" />
 						{#if info.can_create_key}<Button
 								variant="outline"
-								class="h-10 shrink-0"
+								class="shrink-0"
 								disabled={busy}
 								onclick={createKey}>Create key in Cap</Button
 							>{/if}
@@ -142,31 +150,28 @@
 						class="h-10"
 					/>
 				</div>
-				<details class="text-md">
-					<summary class="cursor-pointer text-muted-foreground"
-						>Where Hashi and the edges reach Cap</summary
-					>
-					<div class="mt-3 grid gap-3 sm:grid-cols-[1fr_6rem]">
+				<MoreOptions label="Where Hashi and the edges reach Cap">
+					<div class="grid gap-3 sm:grid-cols-[1fr_6rem]">
 						<div class="space-y-1.5">
 							<Label for="cc-addr">Address for the edges</Label>
-							<Input id="cc-addr" bind:value={form.cap_address} class="h-10 font-mono" />
+							<Input id="cc-addr" bind:value={form.cap_address} class="font-mono" />
 						</div>
 						<div class="space-y-1.5">
 							<Label for="cc-port">Port</Label>
-							<Input id="cc-port" type="number" bind:value={form.cap_port} class="h-10" />
+							<Input id="cc-port" type="number" bind:value={form.cap_port} />
 						</div>
 						<div class="space-y-1.5 sm:col-span-2">
 							<Label for="cc-verify">Address for Hashi</Label>
-							<Input id="cc-verify" bind:value={form.verify_url} class="h-10 font-mono" />
+							<Input id="cc-verify" bind:value={form.verify_url} class="font-mono" />
 						</div>
 					</div>
-				</details>
+				</MoreOptions>
 				{#if error}<p role="alert" class="text-md text-bad-text">{error}</p>{/if}
 				{#if note}<p role="status" class="text-md">{note}</p>{/if}
-				<div class="flex flex-wrap gap-2 pt-1">
+				<div class="flex flex-wrap justify-end gap-2 pt-1">
 					<Button size="sm" variant="outline" disabled={busy} onclick={test}
 						>Test verification</Button
-					><Button size="sm" disabled={busy} onclick={save}>Save</Button>
+					><Button size="sm" disabled={busy || !draft.dirty} onclick={save}>Save</Button>
 				</div>
 			</div>
 		</Panel>

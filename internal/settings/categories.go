@@ -33,7 +33,18 @@ type Appearance struct {
 	ReduceTransparency     bool         `json:"reduce_transparency"`
 	PublicDashboardEnabled bool         `json:"public_dashboard_enabled"`
 	PublicStatusEnabled    bool         `json:"public_status_enabled"`
+	// OverviewWidgets is the start page's widget order and which show (10-ui §3); empty means the default order.
+	OverviewWidgets []Widget `json:"overview_widgets,omitempty"`
 }
+
+// Widget is one overview widget in the admin's order.
+type Widget struct {
+	ID      string `json:"id"`
+	Visible bool   `json:"visible"`
+}
+
+// OverviewWidgetIDs are the overview's widgets in their default order (10-ui §3).
+var OverviewWidgetIDs = []string{"changes", "attention", "health", "edge", "security", "certificates", "activity"}
 
 // Time display preferences (09 §2 General).
 const (
@@ -446,6 +457,16 @@ func (a Appearance) Validate() error {
 			return err
 		}
 	}
+	seen := map[string]bool{}
+	for _, w := range a.OverviewWidgets {
+		if !slices.Contains(OverviewWidgetIDs, w.ID) {
+			return invalid("unknown overview widget %q", w.ID)
+		}
+		if seen[w.ID] {
+			return invalid("overview widget %q is listed twice", w.ID)
+		}
+		seen[w.ID] = true
+	}
 	switch {
 	case a.Theme == ThemeCustom && a.CustomTheme == nil:
 		return invalid("choose or save a custom theme first")
@@ -464,6 +485,10 @@ func (a Appearance) repair() Category {
 	if a.Theme == ThemeCustom && a.CustomTheme == nil || a.Theme != ThemeCustom && !slices.Contains(Themes, a.Theme) {
 		a.Theme = "graphite"
 	}
+	// A widget a later version dropped is left out rather than failing the whole category.
+	a.OverviewWidgets = slices.DeleteFunc(slices.Clone(a.OverviewWidgets), func(w Widget) bool {
+		return !slices.Contains(OverviewWidgetIDs, w.ID)
+	})
 	return a
 }
 

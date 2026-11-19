@@ -59,7 +59,7 @@
 						: ''}"
 				>
 					<RadioGroup.Item value={a} class="mt-0.5" />
-					<span
+					<span class="min-w-0"
 						><span class="block text-md font-medium">{actionMeta[a].label}</span><span
 							class="block text-sm text-muted-foreground">{actionMeta[a].help}</span
 						></span
@@ -70,7 +70,7 @@
 	</fieldset>
 	{#if rule.action === 'pass_authentication'}
 		<div class="grid gap-3 rounded-xl border p-3 sm:grid-cols-2">
-			<div class="space-y-1.5">
+			<div class="min-w-0 space-y-1.5">
 				<Label>Provider</Label>
 				<Select.Root
 					type="single"
@@ -86,7 +86,7 @@
 					</Select.Content>
 				</Select.Root>
 			</div>
-			<div class="space-y-1.5">
+			<div class="min-w-0 space-y-1.5">
 				<Label for="gr">Allowed groups</Label>
 				<Input
 					id="gr"

@@ -63,18 +63,20 @@ function texts(src) {
 		.replace(/<style[^>]*>[\s\S]*?<\/style>/g, '')
 		.replace(/<HelpTip\b[\s\S]*?<\/HelpTip>/g, '');
 	const out = [];
+	// Descriptions and hints are help text whether or not they end in a full stop (bug 115: "They run in the order you
+	// pick them" slipped through); muted text counts only as full sentences, since most of it is values and labels.
 	for (const d of markup.matchAll(/\bdescription=(?:"([^"]*)"|\{['`]([^'`]*)['`]\})/g))
-		out.push(visible(d[1] ?? d[2]));
+		out.push({ t: visible(d[1] ?? d[2]), explicit: true });
 	for (const d of script.matchAll(/\b(?:description|hint|help):\s*['`"]([^'`"]{12,})['`"]/g))
-		out.push(visible(d[1]));
-	out.push(...mutedTexts(markup));
+		out.push({ t: visible(d[1]), explicit: true });
+	out.push(...mutedTexts(markup).map((t) => ({ t, explicit: false })));
 	return out;
 }
 
-const sentences = (t) =>
+const sentences = ({ t, explicit }) =>
 	t
 		.split(/(?<=[.!?])\s+/)
-		.filter((s) => s.split(' ').length >= 3 && /[.!?]$/.test(s))
+		.filter((s) => s.split(' ').length >= 3 && (explicit || /[.!?]$/.test(s)))
 		.filter((s) => !/^(No|Nothing|None)\b/.test(s));
 
 const counts = [];

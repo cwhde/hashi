@@ -62,7 +62,7 @@
 </script>
 
 {#if v}
-	<Panel title="Internal agent DNS" description="DNS only: no service is created at these names">
+	<Panel title="Internal agent DNS">
 		<div class="space-y-3 text-md">
 			<label class="flex items-center justify-between gap-3">
 				<span>Create names for agents</span><Switch
@@ -92,9 +92,11 @@
 			<div class="space-y-1.5">
 				<Label for="ad-stale">Remove a stale agent's name after (hours)</Label><Input
 					id="ad-stale"
-					type="number"
-					min="0"
-					bind:value={v.remove_stale_after_hours}
+					inputmode="numeric"
+					value={v.remove_stale_after_hours || ''}
+					oninput={(e) => (v!.remove_stale_after_hours = Number(e.currentTarget.value.trim()) || 0)}
+					placeholder="never"
+					class="max-w-32"
 				/>
 			</div>
 			<div class="flex items-center justify-end gap-3">
@@ -103,7 +105,7 @@
 					>Preview names</Button
 				>
 				<Button variant="outline" size="sm" onclick={apply} disabled={busy}>Sync now</Button>
-				<Button size="sm" onclick={save} disabled={busy}>Save</Button>
+				<Button size="sm" onclick={save} disabled={busy || !draft.dirty}>Save</Button>
 			</div>
 			{#if preview}
 				{#if preview.length === 0}<p class="text-muted-foreground">No agents yet.</p>{/if}

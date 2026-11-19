@@ -214,18 +214,15 @@
 							bind:value={form.dns_name}
 							placeholder="Uses the agent's name"
 						/>
-						<p class="text-xs text-muted-foreground">
-							Under the <a href="/settings?category=dns" class="underline">internal domain</a>.
-						</p>
 					</div>
 				{/if}
 				<div class="space-y-1.5">
 					<Label for="pa-reach">Port to test from Hashi</Label><Input
 						id="pa-reach"
-						type="number"
-						min="0"
-						max="65535"
-						bind:value={form.reach_port}
+						inputmode="numeric"
+						value={form.reach_port || ''}
+						oninput={(e) => (form.reach_port = Number(e.currentTarget.value.trim()) || 0)}
+						placeholder="off"
 						class="max-w-32"
 					/>
 				</div>

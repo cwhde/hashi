@@ -20,6 +20,7 @@
 
 <script lang="ts">
 	// How Hashi's key gets onto a host: installed by Hashi with the admin's permission, or pasted by hand.
+	import Choice from '#lib/components/hashi/Choice.svelte';
 	import { Button } from '#lib/components/ui/button/index.ts';
 	import { Input } from '#lib/components/ui/input/index.ts';
 	import { Label } from '#lib/components/ui/label/index.ts';
@@ -51,14 +52,15 @@
 		<div class="grid gap-3 md:grid-cols-2">
 			<div class="space-y-1.5">
 				<Label for="ka-kind">Log in once with</Label>
-				<select
+				<Choice
 					id="ka-kind"
 					bind:value={access.kind}
-					class="h-10 w-full rounded-[10px] border bg-transparent px-3 text-md"
-				>
-					<option value="password">A password</option>
-					<option value="private_key">A private key</option>
-				</select>
+					class="h-10"
+					options={[
+						{ value: 'password', label: 'A password' },
+						{ value: 'private_key', label: 'A private key' }
+					]}
+				/>
 			</div>
 			{#if access.kind === 'password'}
 				<div class="space-y-1.5">

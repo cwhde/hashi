@@ -213,6 +213,11 @@ func (s *Service) Sources(ctx context.Context) ([]Desired, error) {
 		return nil, err
 	}
 	for _, h := range hosts {
+		// A host behind a router has no SSH address: no check rather than one that dials ":22" and stays Down
+		// (bug 103). Without checks Sync removes an endpoint left from before.
+		if h.SshHost == "" && !h.SshTargetSetID.Valid {
+			continue
+		}
 		out = append(out, Desired{SourceType: SourceFirewall, SourceID: h.ID, Name: h.Name, Group: "Firewall hosts",
 			Checks: s.hostChecks(ctx, "firewall_ssh:"+h.ID, h.SshTargetSetID, h.SshHost, strconv.FormatInt(h.SshPort, 10))})
 	}

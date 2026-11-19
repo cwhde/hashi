@@ -16,11 +16,11 @@ first, structure before text, search after the settings regroup.
 | 13.1 | CI, code and runtime groundwork | 9, 11, 14, 16, 33, 46, 47, 50, 52, 53, 54, 55 | Three CI runs in a row green without a rerun; every action pinned to a SHA; deps bumped; `hashi-pulse --version` prints on a real agent; a timed-out script shows its output; a TCP check with a split greeting is up; a Traefik install survives one failed download on the dev target |
 | 13.2 | UI foundation: shared parts, browser chrome, drafts, SvelteKit 3 | 96, 1, 3, 6, 7, 8, 15, 40, 41, 42, 43, 44, 45, 60, 67, 69, 70, 71, 72, 73, 83, 91, 92 | Visual tests in all four themes at 390 and 1440 px; no page wider than the screen; every page has its title, the 橋 favicon, its tab in the address; leaving with unsaved edits asks; drafts survive category and tab switches |
 | 13.3 | Connections and targets | 17, 20, 22, 23, 24, 56, 57, 58, 63, 64, 66, 68, 90, 97 | A firewall host, a Traefik host and an agent added from Connections; a service targets an agent directly and follows its main address change; Used by lists rules; every reference is a named link |
-| 13.4 | Settings regroup, text and disclosure on every page | 36, 38, 46 (Settings page split), 39, 48, 49, 51, 61, 62, 65, 78, 84, 93, 94, 98 | Settings grouped as 10c §1; every page passes the 10c checklist; help sentences below 40 app-wide; owner walks every page and accepts it |
+| 13.4 | Settings regroup, text and disclosure on every page | 36, 38, 46 (Settings page split), 39, 48, 49, 51, 61, 62, 65, 78, 84, 93, 94, 98; from the walk 31, 75, 99–125 | Settings grouped as 10c §1; every page passes the 10c checklist; help sentences below 40 app-wide; owner walks every page and accepts it |
 | 13.5 | Plans, status and alerts tell the truth | 12, 34, 35, 59, 76, 77, 79, 80, 82, 85, 86, 87, 88 | Cause of the NetBird check failure known and the waiting firewall plan resolved with the owner; the approval screen says what is at stake; a real host outage sends one grouped alert |
-| 13.6 | Security and IP sets | 18, 26, 75, 81, 89 | Measured thresholds with 3× headroom; WAF exclusions by name; Counters and address links correct |
+| 13.6 | Security and IP sets | 18, 26, 81, 89 | Measured thresholds with 3× headroom; WAF exclusions by name; Counters and address links correct |
 | 13.7 | Global search | 4 | Search finds every kind of object, every setting and every tab from any page, keyboard only |
-| 13.8 | Overview and public page assets | 30, 31 | Overview built from its mock with working widget settings; public page icons and logos replaceable |
+| 13.8 | Public page assets | 30 | Overview built from its mock with working widget settings; public page icons and logos replaceable |
 | 13.9 | Pulse on OpenWrt | 21 | Agent installed, started, self-updated and reporting its address on the owner's own OpenWrt router |
 
 Next: 13.4. After 13.9: a last bug sweep, then `v1.0.0`.
@@ -79,6 +79,26 @@ PR B (61, 62, 78, 93, 94):
       editor offers Pass CAPTCHA
 - [x] 62 stream services show `20-hashi-stream-services.yml`; 78 an Off service's rendered config says it isn't deployed
 - [x] make check, integration, e2e
+
+PR C, the owner's walk (2026-11-19; 31, 75, 99–125). The owner accepts 13.4 only when these are fixed:
+- [x] No way into the mocks on prod: real links for addresses, sets, rule sets and "Review changes"; `/design` only in dev (75, 109)
+- [x] One dropdown everywhere (the app's Select), no native `<select>` (112)
+- [x] Service page: "system" tag alone (110), port next to the address (111), Traffic buttons alike (113), Access row
+      never breaks with a long provider name (114)
+- [x] Descriptions cut again on every page with judgement, not only the listed ones (102, 106, 115)
+- [x] SSH address moves to the host's connection as "Hashi connects through", agent or set (117); host Settings panel
+      one Save (102); firewall global policy chosen sets below the picker, names not IDs (100, 118)
+- [x] Save disabled until something changed everywhere (104); empty-not-zero values (105); one date format (101);
+      leaving asks in the app's own dialog (108)
+- [x] Security: dashboard placeholder while loading and a faster query (99); chart values on hover, also check charts
+      (119); flags next to country codes (120)
+- [x] IP sets sorted by kind (121), agent items show their address (122); App display "all on/off" (123)
+- [x] Settings → Edge protection reorganised (124); Firewall's NetBird default worded plainly (125)
+- [x] A host without an address gets no TCP check (103); Status placeholders (107): not changed, seen once while
+      the slow dashboard query held the database; check again on the walk
+- [x] Overview start page from its mock with widgets the owner can turn on/off and reorder (31)
+- [ ] With the owner: which IP sets to delete (121), DNS records to import (116)
+- [ ] make check, integration, e2e; deploy with the owner's OK; the owner walks again and accepts
 
 ### 13.3 checklist (two PRs: A fixes and agent targets, B Connections)
 

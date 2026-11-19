@@ -1,4 +1,6 @@
 <script lang="ts">
+	import HelpTip from '#lib/components/hashi/HelpTip.svelte';
+	import Choice from '#lib/components/hashi/Choice.svelte';
 	import { hrefWithTab, tabFrom } from '#lib/url-tab.ts';
 	import { onMount } from 'svelte';
 	import { page } from '$app/state';
@@ -14,7 +16,7 @@
 	import { Button } from '#lib/components/ui/button/index.ts';
 	import { Label } from '#lib/components/ui/label/index.ts';
 	import * as Tabs from '#lib/components/ui/tabs/index.ts';
-	import { ChevronLeft, LifeBuoy, X } from '@lucide/svelte';
+	import { ChevronLeft, X } from '@lucide/svelte';
 	import { api, problemText, type Schemas } from '#lib/api/client.ts';
 	import { withReauth } from '#lib/auth/reauth.ts';
 	import { listSets, type IPSet } from '#lib/ipsets.ts';
@@ -194,7 +196,14 @@
 	<div class="mb-5 flex flex-wrap items-end gap-4">
 		<div class="flex-1">
 			<h1 class="flex items-center gap-2 text-title font-semibold">
-				{host.name}<StatusBadge state={healthState(host)} />
+				{host.name}<StatusBadge
+					state={healthState(host)}
+				/>{#if host.edge_mode === 'managed'}<HelpTip topic="the rescue timer"
+						><p>
+							Every high-risk apply arms a 180 s timer that restores Hashi’s table unless a new SSH
+							login and NetBird check succeed.
+						</p></HelpTip
+					>{/if}
 			</h1>
 			<p class="text-md text-muted-foreground">
 				{host.facts?.os ?? 'Not read yet'}{#if host.facts}
@@ -212,17 +221,6 @@
 		{/if}
 		<Button variant="ghost" size="sm" onclick={del} disabled={busy}>Delete</Button>
 	</div>
-	{#if host.edge_mode === 'managed'}
-		<Panel title="Rescue path" class="mb-4">
-			<div class="flex items-start gap-3 text-md">
-				<LifeBuoy class="mt-0.5 size-5 shrink-0 text-ok-text" />
-				<p>
-					Every high-risk apply arms a 180 s timer that restores Hashi’s table unless a <em>new</em> SSH
-					login and NetBird check succeed.
-				</p>
-			</div>
-		</Panel>
-	{/if}
 	<Tabs.Root bind:value={tab} onValueChange={setTab}>
 		<Tabs.List class="mb-4">
 			<Tabs.Trigger value="routing">Routing</Tabs.Trigger>
@@ -243,14 +241,15 @@
 			</Panel>
 			<Panel title="Public entry">
 				<Label for="entry">Enters through</Label>
-				<select
+				<Choice
 					id="entry"
 					bind:value={entry}
-					class="mt-1.5 h-10 w-full rounded-[10px] border bg-transparent px-3 text-md"
-				>
-					<option value="">{name} itself</option>
-					{#each others as o (o.id)}<option value={o.id}>{o.name}</option>{/each}
-				</select>
+					class="mt-1.5 h-10"
+					options={[
+						{ value: '', label: `${name} itself` },
+						...others.map((o) => ({ value: o.id, label: o.name }))
+					]}
+				/>
 				<Button
 					class="mt-3"
 					size="sm"
@@ -266,7 +265,7 @@
 			</Panel>
 		</Tabs.Content>
 		<Tabs.Content value="ports">
-			<Panel flush title="Public ports" description="From services">
+			<Panel flush title="Public ports">
 				<ul class="divide-y text-md">
 					{#each rendered?.ports ?? [] as p (p)}
 						<li class="flex items-center gap-3 px-4 py-2.5">
@@ -283,10 +282,10 @@
 			</Panel>
 		</Tabs.Content>
 		<Tabs.Content value="access">
-			<Panel
-				title="Who may reach this host itself"
-				description="Loopback, its own subnets and NetBird always can."
-			>
+			<Panel title="Who may reach this host itself">
+				{#snippet help()}<HelpTip topic="host access"
+						><p>Loopback, its own subnets and NetBird always can.</p></HelpTip
+					>{/snippet}
 				<ul class="space-y-2 text-md" aria-label="Host access">
 					{#each access as s (s)}
 						<li class="flex items-center gap-2">
@@ -317,7 +316,7 @@
 			</Panel>
 		</Tabs.Content>
 		<Tabs.Content value="rules">
-			<Panel flush title="Observed ruleset" description="Every table, read just now">
+			<Panel flush title="Observed ruleset">
 				{#snippet actions()}<Button
 						size="sm"
 						variant="outline"
@@ -330,7 +329,7 @@
 			</Panel>
 		</Tabs.Content>
 		<Tabs.Content value="generated">
-			<Panel flush title="Hashi's table" description="Loaded by the next apply">
+			<Panel flush title="Hashi's table">
 				<pre
 					class="max-h-[70vh] overflow-auto p-4 font-mono text-sm leading-relaxed text-muted-foreground">{rendered?.table ??
 						'Validate the host first.'}</pre>

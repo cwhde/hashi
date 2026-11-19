@@ -61,7 +61,12 @@
 		adguard = a.data.connections;
 		// The shared lists other pages pick from follow what changed here.
 		pulseAgents.list = agents;
-		firewallHosts.list = firewall.map((h) => ({ id: h.id, name: h.name }));
+		firewallHosts.list = firewall.map((h) => ({
+			id: h.id,
+			name: h.name,
+			public_ip: h.public_ip,
+			subnets: h.subnets
+		}));
 		loaded = true;
 	}
 	const reload = () => load().catch((e) => (error = problemText(e)));

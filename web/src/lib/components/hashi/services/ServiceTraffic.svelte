@@ -39,11 +39,7 @@
 			label: 'The upstream address',
 			help: () => upstream + ', as written in the target'
 		},
-		{
-			v: 'custom',
-			label: 'A name you choose',
-			help: () => 'for apps that only answer to their own name'
-		}
+		{ v: 'custom', label: 'A name you choose', help: () => '' }
 	] as const;
 	const hostMode = $derived(traffic.host ?? '');
 
@@ -63,21 +59,13 @@
 		traffic[k] = v.trim() && Number.isFinite(n) ? n : undefined;
 	}
 	const timeouts = [
-		['dial_timeout', 'Connect', 'How long to wait for the app to accept a connection.'],
-		[
-			'response_header_timeout',
-			'Wait for an answer',
-			'Slower answers end with 504. Leave empty for no limit.'
-		],
-		[
-			'idle_timeout',
-			'Keep idle connections',
-			'How long an unused connection to the app stays open.'
-		]
+		['dial_timeout', 'Connect (s)'],
+		['response_header_timeout', 'Wait for an answer (s)'],
+		['idle_timeout', 'Keep idle connections (s)']
 	] as const;
 </script>
 
-{#snippet headerList(which: 'request_headers' | 'response_headers', rows: Header[], hint: string)}
+{#snippet headerList(which: 'request_headers' | 'response_headers', rows: Header[])}
 	{#if rows.length}
 		<ul
 			class="space-y-2"
@@ -95,7 +83,7 @@
 						bind:value={h.value}
 						class="font-mono"
 						aria-label="Header value"
-						placeholder="empty removes it"
+						placeholder="value"
 					/>
 					<Button
 						variant="ghost"
@@ -108,14 +96,11 @@
 			{/each}
 		</ul>
 	{/if}
-	<div class="flex flex-wrap items-center justify-between gap-2">
-		<p class="text-sm text-muted-foreground">{hint}</p>
-		<Button variant="ghost" size="sm" onclick={() => addHeader(which)}><Plus />Add header</Button>
-	</div>
+	<Button variant="outline" size="sm" onclick={() => addHeader(which)}><Plus />Add header</Button>
 {/snippet}
 
 <fieldset class="grid gap-4 lg:grid-cols-2" {disabled}>
-	<Panel title="Host header" description="The name the app sees in each request">
+	<Panel title="Host header">
 		<RadioGroup.Root
 			value={hostMode}
 			onValueChange={setHost}
@@ -131,9 +116,9 @@
 				>
 					<RadioGroup.Item value={m.v} class="mt-0.5" />
 					<span class="min-w-0"
-						><span class="block text-md font-medium">{m.label}</span><span
-							class="block text-sm break-all text-muted-foreground">{m.help()}</span
-						></span
+						><span class="block text-md font-medium">{m.label}</span>{#if m.help()}<span
+								class="block text-sm break-all text-muted-foreground">{m.help()}</span
+							>{/if}</span
 					>
 				</label>
 			{/each}
@@ -151,15 +136,10 @@
 		{/if}
 	</Panel>
 
-	<Panel title="Visitor address" description="Headers that tell the app who is asking">
+	<Panel title="Visitor address">
 		<div class="space-y-3">
 			<div class="flex items-center justify-between gap-3">
-				<Label for="xff" class="block"
-					><span class="block">Send <Mono>X-Forwarded-For</Mono></span><span
-						class="block text-sm font-normal text-muted-foreground"
-						>The visitor's address, plus every proxy on the way</span
-					></Label
-				>
+				<Label for="xff">Send <Mono>X-Forwarded-For</Mono></Label>
 				<Switch
 					id="xff"
 					checked={!traffic.drop_forwarded_for}
@@ -167,12 +147,7 @@
 				/>
 			</div>
 			<div class="flex items-center justify-between gap-3">
-				<Label for="xri" class="block"
-					><span class="block">Send <Mono>X-Real-IP</Mono></span><span
-						class="block text-sm font-normal text-muted-foreground"
-						>The visitor's address alone</span
-					></Label
-				>
+				<Label for="xri">Send <Mono>X-Real-IP</Mono></Label>
 				<Switch
 					id="xri"
 					checked={!traffic.drop_real_ip}
@@ -184,27 +159,19 @@
 
 	<Panel title="Extra headers to the app">
 		<div class="space-y-3">
-			{@render headerList(
-				'request_headers',
-				traffic.request_headers ?? [],
-				'Set a header on every request. An empty value removes it.'
-			)}
+			{@render headerList('request_headers', traffic.request_headers ?? [])}
 		</div>
 	</Panel>
 
 	<Panel title="Extra headers to the visitor">
 		<div class="space-y-3">
-			{@render headerList(
-				'response_headers',
-				traffic.response_headers ?? [],
-				"Set a header on every answer. An empty value removes the app's own."
-			)}
+			{@render headerList('response_headers', traffic.response_headers ?? [])}
 		</div>
 	</Panel>
 
-	<Panel title="Timeouts" description="In seconds; empty keeps Traefik's default">
+	<Panel title="Timeouts">
 		<div class="grid gap-3 sm:grid-cols-3">
-			{#each timeouts as [k, label, help] (k)}
+			{#each timeouts as [k, label] (k)}
 				<div class="space-y-1.5">
 					<Label for={k}>{label}</Label>
 					<Input
@@ -214,26 +181,29 @@
 						oninput={(e) => setSeconds(k, e.currentTarget.value)}
 						placeholder="default"
 					/>
-					<p class="text-xs text-muted-foreground">{help}</p>
 				</div>
 			{/each}
 		</div>
 	</Panel>
 
-	<Panel title="Extra middlewares" description="They run in the order you pick them">
-		{#if names.length || middlewares.length}
-			<MiddlewarePicker {names} bind:selected={middlewares} label="Extra middlewares" {disabled} />
-		{:else}
-			<div class="flex items-center gap-3 text-md text-muted-foreground">
-				None written yet.<Button size="sm" variant="outline" href="/traefik?tab=middlewares"
-					>Write one</Button
-				>
-			</div>
-		{/if}
-		{#if every.length}
-			<p class="mt-3 text-sm text-muted-foreground">
-				On every service already: {#each every as n, i (n)}{i ? ', ' : ''}<Mono>{n}</Mono>{/each}
-			</p>
-		{/if}
+	<Panel title="Extra middlewares">
+		<div class="space-y-3">
+			{#if names.length || middlewares.length}
+				<MiddlewarePicker
+					{names}
+					bind:selected={middlewares}
+					label="Extra middlewares"
+					{disabled}
+				/>
+			{/if}
+			{#if every.length}
+				<p class="text-sm text-muted-foreground">
+					Already on every service: {#each every as n, i (n)}{i ? ', ' : ''}<Mono>{n}</Mono>{/each}
+				</p>
+			{/if}
+			<Button size="sm" variant="outline" href="/traefik?tab=middlewares"
+				><Plus />Add middleware</Button
+			>
+		</div>
 	</Panel>
 </fieldset>

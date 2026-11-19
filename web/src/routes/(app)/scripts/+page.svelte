@@ -300,10 +300,7 @@
 </script>
 
 <svelte:head><title>Scripts · Hashi</title></svelte:head>
-<PageHeader
-	title="Scripts"
-	description="Run as root on your firewall hosts, on a schedule or by hand."
->
+<PageHeader title="Scripts">
 	{#snippet actions()}<Button onclick={() => pick('new')}><Plus />New script</Button>{/snippet}
 </PageHeader>
 

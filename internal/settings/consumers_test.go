@@ -26,6 +26,7 @@ var consumerTests = map[string]string{
 	"appearance.theme":                    "internal/notify/notify_test.go::TestMailCustomTheme",
 	"appearance.custom_theme":             "web/e2e/setup-and-login.spec.ts::A custom theme: unreadable text cannot be saved",
 	"appearance.reduce_transparency":      "web/e2e/setup-and-login.spec.ts::Reduce transparency is applied and saved at once",
+	"appearance.overview_widgets":         "web/e2e/setup-and-login.spec.ts::hiding one and moving another changes the start page",
 	"appearance.public_dashboard_enabled": "internal/app/public_test.go::TestPublicPageSettings",
 	"appearance.public_status_enabled":    "internal/app/public_test.go::TestPublicPageSettings",
 
@@ -39,7 +40,7 @@ var consumerTests = map[string]string{
 	"dashboard.default_sort":         "web/e2e/setup-and-login.spec.ts::the dashboard starts sorted by name",
 	"dashboard.new_services_visible": "web/e2e/setup-and-login.spec.ts::new services start hidden from it",
 
-	"firewall_defaults.netbird_mode": "web/e2e/setup-and-login.spec.ts::name: 'Peer only'",
+	"firewall_defaults.netbird_mode": "web/e2e/setup-and-login.spec.ts::'The host is a NetBird peer'",
 	"firewall_defaults.mss_clamp":    "internal/firewall/render_test.go::TestRenderMSSClampSetting",
 
 	"internal_agent_dns.enabled":                  "internal/pulse/pulse_test.go::TestAgentDNS",

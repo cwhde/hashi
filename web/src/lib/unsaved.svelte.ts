@@ -1,4 +1,4 @@
-import { beforeNavigate } from '$app/navigation';
+import { beforeNavigate, goto } from '$app/navigation';
 
 /** Remembers a form's saved state; `dirty` says whether what is on screen differs from it (bug 40). */
 export class Draft {
@@ -19,20 +19,45 @@ export class Draft {
 	}
 }
 
+/** The leave question the shell shows in the app's own dialog (bug 108); `to` is where the owner wanted to go. */
+class LeaveQuestion {
+	to = $state<URL | null>(null);
+	#pass = false;
+
+	ask(to: URL) {
+		this.to = to;
+	}
+	/** Leave without saving: go where the owner wanted, without asking again. */
+	async leave() {
+		const to = this.to;
+		this.to = null;
+		if (!to) return;
+		this.#pass = true;
+		try {
+			await goto(to.pathname + to.search + to.hash);
+		} finally {
+			this.#pass = false;
+		}
+	}
+	stay() {
+		this.to = null;
+	}
+	get passing() {
+		return this.#pass;
+	}
+}
+export const leaveQuestion = new LeaveQuestion();
+
 /**
- * Asks before leaving the page while something is unsaved: a link, back, or closing the tab (the browser then asks in
- * its own words). Switching a tab or a Settings category stays on the page and keeps the draft, so it doesn't ask.
- * Call it while the component starts.
+ * Asks before leaving the page while something is unsaved: a link or back asks in the app's own dialog; closing the tab
+ * makes the browser ask in its own words (a page can't show its own there). Switching a tab or a Settings category stays
+ * on the page and keeps the draft, so it doesn't ask. Call it while the component starts.
  */
 export function guardUnsaved(dirty: () => boolean) {
 	beforeNavigate((nav) => {
-		if (!dirty()) return;
+		if (!dirty() || leaveQuestion.passing) return;
 		if (nav.to && nav.from && nav.to.url.pathname === nav.from.url.pathname) return;
-		if (nav.type === 'leave') {
-			nav.cancel();
-			return;
-		}
-		if (!confirm('This page has changes that are not saved. Leave without saving them?'))
-			nav.cancel();
+		nav.cancel();
+		if (nav.type !== 'leave' && nav.to) leaveQuestion.ask(nav.to.url);
 	});
 }

@@ -246,9 +246,15 @@
 			<div class="min-w-0 flex-1">
 				<h1 class="flex flex-wrap items-center gap-2 text-title leading-tight font-semibold">
 					<span class="font-mono tracking-[-0.02em]">{s.slug}</span>
-					{#if !s.editable}<Tag><Lock class="size-3" />{kindLabel[s.kind].toLowerCase()}</Tag>{/if}
+					{#if !s.editable}<span title={lockReason[s.kind]} class="inline-flex"
+							><Tag><Lock class="size-3" />{kindLabel[s.kind].toLowerCase()}</Tag></span
+						>{/if}
 				</h1>
-				<p class="text-md text-muted-foreground">{s.description}</p>
+				{#if (s.kind === 'user' || s.kind === 'feed') && s.description}<p
+						class="text-md text-muted-foreground"
+					>
+						{s.description}
+					</p>{/if}
 			</div>
 			{#if s.editable}
 				<div class="flex gap-2">
@@ -257,9 +263,6 @@
 				</div>
 			{/if}
 		</div>
-		{#if !s.editable}<p class="mt-2 text-sm text-muted-foreground">
-				{lockReason[s.kind]}
-			</p>{/if}
 		<dl class="mt-4 grid grid-cols-2 gap-x-6 gap-y-3 text-md sm:grid-cols-4">
 			<div>
 				<dt class="text-xs text-muted-foreground">Kind</dt>
@@ -397,11 +400,7 @@
 		</Tabs.Content>
 
 		<Tabs.Content value="resolved">
-			<Panel
-				flush
-				title="What this set means right now"
-				description="Merged ranges after resolving hosts, DNS names and nested sets"
-			>
+			<Panel flush title="What this set means right now">
 				{#if resolved?.prefixes.length}
 					<ul class="divide-y text-md">
 						{#each resolved.prefixes as p (p)}
@@ -418,12 +417,7 @@
 				{/if}
 			</Panel>
 			{#if resolved?.address_set && resolved.addresses.length}
-				<Panel
-					flush
-					class="mt-4"
-					title="Addresses for targets"
-					description="In item order: the first is used first when this set is a connection target"
-				>
+				<Panel flush class="mt-4" title="Addresses for targets">
 					<ul class="divide-y text-md">
 						{#each resolved.addresses as a, i (a)}
 							<li class="flex items-center gap-3 px-4 py-2">
@@ -436,7 +430,7 @@
 		</Tabs.Content>
 
 		<Tabs.Content value="used">
-			<Panel flush title="Used by" description="A set cannot be deleted while anything uses it">
+			<Panel flush title="Used by">
 				{#if consumers.length}
 					<ul class="divide-y text-md">
 						{#each consumers as u (u.type + u.id)}
@@ -469,7 +463,7 @@
 		</Tabs.Content>
 
 		<Tabs.Content value="history">
-			<Panel flush title="History" description="From the audit log">
+			<Panel flush title="History">
 				{#if history.length}
 					<ul class="divide-y text-md">
 						{#each history as h (h.id)}

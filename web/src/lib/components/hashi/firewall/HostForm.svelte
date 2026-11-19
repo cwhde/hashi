@@ -1,6 +1,7 @@
 <script lang="ts">
 	// A new firewall host (02 §1 step 6, 05 §2): the host key is shown and pinned only after the admin compares it;
 	// saving validates over SSH read-only. An external NAT host has nothing to log in to.
+	import Choice from '#lib/components/hashi/Choice.svelte';
 	import { onMount, untrack } from 'svelte';
 	import { pulseAgents } from '#lib/pulseAgents.svelte.ts';
 	import { Button } from '#lib/components/ui/button/index.ts';
@@ -110,14 +111,15 @@
 	</div>
 	<div class="space-y-1.5">
 		<Label for="fw-mode">How it is reached</Label>
-		<select
+		<Choice
 			id="fw-mode"
 			bind:value={form.mode}
-			class="h-10 w-full rounded-[10px] border bg-transparent px-3 text-md"
-		>
-			<option value="managed">Hashi manages its firewall over SSH</option>
-			<option value="external_nat">Behind a router I configure myself</option>
-		</select>
+			class="h-10"
+			options={[
+				{ value: 'managed', label: 'Hashi manages its firewall over SSH' },
+				{ value: 'external_nat', label: 'Behind a router I configure myself' }
+			]}
+		/>
 	</div>
 	{#if form.mode === 'managed'}
 		<div class="space-y-1.5">
@@ -136,15 +138,16 @@
 		</div>
 		<div class="space-y-1.5">
 			<Label for="fw-auth">Login</Label>
-			<select
+			<Choice
 				id="fw-auth"
 				bind:value={form.auth}
-				class="h-10 w-full rounded-[10px] border bg-transparent px-3 text-md"
-			>
-				<option value="hashi_key">Hashi's SSH key</option>
-				<option value="private_key">A private key</option>
-				<option value="password">A password</option>
-			</select>
+				class="h-10"
+				options={[
+					{ value: 'hashi_key', label: "Hashi's SSH key" },
+					{ value: 'private_key', label: 'A private key' },
+					{ value: 'password', label: 'A password' }
+				]}
+			/>
 		</div>
 		{#if form.auth === 'hashi_key'}
 			<KeyAccess bind:access {publicKey} user={form.user} />
@@ -186,15 +189,15 @@
 	{:else}
 		<div class="space-y-1.5">
 			<Label for="fw-src">Its address comes from</Label>
-			<select
+			<Choice
 				id="fw-src"
 				bind:value={form.agent}
-				class="h-10 w-full rounded-[10px] border bg-transparent px-3 text-md"
-			>
-				<option value="">What I type here</option>
-				{#each pulseAgents.list as a (a.id)}<option value={a.id}>Pulse agent {a.name}</option
-					>{/each}
-			</select>
+				class="h-10"
+				options={[
+					{ value: '', label: 'What I type here' },
+					...pulseAgents.list.map((a) => ({ value: a.id, label: `Pulse agent ${a.name}` }))
+				]}
+			/>
 		</div>
 		{#if !form.agent}
 			<div class="space-y-1.5">
@@ -205,28 +208,28 @@
 		{#if hosts.length}
 			<div class="space-y-1.5">
 				<Label for="fw-entry">Public traffic enters through</Label>
-				<select
+				<Choice
 					id="fw-entry"
 					bind:value={form.entry}
-					class="h-10 w-full rounded-[10px] border bg-transparent px-3 text-md"
-				>
-					<option value="">This host (ports forwarded on its router)</option>
-					{#each hosts as h (h.id)}<option value={h.id}>{h.name}</option>{/each}
-				</select>
+					class="h-10"
+					options={[
+						{ value: '', label: 'This host (ports forwarded on its router)' },
+						...hosts.map((h) => ({ value: h.id, label: h.name }))
+					]}
+				/>
 			</div>
 		{/if}
 	{/if}
 	{#if conns.length > 1}
 		<div class="space-y-1.5">
 			<Label for="fw-traefik">Traefik on this network</Label>
-			<select
+			<Choice
 				id="fw-traefik"
 				bind:value={form.traefikId}
 				onchange={pickTraefik}
-				class="h-10 w-full rounded-[10px] border bg-transparent px-3 text-md"
-			>
-				{#each conns as c (c.id)}<option value={c.id}>{c.name}</option>{/each}
-			</select>
+				class="h-10"
+				options={conns.map((c) => ({ value: c.id, label: c.name }))}
+			/>
 		</div>
 	{/if}
 	<div class="space-y-1.5">

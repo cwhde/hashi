@@ -1,4 +1,5 @@
 <script lang="ts">
+	import SshTarget from '#lib/components/hashi/SshTarget.svelte';
 	// Add a firewall host, or change how Hashi reaches one (05 §2, bug 24). What belongs to the host itself (networks,
 	// NetBird, ports, host access) stays on its page. A new address or key is validated and confirmed again there.
 	import { goto } from '$app/navigation';
@@ -22,6 +23,7 @@
 	let hosts = $state<FirewallHost[]>([]);
 	let publicKey = $state('');
 	let busy = $state(false);
+	let target = $state<SshTarget>();
 	let error = $state('');
 	let f = $state({ name: '', host: '', port: '22', user: 'root' });
 	let key = $state<Schemas['HostKey'] | null>(null);
@@ -86,6 +88,7 @@
 		const h = host;
 		if (!h) return;
 		await run(async () => {
+			if (target?.dirty() && !(await target.commit())) return;
 			const body: FirewallInput = {
 				...firewallInput(h),
 				name: f.name.trim(),
@@ -147,6 +150,12 @@
 					<div class="space-y-1.5">
 						<Label for="fh-user">User</Label><Input id="fh-user" bind:value={f.user} />
 					</div>
+					{#key host.id}<SshTarget
+							bind:this={target}
+							kind="firewall"
+							id={host.id}
+							value={host.ssh_target_set_id}
+						/>{/key}
 					{#if moved}
 						<Button size="sm" variant="outline" onclick={scan} disabled={busy}
 							>Read its SSH key</Button

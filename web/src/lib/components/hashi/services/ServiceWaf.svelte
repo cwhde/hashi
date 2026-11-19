@@ -147,7 +147,7 @@
 				{/each}
 			</ul>
 		</Panel>
-		<Panel title="Exclusions" description="Rules switched off where they misfire">
+		<Panel title="Exclusions">
 			<Input
 				bind:value={exclusions}
 				placeholder="e.g. 942100, 920350"

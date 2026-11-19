@@ -62,7 +62,7 @@
 			</label>
 			<div class="flex items-center justify-end gap-3">
 				{#if notice}<span role="status" class="text-ok-text">{notice}</span>{/if}
-				<Button size="sm" onclick={save} disabled={busy}>Save</Button>
+				<Button size="sm" onclick={save} disabled={busy || !draft.dirty}>Save</Button>
 			</div>
 		</div>
 	</Panel>

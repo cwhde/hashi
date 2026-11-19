@@ -247,8 +247,7 @@
 			<div class="min-w-0 flex-1">
 				<h1 class="flex flex-wrap items-center gap-2 text-title leading-tight font-semibold">
 					{svc.name}
-					{#if system}<Tag><Lock class="size-3" />system · change it in Settings → General</Tag
-						>{/if}
+					{#if system}<Tag><Lock class="size-3" />system</Tag>{/if}
 				</h1>
 				{#if isStream(svc.kind)}
 					<p class="text-md text-muted-foreground">
@@ -426,16 +425,21 @@
 							/>
 						</div>{/if}{/snippet}
 				<fieldset class="space-y-3" disabled={system}>
-					<div class="grid grid-cols-[minmax(0,1fr)_6rem] gap-2">
-						<Select.Root type="single" bind:value={edit.kind}>
-							<Select.Trigger aria-label="Protocol">{kindText[edit.kind]}</Select.Trigger>
-							<Select.Content>
-								{#each kinds as k (k)}<Select.Item value={k}>{kindText[k]}</Select.Item>{/each}
-							</Select.Content>
-						</Select.Root>
-						<Input bind:value={edit.target.port} aria-label="Port" inputmode="numeric" />
-					</div>
-					<UpstreamTarget bind:value={extra.upstream} id="svc-upstream" />
+					<Select.Root type="single" bind:value={edit.kind}>
+						<Select.Trigger aria-label="Protocol" class="w-full"
+							>{kindText[edit.kind]}</Select.Trigger
+						>
+						<Select.Content>
+							{#each kinds as k (k)}<Select.Item value={k}>{kindText[k]}</Select.Item>{/each}
+						</Select.Content>
+					</Select.Root>
+					<UpstreamTarget bind:value={extra.upstream} id="svc-upstream">
+						{#snippet port()}<Input
+								bind:value={edit!.target.port}
+								aria-label="Port"
+								inputmode="numeric"
+							/>{/snippet}
+					</UpstreamTarget>
 					<ServiceExtras
 						kind={edit.kind}
 						bind:publicPort={extra.publicPort}

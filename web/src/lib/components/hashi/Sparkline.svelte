@@ -1,39 +1,98 @@
 <script lang="ts">
-	// Thin line, no fill, no axes (10a §5.2 item 11). Colour comes from the parent's text colour.
+	// Thin line, no fill, no axes (10a §5.2 item 11). Colour comes from the parent's text colour. With `labels`, a
+	// pointer over the line shows that moment's value (bug 119); nothing reacts until the pointer is on it.
 	let {
 		values,
 		width = 120,
 		height = 28,
+		labels,
+		format = (v: number) => v.toLocaleString(),
 		class: className = ''
-	}: { values: number[]; width?: number; height?: number; class?: string } = $props();
+	}: {
+		values: number[];
+		width?: number;
+		height?: number;
+		labels?: string[];
+		format?: (v: number) => string;
+		class?: string;
+	} = $props();
 
-	const points = $derived.by(() => {
-		const max = Math.max(...values, 1);
-		const min = Math.min(...values, 0);
-		const step = width / Math.max(values.length - 1, 1);
-		return values
-			.map(
-				(v, i) =>
-					`${(i * step).toFixed(1)},${(height - 2 - ((v - min) / (max - min || 1)) * (height - 4)).toFixed(1)}`
-			)
-			.join(' ');
-	});
+	const max = $derived(Math.max(...values, 1));
+	const min = $derived(Math.min(...values, 0));
+	const step = $derived(width / Math.max(values.length - 1, 1));
+	const y = (v: number) => height - 2 - ((v - min) / (max - min || 1)) * (height - 4);
+	const points = $derived(
+		values.map((v, i) => `${(i * step).toFixed(1)},${y(v).toFixed(1)}`).join(' ')
+	);
+
+	let at = $state<number | null>(null);
+	function move(e: PointerEvent) {
+		const r = (e.currentTarget as HTMLElement).getBoundingClientRect();
+		const i = Math.round(((e.clientX - r.left) / r.width) * (values.length - 1));
+		at = Math.max(0, Math.min(values.length - 1, i));
+	}
 </script>
 
-<svg
-	class={className}
-	viewBox="0 0 {width} {height}"
-	{width}
-	{height}
-	aria-hidden="true"
-	preserveAspectRatio="none"
->
-	<polyline
-		{points}
-		fill="none"
-		stroke="currentColor"
-		stroke-width="1.5"
-		stroke-linejoin="round"
-		vector-effect="non-scaling-stroke"
-	/>
-</svg>
+{#if labels}
+	<div
+		class="relative {className}"
+		role="img"
+		aria-label="Trend"
+		onpointermove={move}
+		onpointerleave={() => (at = null)}
+	>
+		<svg
+			class="block w-full"
+			viewBox="0 0 {width} {height}"
+			{height}
+			aria-hidden="true"
+			preserveAspectRatio="none"
+		>
+			<polyline
+				{points}
+				fill="none"
+				stroke="currentColor"
+				stroke-width="1.5"
+				stroke-linejoin="round"
+				vector-effect="non-scaling-stroke"
+			/>
+			{#if at !== null}<line
+					x1={at * step}
+					x2={at * step}
+					y1="0"
+					y2={height}
+					class="stroke-border"
+					stroke-width="1"
+					vector-effect="non-scaling-stroke"
+				/>{/if}
+		</svg>
+		{#if at !== null}
+			<div
+				class="pointer-events-none absolute -top-7 z-10 rounded-md border bg-popover px-1.5 py-0.5 text-xs whitespace-nowrap text-foreground shadow-sm"
+				style="left: clamp(0px, calc({(at / Math.max(1, values.length - 1)) *
+					100}% - 3rem), calc(100% - 6rem))"
+			>
+				<span class="text-muted-foreground">{labels[at]}</span>
+				<span class="tnum font-medium">{format(values[at] ?? 0)}</span>
+			</div>
+		{/if}
+	</div>
+{:else}
+	<svg
+		class={className}
+		viewBox="0 0 {width} {height}"
+		{width}
+		{height}
+		aria-hidden="true"
+		preserveAspectRatio="none"
+	>
+		<polyline
+			{points}
+			fill="none"
+			stroke="currentColor"
+			stroke-width="1.5"
+			stroke-linejoin="round"
+			vector-effect="non-scaling-stroke"
+		/>
+	</svg>
+{/if}

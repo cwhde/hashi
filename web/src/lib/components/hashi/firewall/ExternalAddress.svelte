@@ -1,6 +1,7 @@
 <script lang="ts">
 	// A host behind a router (05 §1.1 external_nat): its public address is typed in or follows a Pulse agent on its
 	// network (bug 23), and its internal addresses come from the same agent.
+	import Choice from '#lib/components/hashi/Choice.svelte';
 	import { onMount, untrack } from 'svelte';
 	import { Button } from '#lib/components/ui/button/index.ts';
 	import { Input } from '#lib/components/ui/input/index.ts';
@@ -31,14 +32,15 @@
 <form class="space-y-3 text-md" onsubmit={submit}>
 	<div class="space-y-1.5">
 		<Label for="xa-src">Its address comes from</Label>
-		<select
+		<Choice
 			id="xa-src"
 			bind:value={agent}
-			class="h-10 w-full rounded-[10px] border bg-transparent px-3 text-md"
-		>
-			<option value="">What I type here</option>
-			{#each pulseAgents.list as a (a.id)}<option value={a.id}>Pulse agent {a.name}</option>{/each}
-		</select>
+			class="h-10"
+			options={[
+				{ value: '', label: 'What I type here' },
+				...pulseAgents.list.map((a) => ({ value: a.id, label: `Pulse agent ${a.name}` }))
+			]}
+		/>
 	</div>
 	{#if agent}
 		<dl class="grid grid-cols-[8rem_minmax(0,1fr)] gap-y-1.5">

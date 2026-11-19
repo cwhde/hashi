@@ -344,3 +344,37 @@ func TestMonitoringSettingsApply(t *testing.T) {
 		t.Fatalf("removed %d %v", n, err)
 	}
 }
+
+// Bug 103: a firewall host behind a router has no SSH address; its check dialled ":22" and stayed Down. Such a host
+// gets no TCP check (and an old one goes away), while a managed host keeps its own.
+func TestFirewallHostWithoutAddressGetsNoCheck(t *testing.T) {
+	s, st, _, _ := fixture(t)
+	ctx := t.Context()
+	now := time.Now().UnixMilli()
+	for _, p := range []db.InsertFirewallHostParams{
+		{ID: "edge", Name: "edge", EdgeMode: "managed", SshHost: "192.0.2.10", SshPort: 22, SshUser: "root", Auth: "hashi_key",
+			SubnetsJson: "[]", NetbirdMode: "disabled", CreatedAt: now, UpdatedAt: now},
+		{ID: "home", Name: "home", EdgeMode: "external_nat", SshPort: 22, Auth: "hashi_key", SubnetsJson: "[]",
+			NetbirdMode: "disabled", CreatedAt: now, UpdatedAt: now},
+	} {
+		if err := st.Q.InsertFirewallHost(ctx, p); err != nil {
+			t.Fatal(err)
+		}
+	}
+	got, err := s.Sources(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	checks := map[string][]CheckSpec{}
+	for _, d := range got {
+		if d.SourceType == SourceFirewall {
+			checks[d.SourceID] = d.Checks
+		}
+	}
+	if len(checks["edge"]) != 1 || checks["edge"][0].Target != "192.0.2.10:22" {
+		t.Fatalf("managed host: %+v", checks["edge"])
+	}
+	if len(checks["home"]) != 0 {
+		t.Fatalf("a host without an address must get no check: %+v", checks["home"])
+	}
+}

@@ -38,7 +38,7 @@
 <Panel title="Edge sign-in">
 	{#if error}<p role="alert" class="text-md text-bad-text">{error}</p>
 	{:else if l}
-		<div class="grid max-w-lg gap-3 sm:grid-cols-2">
+		<div class="grid gap-3 sm:grid-cols-2">
 			<div class="space-y-1.5">
 				<Label for="lm">Longest session (hours)</Label>
 				<Input id="lm" type="number" bind:value={l.max_session_hours} />
@@ -48,9 +48,12 @@
 				<Input id="li" type="number" bind:value={l.idle_timeout_hours} />
 			</div>
 		</div>
-		<label class="mt-3 flex items-center gap-2 text-md"
-			><Switch bind:checked={l.remember_device} />Stay signed in after closing the browser</label
-		>
+		<div class="mt-3 flex items-center justify-between gap-3">
+			<Label for="lr">Stay signed in after closing the browser</Label><Switch
+				id="lr"
+				bind:checked={l.remember_device}
+			/>
+		</div>
 		<div class="mt-3"><SaveBar {saver} dirty={draft.dirty} onsave={save} /></div>
 	{/if}
 </Panel>

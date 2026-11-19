@@ -10,7 +10,7 @@ export function signInHref(here: Here, ended = false): string {
 }
 
 /** A path inside this app, or the default page: never another origin. Browsers read `/\` like `//`. */
-export function safeNext(raw: string | null, fallback = '/activity'): string {
+export function safeNext(raw: string | null, fallback = '/overview'): string {
 	const n = raw ?? '';
 	return n.startsWith('/') && !n.startsWith('//') && !n.startsWith('/\\') ? n : fallback;
 }

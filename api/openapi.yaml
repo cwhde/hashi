@@ -4917,6 +4917,16 @@ components:
         reduce_transparency: { type: boolean, description: "Solid backgrounds instead of translucent overlays" }
         public_dashboard_enabled: { type: boolean }
         public_status_enabled: { type: boolean }
+        overview_widgets:
+          type: array
+          description: "The overview's widgets in the admin's order (10-ui §3). Left out on a save: the stored order stays."
+          items: { $ref: "#/components/schemas/OverviewWidget" }
+    OverviewWidget:
+      type: object
+      required: [id, visible]
+      properties:
+        id: { type: string, enum: [changes, attention, health, edge, security, certificates, activity] }
+        visible: { type: boolean }
     CustomTheme:
       type: object
       description: "The admin's palette (10-ui §2); the other roles are derived. Refused when text is unreadable."

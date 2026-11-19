@@ -1,13 +1,15 @@
 <script lang="ts">
 	// What validation found, and the settings that depend on it: networks, NetBird, and the choice to drop all other
 	// inbound connections (05 §2, §5). Nothing here reaches the host until a plan is approved.
+	import Choice from '#lib/components/hashi/Choice.svelte';
 	import { onMount, untrack } from 'svelte';
 	import { api } from '#lib/api/client.ts';
 	import { Button } from '#lib/components/ui/button/index.ts';
 	import { Input } from '#lib/components/ui/input/index.ts';
 	import { Label } from '#lib/components/ui/label/index.ts';
 	import Mono from '#lib/components/hashi/Mono.svelte';
-	import SshTarget from '#lib/components/hashi/SshTarget.svelte';
+	import HelpTip from '#lib/components/hashi/HelpTip.svelte';
+	import { Switch } from '#lib/components/ui/switch/index.ts';
 	import { Check, CircleAlert, TriangleAlert } from '@lucide/svelte';
 	import { firewallInput, lines, type FirewallHost, type FirewallInput } from '#lib/firewall.ts';
 
@@ -20,6 +22,11 @@
 	let drop = $state(untrack(() => host.drop_other_inbound));
 
 	const nb = $derived(f?.netbird);
+	const dirty = $derived(
+		lines(subnets).join(',') !== host.subnets.join(',') ||
+			mode !== host.netbird_mode ||
+			drop !== host.drop_other_inbound
+	);
 
 	// A host never applied, where NetBird was found, starts in the mode the Firewall settings name (09 §2).
 	onMount(async () => {
@@ -83,29 +90,34 @@
 	</div>
 	<div class="space-y-1.5">
 		<Label for="fs-nb">NetBird</Label>
-		<select
+		<Choice
 			id="fs-nb"
 			bind:value={mode}
-			class="h-10 w-full rounded-[10px] border bg-transparent px-3 text-md"
-		>
-			<option value="disabled">Not used on this host</option>
-			<option value="peer" disabled={!nb}>This host is a NetBird peer</option>
-			<option value="routing" disabled={!nb}
-				>This host also routes NetBird traffic to its networks</option
-			>
-		</select>
+			class="h-10"
+			options={[
+				{ value: 'disabled', label: 'Not used on this host' },
+				{ value: 'peer', label: 'This host is a NetBird peer', disabled: !nb },
+				{
+					value: 'routing',
+					label: 'This host also routes NetBird traffic to its networks',
+					disabled: !nb
+				}
+			]}
+		/>
 	</div>
-	<label class="flex items-start gap-2.5 text-md">
-		<input type="checkbox" bind:checked={drop} class="mt-0.5 accent-primary" />
-		<span
-			>Block all other inbound connections. Without this, anything listening on the host, such as
-			SSH or Proxmox, stays reachable from the internet. People on the host access list and NetBird
-			can still connect.</span
+	<div class="flex items-center justify-between gap-3">
+		<span class="flex items-center gap-1"
+			><Label for="fs-drop">Block all other inbound connections</Label><HelpTip
+				topic="blocking other connections"
+				><p>
+					Without this, anything listening on the host, such as SSH or Proxmox, stays reachable from
+					the internet. The host access list and NetBird can still connect.
+				</p></HelpTip
+			></span
 		>
-	</label>
-	<Button type="submit" variant="outline" disabled={busy}>Save settings</Button>
+		<Switch id="fs-drop" bind:checked={drop} />
+	</div>
+	<div class="flex justify-end">
+		<Button type="submit" disabled={busy || !dirty}>Save</Button>
+	</div>
 </form>
-
-<div class="mt-4">
-	<SshTarget kind="firewall" id={host.id} value={host.ssh_target_set_id} />
-</div>

@@ -5,6 +5,7 @@
 	import { pendingPlans } from '#lib/sync-pending.svelte.ts';
 	import { vaultState } from '#lib/vault.svelte.ts';
 	import VaultUnlockDialog from '#lib/components/hashi/VaultUnlockDialog.svelte';
+	import LeaveDialog from '#lib/components/hashi/LeaveDialog.svelte';
 	import { nav as designNav, liveNav, setupNav } from '#lib/design/nav.ts';
 	import { session, setupServices } from '#lib/auth/session.svelte.ts';
 	import { time } from '#lib/format.ts';
@@ -356,7 +357,7 @@
 	</div>
 </div>
 
-{#if live}<VaultUnlockDialog bind:open={unlockOpen} />{/if}
+{#if live}<VaultUnlockDialog bind:open={unlockOpen} /><LeaveDialog />{/if}
 
 <Command.Dialog bind:open={searchOpen}>
 	<Command.Input placeholder="IP, CIDR, ASN, domain or page…" />

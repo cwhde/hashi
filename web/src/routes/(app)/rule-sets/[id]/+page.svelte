@@ -117,9 +117,11 @@
 		<div class="min-w-64 flex-1">
 			<h1 class="flex items-center gap-2 text-title leading-tight font-semibold">
 				<span class="font-mono tracking-[-0.02em]">{rs.slug}</span>
-				{#if rs.kind === 'global'}<Tag><Lock class="size-3" />global, cannot be deleted</Tag>{/if}
+				{#if rs.kind === 'global'}<Tag><Lock class="size-3" />global</Tag>{/if}
 			</h1>
-			<p class="mt-1 text-md text-muted-foreground">{rs.description}</p>
+			{#if rs.kind === 'user' && rs.description}<p class="mt-1 text-md text-muted-foreground">
+					{rs.description}
+				</p>{/if}
 		</div>
 		<div class="flex gap-2">
 			<Button variant="outline" size="sm" onclick={() => (attach = true)}
@@ -140,7 +142,7 @@
 	{/each}
 
 	<div class="grid gap-4 xl:grid-cols-[minmax(0,1fr)_20rem]">
-		<Panel flush title="Rules" description="Checked top to bottom">
+		<Panel flush title="Rules">
 			{#if entries.length === 0}<p class="px-4 py-3 text-md text-muted-foreground">
 					No rules yet.
 				</p>{/if}
@@ -158,17 +160,14 @@
 							<a href={u.href} class="font-medium hover:underline">{u.label}</a>
 						</li>{/each}
 				</ul>
-			{:else if rs.kind !== 'global'}<p class="text-md text-muted-foreground">Unused</p>{/if}
-			{#if rs.kind === 'user' && rs.used_by.length > 0}<p
-					class="mt-3 text-sm text-muted-foreground"
-				>
-					Detach it everywhere to delete it.
-				</p>{/if}
+			{:else if rs.kind === 'global'}<p class="text-md">Every service</p>
+			{:else}<p class="text-md text-muted-foreground">Unused</p>{/if}
 			{#if rs.kind === 'user'}<Button
 					variant="ghost"
 					size="sm"
 					class="mt-2 -ml-2 text-bad-text"
 					disabled={rs.used_by.length > 0}
+					title={rs.used_by.length ? 'Detach it everywhere first' : undefined}
 					onclick={() => (confirming = true)}>Delete rule set</Button
 				>{/if}
 		</Panel>

@@ -3,7 +3,7 @@
 	// by hand with an optional duration, ended, or (challenged) banned now or given its failures back.
 	import { onMount } from 'svelte';
 	import Panel from '#lib/components/hashi/Panel.svelte';
-	import AddressLink from '#lib/components/hashi/security/AddressLink.svelte';
+	import AddressLink from '#lib/components/hashi/ipsets/AddressLink.svelte';
 	import { Button } from '#lib/components/ui/button/index.ts';
 	import { Input } from '#lib/components/ui/input/index.ts';
 	import { Label } from '#lib/components/ui/label/index.ts';
@@ -11,7 +11,7 @@
 	import { MoreHorizontal } from '@lucide/svelte';
 	import { api, problemText, type Schemas } from '#lib/api/client.ts';
 	import { withReauth } from '#lib/auth/reauth.ts';
-	import { dateTime } from '#lib/format.ts';
+	import { country, dateTime } from '#lib/format.ts';
 	import { sourceLabel } from './labels';
 
 	type SetID = 'sys-dynamic-challenge' | 'sys-dynamic-blocked';
@@ -128,7 +128,7 @@
 					<AddressLink address={r.address} />
 					<span class="order-last col-span-2 min-w-0 md:order-none md:col-span-1"
 						><span class="text-xs text-muted-foreground"
-							>{sourceLabel(r.last_source)}{#if r.country}, {r.country}{/if}</span
+							>{sourceLabel(r.last_source)}{#if r.country}, {country(r.country)}{/if}</span
 						></span
 					>
 					<span class="hidden md:block"

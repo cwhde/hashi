@@ -111,7 +111,9 @@ SELECT address, CAST(SUM(request_count) AS INTEGER) AS requests, CAST(SUM(denied
     CAST(SUM(challenged_count) AS INTEGER) AS challenged
 FROM security_ip_top_1m
 WHERE bucket_start >= sqlc.arg(since)
-GROUP BY address HAVING SUM(denied_count) + SUM(challenged_count) > 0
+-- "+address": group without the address index, so SQLite reads only the period through the primary key instead of
+-- the whole table (bug 99).
+GROUP BY +address HAVING SUM(denied_count) + SUM(challenged_count) > 0
 ORDER BY SUM(denied_count) + SUM(challenged_count) DESC, SUM(request_count) DESC
 LIMIT 10;
 

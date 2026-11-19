@@ -42,23 +42,43 @@
 		if (r.error) error = problemText(r.error);
 		await load().catch(() => {});
 	}
+	// "All" switches (bug 123): change only the rows that differ, then reload once.
+	async function setAll(changes: Promise<{ error?: unknown }>[]) {
+		error = '';
+		const res = await Promise.all(changes);
+		const bad = res.find((r) => r.error);
+		if (bad) error = problemText(bad.error);
+		await load().catch(() => {});
+	}
+	const allApps = (visible: boolean) =>
+		setAll(
+			services
+				.filter((r) => r.dashboard_visible !== visible)
+				.map((r) =>
+					api.PUT('/api/services/{id}/dashboard', {
+						params: { path: { id: r.id } },
+						body: { visible }
+					})
+				)
+		);
+	const allPublic = (pub: boolean) =>
+		setAll(endpoints.filter((e) => e.public !== pub).map((e) => putPublic(e, pub)));
 	const setApp = (id: string, visible: boolean) =>
 		run(api.PUT('/api/services/{id}/dashboard', { params: { path: { id } }, body: { visible } }));
-	const setPublic = (e: Endpoint, pub: boolean) =>
-		run(
-			api.PUT('/api/monitor/endpoints/{id}', {
-				params: { path: { id: e.id } },
-				body: {
-					group: e.group,
-					paused: e.paused,
-					public: pub,
-					interval_seconds: e.interval_seconds,
-					timeout_seconds: e.timeout_seconds,
-					degraded_ms: e.degraded_ms,
-					route_provider_id: e.route_provider_id
-				}
-			})
-		);
+	const putPublic = (e: Endpoint, pub: boolean) =>
+		api.PUT('/api/monitor/endpoints/{id}', {
+			params: { path: { id: e.id } },
+			body: {
+				group: e.group,
+				paused: e.paused,
+				public: pub,
+				interval_seconds: e.interval_seconds,
+				timeout_seconds: e.timeout_seconds,
+				degraded_ms: e.degraded_ms,
+				route_provider_id: e.route_provider_id
+			}
+		});
+	const setPublic = (e: Endpoint, pub: boolean) => run(putPublic(e, pub));
 </script>
 
 <svelte:head><title>App display · Hashi</title></svelte:head>
@@ -70,10 +90,7 @@
 	>
 {/snippet}
 
-<PageHeader
-	title="App display"
-	description="What visitors see on the public app dashboard and status page."
-/>
+<PageHeader title="App display" />
 {#if error}<p role="alert" class="mb-3 text-md text-bad-text">{error}</p>{/if}
 {#snippet reached(links: Schemas['PublicPageLink'][] | undefined)}
 	{#if links}
@@ -109,6 +126,15 @@
 				No services with a public name yet.
 			</p>{/if}
 		<ul class="divide-y">
+			{#if services.length > 1}<li
+					class="flex items-center gap-3 bg-surface-2/40 px-4 py-2 text-md font-medium"
+				>
+					<span class="flex-1">All</span><Switch
+						checked={services.every((r) => r.dashboard_visible)}
+						onCheckedChange={allApps}
+						aria-label="Show all apps"
+					/>
+				</li>{/if}
 			{#each services as r (r.id)}
 				<li class="flex items-center gap-3 px-4 py-2 text-md">
 					<span
@@ -125,17 +151,22 @@
 			{/each}
 		</ul>
 	</Panel>
-	<Panel
-		title="Status page"
-		description="Names, groups, state and history only; never hosts, IPs or errors"
-		flush
-	>
+	<Panel title="Status page" flush>
 		{#snippet actions()}{#if look}{@render pageState(look.public_status_enabled)}{/if}{/snippet}
 		{@render reached(pages?.status)}
 		{#if !loaded}<div class="space-y-2 p-4">
 				<Skeleton class="h-6" /><Skeleton class="h-6" />
 			</div>{/if}
 		<ul class="divide-y">
+			{#if endpoints.length > 1}<li
+					class="flex items-center gap-3 bg-surface-2/40 px-4 py-2 text-md font-medium"
+				>
+					<span class="flex-1">All</span><Switch
+						checked={endpoints.every((e) => e.public)}
+						onCheckedChange={allPublic}
+						aria-label="Show all checks publicly"
+					/>
+				</li>{/if}
 			{#each endpoints as m (m.id)}
 				<li class="flex items-center gap-3 px-4 py-2 text-md">
 					<span class="min-w-0 flex-1 truncate"

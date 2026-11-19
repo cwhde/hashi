@@ -118,7 +118,7 @@
 			</PlanReview>
 		{/each}
 	</div>
-	<Panel title="Recent runs" description="Applied, failed and replaced plans">
+	<Panel title="Recent runs">
 		{#if recent.length === 0}
 			<p class="text-md text-muted-foreground">No plan has finished yet.</p>
 		{/if}

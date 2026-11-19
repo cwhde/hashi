@@ -368,22 +368,22 @@
 			</div>
 			<fieldset class="space-y-2">
 				<legend class="mb-1.5 text-md font-medium">Upstream</legend>
-				<div class="grid grid-cols-[minmax(0,1fr)_6rem] gap-2">
-					<Select.Root type="single" bind:value={form.kind}>
-						<Select.Trigger aria-label="Protocol">{kindText[form.kind]}</Select.Trigger>
-						<Select.Content>
-							{#each kinds as k (k)}<Select.Item value={k}>{kindText[k]}</Select.Item>{/each}
-						</Select.Content>
-					</Select.Root>
-					<Input
-						bind:value={form.port}
-						aria-label="Port"
-						inputmode="numeric"
-						placeholder="8080"
-						required
-					/>
-				</div>
-				<UpstreamTarget bind:value={form.upstream} id="add-upstream" />
+				<Select.Root type="single" bind:value={form.kind}>
+					<Select.Trigger aria-label="Protocol" class="w-full">{kindText[form.kind]}</Select.Trigger
+					>
+					<Select.Content>
+						{#each kinds as k (k)}<Select.Item value={k}>{kindText[k]}</Select.Item>{/each}
+					</Select.Content>
+				</Select.Root>
+				<UpstreamTarget bind:value={form.upstream} id="add-upstream">
+					{#snippet port()}<Input
+							bind:value={form.port}
+							aria-label="Port"
+							inputmode="numeric"
+							placeholder="8080"
+							required
+						/>{/snippet}
+				</UpstreamTarget>
 			</fieldset>
 			<ServiceExtras
 				kind={form.kind}
