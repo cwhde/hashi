@@ -42,6 +42,6 @@ page whose settings live here links to its category with a gear in its header.
 | Pulse | heartbeat interval, stale threshold, update agents automatically (default on, ADR 0003) |
 | Monitoring and notifications | monitor defaults (interval, timeout, allowed HTTP codes, latency thresholds, retention), notification channels, default route, cooldowns. Deliveries are history: Activity, or the check that sent them |
 | Public pages | public dashboard on/off, default sort, visibility defaults; public status page on/off. Which service shows on a page is an instant switch on App display |
-| Appearance | theme, custom theme, reduced transparency (all save on choice, 10c §5.1). Logo, icon and public page assets wait for the asset system (07 §9), overview widgets for the overview page (bugs 30, 31) |
+| Appearance | theme, custom theme, reduced transparency (all save on choice, 10c §5.1). overview widgets: which show and in what order (10-ui §3). Logo, icon and public page assets wait for the asset system (07 §9, bug 30) |
 
 API: `GET /api/settings`, `GET|PUT /api/settings/{category}`.
