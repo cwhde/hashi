@@ -155,6 +155,11 @@ root), `mode` (`enabled` | `headers_only` | `disabled`), `exclusions_json` (CRS 
 
 `security_ip_top_1m`: `bucket_start`, `address`, `service_id`, request/denied/challenged counts; index (address, time).
 
+`security_buckets_1h` and `security_ip_top_1h`: the same per closed hour, rolled every 5 minutes from the minutes (the
+last 3 hours recomputed so late access-log lines count); no `path_prefix`; at most 500 addresses per hour, most refused
+first. The 7 and 30 day dashboards read hours up to the last rolled one and minutes after it. Minutes are deleted after
+30 days only once an hour holds them, hours after a year (01-platform.md §4.3).
+
 ## 7. Firewall state
 
 `firewall_bindings`, `firewall_host_access` (§2.5); `firewall_host_sets`: `firewall_host_id`, kernel set name,
