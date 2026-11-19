@@ -921,7 +921,7 @@ test('setup with a passkey, then sign in with it', async ({ page, request }) => 
 	await page.getByLabel('Name', { exact: true }).fill('Disk report');
 	await page.getByLabel('Schedule (cron, host time)').fill('30 3 * * 0');
 	// Host time as written, not moved into the browser's zone (bug 85).
-	await expect(page.getByText(/^Next, host time: Sun[^,]*03:30/)).toBeVisible();
+	await expect(page.getByText(/^Next, host time: Sun, [^,]+, 03:30/)).toBeVisible();
 	await page.getByRole('button', { name: 'Add variable' }).click();
 	await page.getByLabel('Variable name').fill('KEEP');
 	await page.getByLabel('Value of KEEP').fill('14');
