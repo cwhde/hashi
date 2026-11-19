@@ -16,6 +16,7 @@ import (
 	"git.juzo.io/juzo/hashi/internal/auth"
 	"git.juzo.io/juzo/hashi/internal/httpapi/gen"
 	"git.juzo.io/juzo/hashi/internal/ipsets"
+	"git.juzo.io/juzo/hashi/internal/security"
 	"git.juzo.io/juzo/hashi/internal/store/db"
 	"git.juzo.io/juzo/hashi/internal/store/storetest"
 )
@@ -223,5 +224,42 @@ func TestAgentTargetSetNotListed(t *testing.T) {
 		if x.Id == "agent-A1" {
 			t.Fatal("the hidden set is listed")
 		}
+	}
+}
+
+// The address page shows everything Hashi knows about the address (05a §6, bug 135): its counters and the ban now,
+// and its latest events, each with the country for the flag.
+func TestLookupAddressDetails(t *testing.T) {
+	ctx := context.Background()
+	st := storetest.New(t)
+	al := audit.New([]byte("k"))
+	log := slog.New(slog.NewTextHandler(io.Discard, nil))
+	eng := security.NewEngine(st, log, time.Now)
+	eng.UseGeo(func(netip.Addr) (string, uint, bool) { return "NL", 64500, true })
+	s := &Server{Store: st, Audit: al, Log: log, Security: eng, Sessions: auth.NewManager(st, al, []byte("csrf")),
+		IPSets: ipsets.NewService(st, al, log, func(context.Context, string) ([]netip.Addr, error) { return nil, nil })}
+	bad := netip.MustParseAddr("198.51.100.9")
+	if _, err := eng.Ban(ctx, bad, security.Cause{Source: security.SourceManual, Actor: "test"}); err != nil {
+		t.Fatal(err)
+	}
+	eng.DrainEvents(ctx)
+
+	look, err := s.LookupAddress(ctx, gen.LookupAddressRequestObject{Address: "198.51.100.9"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	l := look.(gen.LookupAddress200JSONResponse)
+	if l.Counter == nil || l.Counter.State != gen.CounterRowStateBanned {
+		t.Fatalf("counter %+v: the ban must show", l.Counter)
+	}
+	if len(l.Events) == 0 || l.Events[0].Type != "ban_created" || l.Events[0].Country == nil || *l.Events[0].Country != "NL" {
+		t.Fatalf("events %+v", l.Events)
+	}
+	other, err := s.LookupAddress(ctx, gen.LookupAddressRequestObject{Address: "198.51.100.10"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if o := other.(gen.LookupAddress200JSONResponse); len(o.Events) != 0 || o.Counter.State != gen.CounterRowStateNone {
+		t.Fatalf("another address shows %+v / %+v", o.Events, o.Counter)
 	}
 }

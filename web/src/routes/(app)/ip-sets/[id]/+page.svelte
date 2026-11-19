@@ -31,7 +31,7 @@
 	} from '@lucide/svelte';
 	import { api, problemText, type Schemas } from '#lib/api/client.ts';
 	import { withReauth } from '#lib/auth/reauth.ts';
-	import { dateTime } from '#lib/format.ts';
+	import { country, dateTime } from '#lib/format.ts';
 	import {
 		count,
 		elementInput,
@@ -339,7 +339,15 @@
 								<li
 									class="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-3 gap-y-1 px-4 py-2.5 md:grid-cols-[minmax(0,1.3fr)_minmax(0,1fr)_9rem_auto]"
 								>
-									<IpItemView item={e.item} {sets} />
+									<span class="min-w-0"
+										><IpItemView item={e.item} {sets} />{#if e.country || e.as_name}<span
+												class="block truncate text-sm text-muted-foreground"
+												title={e.country}
+												>{[e.country && country(e.country), e.as_name]
+													.filter(Boolean)
+													.join(' ')}</span
+											>{/if}</span
+									>
 									<span class="hidden truncate text-sm text-muted-foreground md:block"
 										>{e.note}{#each s.problems.filter((p) => p.element_id === e.id) as p (p.message)}<Tag
 												tone="warn">{p.message}</Tag

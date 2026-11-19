@@ -118,16 +118,7 @@ func (s *Server) GetSecurityDashboard(ctx context.Context, req gen.GetSecurityDa
 		return nil, err
 	}
 	for _, e := range recent {
-		var meta struct {
-			Rules []int `json:"rules"`
-		}
-		_ = json.Unmarshal([]byte(e.MetadataJson), &meta) // written by the engine; a bad row only loses its rules
-		if meta.Rules == nil {
-			meta.Rules = []int{}
-		}
-		out.Events = append(out.Events, gen.SecurityEvent{At: time.UnixMilli(e.OccurredAt).UTC(), Address: e.Address, Type: e.EventType,
-			Severity: gen.SecurityEventSeverity(e.Severity), Source: e.Source, Reason: e.Reason, Method: e.RequestMethod,
-			Path: e.RequestPath, ServiceId: e.ServiceID, Service: e.Service, Host: e.Host, Suppressed: int(e.Suppressed), Rules: meta.Rules})
+		out.Events = append(out.Events, s.securityEvent(e))
 	}
 	if err := s.dashboardStaleFeeds(ctx, now, &out); err != nil {
 		return nil, err
@@ -173,6 +164,27 @@ func (s *Server) dashboardAddresses(ctx context.Context, since int64, out *gen.S
 }
 
 // keyAddr reads a counter key: an address, or an IPv6 /64.
+// securityEvent is one event row as the dashboard and the address page show it, with the address's country for the
+// flag (bug 120).
+func (s *Server) securityEvent(e db.ListRecentSecurityEventsRow) gen.SecurityEvent {
+	var meta struct {
+		Rules []int `json:"rules"`
+	}
+	_ = json.Unmarshal([]byte(e.MetadataJson), &meta) // written by the engine; a bad row only loses its rules
+	if meta.Rules == nil {
+		meta.Rules = []int{}
+	}
+	ev := gen.SecurityEvent{At: time.UnixMilli(e.OccurredAt).UTC(), Address: e.Address, Type: e.EventType,
+		Severity: gen.SecurityEventSeverity(e.Severity), Source: e.Source, Reason: e.Reason, Method: e.RequestMethod,
+		Path: e.RequestPath, ServiceId: e.ServiceID, Service: e.Service, Host: e.Host, Suppressed: int(e.Suppressed), Rules: meta.Rules}
+	if a, ok := keyAddr(e.Address); ok && s.Security != nil {
+		if c, _ := s.Security.Locate(a); c != "" {
+			ev.Country = &c
+		}
+	}
+	return ev
+}
+
 func keyAddr(k string) (netip.Addr, bool) {
 	if a, err := netip.ParseAddr(k); err == nil {
 		return a, true

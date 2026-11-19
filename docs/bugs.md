@@ -59,7 +59,6 @@ All open entries are planned into the 0.13 bug round (slices 13.1 onwards in `do
 | 117 | visual | reported | Traefik host cards, firewall host page | "Reach over SSH through an IP set (optional)" is not understood. It is the address Hashi connects to over SSH; it belongs with the connection (Connections), worded as such, and can name a Pulse agent directly. The block's spacing is broken (buttons). (owner) | 2026-11-19 |
 | 118 | visual | reported | Firewall → global policy | Looks bad: the chosen sets sit above the picker; they belong below it. (owner) | 2026-11-19 |
 | 119 | later | reported | Security dashboard and check charts | Hover a chart to read the value at that moment (only while the pointer is on it). Same on a check's charts on Status. (owner) | 2026-11-19 |
-| 120 | later | reported | Security | Show a flag next to country codes, also in Recent events. (owner) | 2026-11-19 |
 | 121 | visual | reported | IP sets list | Sort by kind: system, feeds, dynamic, then yours. Clean up sets no longer needed now that services and rules can name a Pulse agent directly (single-range sets, the per-agent set). Deleting real sets needs the owner's OK per set. (owner) | 2026-11-19 |
 | 122 | visual | reported | IP set → Items | An agent item shows only the agent's name; show its current address too. (owner) | 2026-11-19 |
 | 123 | later | reported | App display | A switch to turn all on or off, for the app dashboard and the status page. (owner) | 2026-11-19 |
@@ -67,7 +66,6 @@ All open entries are planned into the 0.13 bug round (slices 13.1 onwards in `do
 | 125 | visual | reported | Settings → Firewall | "NetBird mode a new host starts with" is not understood. (owner) | 2026-11-19 |
 | 133 | function | reported | DNS → SRV record | Check that an SRV record (`_minecraft._tcp.mc2`) can be added next to the service's own record. (owner) | 2026-11-19 |
 | 134 | function | reported | Root domain service rules | Search Console reports crawl problems on the root domain's site. The owner only wants the admin page behind SSO; the rules look odd. Make the site indexable again. (owner) | 2026-11-19 |
-| 135 | function | reported | Security → address page | Show everything Hashi knows about an address: ASN and AS name, country, network, which sets contain it, counters, events. Something similar on IP sets, harder. (owner) | 2026-11-19 |
 
 ## Details
 

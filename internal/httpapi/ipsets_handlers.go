@@ -10,6 +10,7 @@ import (
 	"git.juzo.io/juzo/hashi/internal/audit"
 	"git.juzo.io/juzo/hashi/internal/httpapi/gen"
 	"git.juzo.io/juzo/hashi/internal/ipsets"
+	"git.juzo.io/juzo/hashi/internal/security"
 	"git.juzo.io/juzo/hashi/internal/store/db"
 )
 
@@ -290,6 +291,11 @@ func (s *Server) ListIPSetElements(ctx context.Context, req gen.ListIPSetElement
 		if err != nil {
 			return nil, err
 		}
+		if ip, ok := e.Item.(ipsets.IP); ok && s.GeoIP != nil { // bug 135: who an address in the list belongs to
+			if in, ok := s.GeoIP.Describe(ip.Addr.Unmap()); ok {
+				b.Country, b.AsName = emptyNil(in.Country), emptyNil(in.ASName)
+			}
+		}
 		out.Elements = append(out.Elements, b)
 	}
 	return gen.ListIPSetElements200JSONResponse(out), nil
@@ -457,7 +463,43 @@ func (s *Server) LookupAddress(ctx context.Context, req gen.LookupAddressRequest
 			out.Firewall = append(out.Firewall, x)
 		}
 	}
+	if err := s.addressDetails(ctx, a, &out); err != nil {
+		return nil, err
+	}
 	return gen.LookupAddress200JSONResponse(out), nil
+}
+
+// addressDetails adds what GeoIP and the abuse engine know about the address (05a §6, bug 135): country and AS,
+// counters with the ban or challenge now, and its latest events. Events and counters are kept per IPv6 /64.
+func (s *Server) addressDetails(ctx context.Context, a netip.Addr, out *gen.AddressLookup) error {
+	out.Events = []gen.SecurityEvent{}
+	if s.GeoIP != nil {
+		if in, ok := s.GeoIP.Describe(a.Unmap()); ok {
+			out.Country, out.AsName = emptyNil(in.Country), emptyNil(in.ASName)
+			if in.ASN != 0 {
+				out.Asn = ptr(int(in.ASN))
+			}
+			if in.Network.IsValid() {
+				out.Network = ptr(in.Network.String())
+			}
+		}
+	}
+	if s.Security == nil {
+		return nil
+	}
+	c, err := s.counterOf(ctx, a)
+	if err != nil {
+		return err
+	}
+	out.Counter = &c
+	evs, err := s.Store.R.ListAddressSecurityEvents(ctx, security.KeyString(a.Unmap()))
+	if err != nil {
+		return err
+	}
+	for _, e := range evs {
+		out.Events = append(out.Events, s.securityEvent(db.ListRecentSecurityEventsRow(e)))
+	}
+	return nil
 }
 
 // page turns an offset cursor into slice bounds.

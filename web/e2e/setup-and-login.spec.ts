@@ -863,6 +863,24 @@ test('setup with a passkey, then sign in with it', async ({ page, request }) => 
 	await expect(page.getByRole('row', { name: /Security counters edited/ }).first()).toContainText(
 		'ban 1 → 4'
 	);
+	// The address page shows what the engine knows (bug 135): counters, its events, and challenge and lift from there.
+	await page.goto(`${state.baseURL}/ip-sets/address?ip=198.51.100.77`);
+	const engine = page.locator('section', {
+		has: page.getByRole('heading', { name: 'Abuse engine' })
+	});
+	await expect(engine).toContainText('Not banned or challenged now.');
+	await expect(
+		engine.getByText('Ban counter').locator('xpath=following-sibling::dd[1]')
+	).toContainText('4');
+	await expect(page.getByRole('list', { name: 'Recent events' })).toContainText('Banned');
+	await page.getByRole('button', { name: 'Challenge now' }).click();
+	await expect(page.getByRole('status')).toContainText('gets the challenge page now');
+	await expect(engine).toContainText('challenged');
+	await page.getByRole('button', { name: 'End the challenge' }).click();
+	await expect(page.getByRole('status')).toContainText(
+		'The challenge for 198.51.100.77 has ended.'
+	);
+	await expect(engine).toContainText('Not banned or challenged now.');
 	// The dynamic sets on the IP sets page: challenge by hand with a duration, then end it.
 	await page.goto(`${state.baseURL}/ip-sets/sys-dynamic-challenge`);
 	await expect(page.getByText('Nobody is challenged right now.')).toBeVisible();

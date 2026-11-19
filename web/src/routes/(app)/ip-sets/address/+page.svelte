@@ -14,9 +14,11 @@
 	import { ChevronLeft, CircleAlert, Search } from '@lucide/svelte';
 	import { api, problemText, type Schemas } from '#lib/api/client.ts';
 	import { addressHref, listSets, type IPSet } from '#lib/ipsets.ts';
+	import { country, dateTime } from '#lib/format.ts';
+	import { eventLabel, sourceLabel } from '#lib/components/hashi/security/labels.ts';
 
-	// Everything Hashi knows about one address (05a §6). This version shows set membership with the path through
-	// nesting; firewall verdicts, dynamic state, counters and the request trace join with their slices.
+	// Everything Hashi knows about one address (05a §6, bug 135): GeoIP country and AS, set membership with the path
+	// through nesting, the firewall verdict per host, the abuse engine's counters and state, and the latest events.
 	const address = $derived(page.url.searchParams.get('ip') ?? '');
 	let lookup = $state<Schemas['AddressLookup'] | null>(null);
 	let sets = $state<IPSet[]>([]);
@@ -52,19 +54,47 @@
 	const memberOf = $derived(lookup?.sets.filter((m) => m.set.system_key !== 'all') ?? []);
 	const leaf = (m: Schemas['AddressMatch']) => [...m.path, m.label].join(' › ');
 
-	// ---- ban (bug 64): the same entry the dynamic-blocked set takes, on every firewall host; an allowed address is refused ----
-	let banning = $state(false);
-	async function ban() {
-		banning = true;
-		const a = lookup?.address ?? address;
+	// ---- ban, challenge, lift (bug 64): the engine's own entries, on every firewall host; an allowed address is refused ----
+	let busy = $state(false);
+	const target64 = () => lookup?.address ?? address;
+	async function enter(set: 'sys-dynamic-blocked' | 'sys-dynamic-challenge') {
+		busy = true;
+		const a = target64();
 		const r = await api.POST('/api/ip-sets/{id}/entries', {
-			params: { path: { id: 'sys-dynamic-blocked' } },
+			params: { path: { id: set } },
 			body: { address: a }
 		});
-		banning = false;
-		outcome = r.error ? problemText(r.error) : `${a} is banned. Lift it on the Security page.`;
+		busy = false;
+		outcome = r.error
+			? problemText(r.error)
+			: set === 'sys-dynamic-blocked'
+				? `${a} is banned.`
+				: `${a} gets the challenge page now.`;
 		if (!r.error) await load(a).catch(() => {});
 	}
+	async function lift() {
+		busy = true;
+		const a = target64();
+		const was = lookup?.counter?.state;
+		const r = await api.DELETE('/api/ip-sets/{id}/entries/{address}', {
+			params: { path: { id: 'sys-dynamic-blocked', address: a } }
+		});
+		busy = false;
+		outcome = r.error
+			? problemText(r.error)
+			: was === 'banned'
+				? `The ban on ${a} is lifted.`
+				: `The challenge for ${a} has ended.`;
+		if (!r.error) await load(a).catch(() => {});
+	}
+	const sev = { info: 'ok', warning: 'warn', critical: 'bad' } as const;
+	const counter = $derived(lookup?.counter);
+	const stateDetail = $derived.by(() => {
+		const c = counter;
+		if (!c || c.state === 'none') return '';
+		if (c.state === 'banned') return c.until ? `until ${dateTime(c.until)}` : 'with no end';
+		return `${c.failures} of ${c.max_failures} unsolved${c.until ? `, ends ${dateTime(c.until)}` : ''}`;
+	});
 
 	// ---- add to a set ----
 	let addOpen = $state(false);
@@ -129,6 +159,18 @@
 			<h1 class="font-mono text-title leading-tight font-medium tracking-[-0.02em]">
 				{lookup.address}
 			</h1>
+			<p
+				class="mt-1 flex flex-wrap gap-x-4 gap-y-1 text-md text-muted-foreground"
+				aria-label="GeoIP"
+			>
+				{#if lookup.country}<span title={lookup.country}>{country(lookup.country)}</span>{/if}
+				{#if lookup.asn}<span
+						><Mono>AS{lookup.asn}</Mono>{#if lookup.as_name}
+							<span class="text-foreground">{lookup.as_name}</span>{/if}</span
+					>{/if}
+				{#if lookup.network}<span>network <Mono>{lookup.network}</Mono></span>{/if}
+				{#if !lookup.country && !lookup.asn}<span>No GeoIP data for this address.</span>{/if}
+			</p>
 			{#if outcome}<p role="status" class="mt-1 text-md text-muted-foreground">
 					{outcome}
 				</p>{/if}
@@ -143,7 +185,26 @@
 				addOpen = true;
 			}}>Add to an IP set</Button
 		>
-		<Button variant="outline" size="sm" onclick={ban} disabled={banning}>Ban now</Button>
+		{#if counter && counter.state !== 'none'}
+			<Button variant="outline" size="sm" onclick={lift} disabled={busy}
+				>{counter.state === 'banned' ? 'Lift the ban' : 'End the challenge'}</Button
+			>
+		{:else}
+			<Button
+				variant="outline"
+				size="sm"
+				onclick={() => enter('sys-dynamic-challenge')}
+				disabled={busy}>Challenge now</Button
+			>
+		{/if}
+		{#if counter?.state !== 'banned'}
+			<Button
+				variant="outline"
+				size="sm"
+				onclick={() => enter('sys-dynamic-blocked')}
+				disabled={busy}>Ban now</Button
+			>
+		{/if}
 	</div>
 
 	<div class="grid gap-4 lg:grid-cols-2">
@@ -188,7 +249,73 @@
 					<Tag>private address</Tag>
 				</p>{/if}
 		</Panel>
+
+		{#if counter}
+			<Panel title="Abuse engine">
+				<p class="flex flex-wrap items-center gap-2 text-md">
+					{#if counter.state === 'banned'}<Tag tone="bad">banned</Tag
+						>{:else if counter.state === 'challenged'}<Tag tone="warn">challenged</Tag>{:else}<span
+							class="text-muted-foreground">Not banned or challenged now.</span
+						>{/if}
+					{#if stateDetail}<span class="text-muted-foreground">{stateDetail}</span>{/if}
+				</p>
+				<dl class="mt-3 grid grid-cols-[auto_1fr] gap-x-4 gap-y-1.5 text-md">
+					<dt class="text-muted-foreground">Ban counter</dt>
+					<dd class="tnum">
+						{counter.ban_count}{#if counter.last_ban}<span class="text-muted-foreground">
+								· last ban {dateTime(counter.last_ban)}</span
+							>{/if}
+					</dd>
+					<dt class="text-muted-foreground">Challenge counter</dt>
+					<dd class="tnum">
+						{counter.challenge_count}{#if counter.last_challenge}<span
+								class="text-muted-foreground"
+							>
+								· last challenge {dateTime(counter.last_challenge)}</span
+							>{/if}
+					</dd>
+					{#if counter.last_source}<dt class="text-muted-foreground">Last cause</dt>
+						<dd>{sourceLabel(counter.last_source)}</dd>{/if}
+				</dl>
+				{#if counter.address !== lookup.address}<p class="mt-2 text-sm text-muted-foreground">
+						Counted for the whole network <Mono>{counter.address}</Mono>.
+					</p>{/if}
+				<p class="mt-3 text-sm">
+					<a
+						href="/security?tab=counters"
+						class="text-muted-foreground hover:text-foreground hover:underline"
+						>Edit or reset counters on the Security page</a
+					>
+				</p>
+			</Panel>
+		{/if}
 	</div>
+
+	<Panel title="Recent events" flush class="mt-4">
+		<ul class="divide-y text-md" aria-label="Recent events">
+			{#each lookup.events as e, i (i)}
+				<li
+					class="grid grid-cols-[7.5rem_minmax(0,1fr)_auto] items-center gap-3 px-4 py-2.5 md:grid-cols-[9rem_minmax(0,1fr)_minmax(0,14rem)_6rem]"
+				>
+					<span class="tnum text-muted-foreground" title={dateTime(e.at)}>{dateTime(e.at)}</span
+					><span class="truncate"
+						>{eventLabel(e.type)}{#if e.path}<span class="text-muted-foreground">
+								{e.method}
+								{e.path}</span
+							>{/if}{#if e.rules.length}<span class="text-muted-foreground">
+								· rules {e.rules.join(', ')}</span
+							>{/if}</span
+					><span class="hidden truncate text-muted-foreground md:inline"
+						>{e.service || e.host || sourceLabel(e.source)}</span
+					><Tag tone={sev[e.severity]}>{e.severity}</Tag>
+				</li>
+			{:else}
+				<li class="px-4 py-6 text-center text-muted-foreground">
+					No security events for this address.
+				</li>
+			{/each}
+		</ul>
+	</Panel>
 {/if}
 
 <Sheet.Root bind:open={addOpen}>

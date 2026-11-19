@@ -24,7 +24,9 @@ func TestSecurityDashboard(t *testing.T) {
 	st := storetest.New(t)
 	log := slog.New(slog.NewTextHandler(io.Discard, nil))
 	now := time.Now()
-	s := &Server{Store: st, Log: log, Security: security.NewEngine(st, log, time.Now)}
+	eng := security.NewEngine(st, log, time.Now)
+	eng.UseGeo(func(netip.Addr) (string, uint, bool) { return "NL", 64500, true })
+	s := &Server{Store: st, Log: log, Security: eng}
 	minute := now.Add(-10*time.Minute).Unix() / 60 * 60_000
 	old := now.Add(-3*time.Hour).Unix() / 60 * 60_000 // outside 1h
 	for _, b := range []db.AddSecurityBucketParams{
@@ -83,6 +85,9 @@ func TestSecurityDashboard(t *testing.T) {
 	}
 	if len(d.Events) != 5 || d.Events[0].Type != "waf_match" || fmt.Sprint(d.Events[0].Rules) != "[941100 941110]" {
 		t.Fatalf("events, newest first with the WAF rules: %+v", d.Events)
+	}
+	if c := d.Events[0].Country; c == nil || *c != "NL" {
+		t.Fatalf("event country %v: the flag needs the GeoIP country (bug 120)", c)
 	}
 }
 

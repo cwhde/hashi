@@ -140,7 +140,41 @@ type countryRecord struct {
 }
 
 type asnRecord struct {
-	Number uint `maxminddb:"autonomous_system_number"`
+	Number       uint   `maxminddb:"autonomous_system_number"`
+	Organization string `maxminddb:"autonomous_system_organization"`
+}
+
+// Info is everything the databases say about one address (05a §6): the country, the AS and the network the AS
+// database files it under. Zero fields are unknown.
+type Info struct {
+	Country string
+	ASN     uint
+	ASName  string
+	Network netip.Prefix
+}
+
+// Describe answers the address page's questions for one address; ok is false with no database at all.
+func (s *Service) Describe(a netip.Addr) (Info, bool) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	var in Info
+	ok := false
+	if r := s.readers[Country]; r != nil {
+		var rec countryRecord
+		if r.Lookup(a).Decode(&rec) == nil {
+			in.Country = rec.Country.ISOCode
+		}
+		ok = true
+	}
+	if r := s.readers[ASN]; r != nil {
+		var rec asnRecord
+		res := r.Lookup(a)
+		if res.Decode(&rec) == nil && rec.Number != 0 {
+			in.ASN, in.ASName, in.Network = rec.Number, rec.Organization, res.Prefix()
+		}
+		ok = true
+	}
+	return in, ok
 }
 
 // Lookup answers for one address; ok is false with no database at all.

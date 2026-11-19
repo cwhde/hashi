@@ -147,6 +147,17 @@ FROM security_events e
 WHERE e.occurred_at >= sqlc.arg(since)
 ORDER BY e.occurred_at DESC LIMIT 30;
 
+-- Events of one address for the address page (05a section 6), shaped like the dashboard list.
+-- name: ListAddressSecurityEvents :many
+SELECT e.occurred_at, e.address, e.event_type, e.severity, e.source, e.reason, e.request_method, e.request_path,
+    COALESCE(e.service_id, '') AS service_id, COALESCE(s.name, '') AS service, COALESCE(h.name, '') AS host,
+    e.suppressed, e.metadata_json
+FROM security_events e
+    LEFT JOIN services s ON s.id = e.service_id
+    LEFT JOIN firewall_hosts h ON h.id = e.firewall_host_id
+WHERE e.address = sqlc.arg(address)
+ORDER BY e.occurred_at DESC LIMIT 20;
+
 -- Counters view (06 section 13.1): the cheap filters here; state, minimums and decay are computed in Go. An empty
 -- source or country, and asn or since 0, mean any.
 -- name: ListAddressCounters :many

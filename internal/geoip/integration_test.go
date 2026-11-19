@@ -28,6 +28,10 @@ func TestIntegrationDownloadAndRead(t *testing.T) {
 	if !ok || country != "US" || asn != 15169 {
 		t.Fatalf("lookup: %q %d %v", country, asn, ok)
 	}
+	// The address page's details (bug 135); the field names were read from the real GeoLite2-ASN on 2026-11-19.
+	if in, ok := s.Describe(netip.MustParseAddr("8.8.8.8")); !ok || in.ASName != "Google LLC" || !in.Network.Contains(netip.MustParseAddr("8.8.8.8")) {
+		t.Fatalf("describe: %+v %v", in, ok)
+	}
 	ch, err := s.Prefixes(ipsets.Geo{Kind: ipsets.GeoCountry, Value: "CH"})
 	if err != nil || len(ch) < 1000 {
 		t.Fatalf("CH: %d prefixes, %v", len(ch), err)

@@ -338,6 +338,71 @@ func (q *Queries) ListAddressCounters(ctx context.Context, arg ListAddressCounte
 	return items, nil
 }
 
+const listAddressSecurityEvents = `-- name: ListAddressSecurityEvents :many
+SELECT e.occurred_at, e.address, e.event_type, e.severity, e.source, e.reason, e.request_method, e.request_path,
+    COALESCE(e.service_id, '') AS service_id, COALESCE(s.name, '') AS service, COALESCE(h.name, '') AS host,
+    e.suppressed, e.metadata_json
+FROM security_events e
+    LEFT JOIN services s ON s.id = e.service_id
+    LEFT JOIN firewall_hosts h ON h.id = e.firewall_host_id
+WHERE e.address = ?1
+ORDER BY e.occurred_at DESC LIMIT 20
+`
+
+type ListAddressSecurityEventsRow struct {
+	OccurredAt    int64
+	Address       string
+	EventType     string
+	Severity      string
+	Source        string
+	Reason        string
+	RequestMethod string
+	RequestPath   string
+	ServiceID     string
+	Service       string
+	Host          string
+	Suppressed    int64
+	MetadataJson  string
+}
+
+// Events of one address for the address page (05a section 6), shaped like the dashboard list.
+func (q *Queries) ListAddressSecurityEvents(ctx context.Context, address string) ([]ListAddressSecurityEventsRow, error) {
+	rows, err := q.db.QueryContext(ctx, listAddressSecurityEvents, address)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListAddressSecurityEventsRow{}
+	for rows.Next() {
+		var i ListAddressSecurityEventsRow
+		if err := rows.Scan(
+			&i.OccurredAt,
+			&i.Address,
+			&i.EventType,
+			&i.Severity,
+			&i.Source,
+			&i.Reason,
+			&i.RequestMethod,
+			&i.RequestPath,
+			&i.ServiceID,
+			&i.Service,
+			&i.Host,
+			&i.Suppressed,
+			&i.MetadataJson,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listDynamicEntries = `-- name: ListDynamicEntries :many
 SELECT e.id, e.ip_set_id, e.address, e.prefix, e.expires_at, e.created_at, d.source, d.meter, d.firewall_host_id,
     d.service_id, d.reason, d.failure_count

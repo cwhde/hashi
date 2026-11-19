@@ -3728,6 +3728,8 @@ export interface components {
             suppressed: number;
             /** @description WAF rules that scored */
             rules: number[];
+            /** @description Two-letter country of the address from GeoIP; absent when unknown (bug 120) */
+            country?: string;
         };
         GeoIPStatus: {
             databases: components["schemas"]["GeoIPDatabase"][];
@@ -5303,6 +5305,10 @@ export interface components {
             created_by: string;
             /** Format: date-time */
             created_at: string;
+            /** @description Single addresses in a list: the GeoIP country; absent when unknown (bug 135) */
+            country?: string;
+            /** @description Single addresses in a list: the autonomous system's organisation */
+            as_name?: string;
         };
         IPSetElementInput: {
             item: components["schemas"]["IPItem"];
@@ -5347,6 +5353,18 @@ export interface components {
             sets: components["schemas"]["AddressSetMatch"][];
             /** @description One verdict per managed firewall host (05 §4.3) */
             firewall: components["schemas"]["AddressHostVerdict"][];
+            /** @description Two-letter country from GeoIP; absent when unknown */
+            country?: string;
+            /** @description Autonomous system number from GeoIP; absent when unknown */
+            asn?: number;
+            /** @description The autonomous system's organisation */
+            as_name?: string;
+            /** @description The network the AS database files the address under */
+            network?: string;
+            /** @description Ban and challenge counters and the dynamic state now (06 §5.1) */
+            counter?: components["schemas"]["CounterRow"];
+            /** @description The latest security events of the address (or its IPv6 /64), newest first, at most 20 */
+            events: components["schemas"]["SecurityEvent"][];
         };
         PublicPages: {
             apps: components["schemas"]["PublicPageLink"][];

@@ -226,10 +226,12 @@
 						<li
 							class="grid grid-cols-[4.5rem_minmax(0,9rem)_minmax(0,1fr)_auto] items-center gap-3 px-4 py-2.5 md:grid-cols-[4.5rem_10rem_minmax(0,1fr)_minmax(0,14rem)_6rem]"
 						>
-							<span class="tnum text-muted-foreground">{time(e.at)}</span><AddressLink
-								address={e.address}
-								class="truncate"
-							/><span class="truncate"
+							<span class="tnum text-muted-foreground">{time(e.at)}</span><span
+								class="flex min-w-0 items-center gap-1.5"
+								>{#if e.country}<span class="shrink-0 text-muted-foreground" title={e.country}
+										>{country(e.country)}</span
+									>{/if}<AddressLink address={e.address} class="truncate" /></span
+							><span class="truncate"
 								>{eventLabel(e.type)}{#if e.path}<span class="text-muted-foreground">
 										{e.method}
 										{e.path}</span

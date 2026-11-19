@@ -2559,9 +2559,27 @@ type AddressLookup struct {
 	// Address Normalized (IPv4-mapped IPv6 shown as IPv4)
 	Address string `json:"address"`
 
+	// AsName The autonomous system's organisation
+	AsName *string `json:"as_name,omitempty"`
+
+	// Asn Autonomous system number from GeoIP; absent when unknown
+	Asn *int `json:"asn,omitempty"`
+
+	// Counter Ban and challenge counters and the dynamic state now (06 §5.1)
+	Counter *CounterRow `json:"counter,omitempty"`
+
+	// Country Two-letter country from GeoIP; absent when unknown
+	Country *string `json:"country,omitempty"`
+
+	// Events The latest security events of the address (or its IPv6 /64), newest first, at most 20
+	Events []SecurityEvent `json:"events"`
+
 	// Firewall One verdict per managed firewall host (05 §4.3)
 	Firewall []AddressHostVerdict `json:"firewall"`
-	Sets     []AddressSetMatch    `json:"sets"`
+
+	// Network The network the AS database files the address under
+	Network *string           `json:"network,omitempty"`
+	Sets    []AddressSetMatch `json:"sets"`
 }
 
 // AddressMatch defines model for AddressMatch.
@@ -3740,6 +3758,11 @@ type IPSetConsumerList struct {
 
 // IPSetElement defines model for IPSetElement.
 type IPSetElement struct {
+	// AsName Single addresses in a list: the autonomous system's organisation
+	AsName *string `json:"as_name,omitempty"`
+
+	// Country Single addresses in a list: the GeoIP country; absent when unknown (bug 135)
+	Country   *string    `json:"country,omitempty"`
 	CreatedAt time.Time  `json:"created_at"`
 	CreatedBy string     `json:"created_by"`
 	ExpiresAt *time.Time `json:"expires_at"`
@@ -4753,10 +4776,13 @@ type SecurityDashboard struct {
 type SecurityEvent struct {
 	Address string    `json:"address"`
 	At      time.Time `json:"at"`
-	Host    string    `json:"host"`
-	Method  string    `json:"method"`
-	Path    string    `json:"path"`
-	Reason  string    `json:"reason"`
+
+	// Country Two-letter country of the address from GeoIP; absent when unknown (bug 120)
+	Country *string `json:"country,omitempty"`
+	Host    string  `json:"host"`
+	Method  string  `json:"method"`
+	Path    string  `json:"path"`
+	Reason  string  `json:"reason"`
 
 	// Rules WAF rules that scored
 	Rules     []int                 `json:"rules"`

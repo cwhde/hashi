@@ -3653,6 +3653,7 @@ components:
         host: { type: string }
         suppressed: { type: integer, description: "Further events of this address in the same minute" }
         rules: { type: array, items: { type: integer }, description: "WAF rules that scored" }
+        country: { type: string, description: "Two-letter country of the address from GeoIP; absent when unknown (bug 120)" }
     GeoIPStatus:
       type: object
       required: [databases, account_id, has_key, url, error]
@@ -5214,6 +5215,8 @@ components:
         expires_at: { type: [string, "null"], format: date-time }
         created_by: { type: string }
         created_at: { type: string, format: date-time }
+        country: { type: string, description: "Single addresses in a list: the GeoIP country; absent when unknown (bug 135)" }
+        as_name: { type: string, description: "Single addresses in a list: the autonomous system's organisation" }
     IPSetElementInput:
       type: object
       required: [item]
@@ -5255,11 +5258,17 @@ components:
         consumers: { type: array, items: { $ref: "#/components/schemas/IPSetConsumer" } }
     AddressLookup:
       type: object
-      required: [address, sets, firewall]
+      required: [address, sets, firewall, events]
       properties:
         address: { type: string, description: "Normalized (IPv4-mapped IPv6 shown as IPv4)" }
         sets: { type: array, items: { $ref: "#/components/schemas/AddressSetMatch" } }
         firewall: { type: array, items: { $ref: "#/components/schemas/AddressHostVerdict" }, description: "One verdict per managed firewall host (05 §4.3)" }
+        country: { type: string, description: "Two-letter country from GeoIP; absent when unknown" }
+        asn: { type: integer, description: "Autonomous system number from GeoIP; absent when unknown" }
+        as_name: { type: string, description: "The autonomous system's organisation" }
+        network: { type: string, description: "The network the AS database files the address under" }
+        counter: { $ref: "#/components/schemas/CounterRow", description: "Ban and challenge counters and the dynamic state now (06 §5.1)" }
+        events: { type: array, items: { $ref: "#/components/schemas/SecurityEvent" }, description: "The latest security events of the address (or its IPv6 /64), newest first, at most 20" }
     PublicPages:
       type: object
       required: [apps, status]
