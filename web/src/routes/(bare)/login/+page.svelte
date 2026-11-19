@@ -63,9 +63,8 @@
 		<h1 class="mt-5 text-title font-semibold">Sign in to Hashi</h1>
 		<p class="mt-1 text-md text-muted-foreground">{page.url.host}</p>
 		{#if page.url.searchParams.has('ended') && !failed}
-			<p role="status" class="mt-5 rounded-xl border p-3 text-md text-muted-foreground">
-				Your session ended (signed out elsewhere, idle too long, or your address changed). Sign in
-				again to continue.
+			<p role="status" class="mt-5 rounded-xl border p-3 text-md">
+				Your session ended: signed out elsewhere, idle too long, or your address changed.
 			</p>
 		{/if}
 		{#if !supported}

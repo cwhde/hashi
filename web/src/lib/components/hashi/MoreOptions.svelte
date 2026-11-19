@@ -1,6 +1,7 @@
 <script lang="ts">
 	// The one disclosure section (10c §2, §3): closed by default, and its label says how many fields inside differ
-	// from their defaults, so a changed value is never hidden without a hint.
+	// from their defaults, so a changed value is never hidden without a hint. It starts open when a value inside
+	// already differs as the form loads, so a stored non-default value is in view (10c §3).
 	import type { Snippet } from 'svelte';
 	import * as Collapsible from '#lib/components/ui/collapsible/index.ts';
 	import { ChevronRight } from '@lucide/svelte';
@@ -8,7 +9,7 @@
 	let {
 		label = 'More options',
 		changed = 0,
-		open = $bindable(false),
+		open = $bindable(changed > 0),
 		class: className = '',
 		children
 	}: {

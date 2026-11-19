@@ -2,6 +2,7 @@
 	// Security → Counters (06 §13.1): every address with a ban or challenge counter, active or not.
 	import { onMount } from 'svelte';
 	import Tag from '#lib/components/hashi/Tag.svelte';
+	import HelpTip from '#lib/components/hashi/HelpTip.svelte';
 	import AddressLink from '#lib/components/hashi/security/AddressLink.svelte';
 	import { Button } from '#lib/components/ui/button/index.ts';
 	import { Input } from '#lib/components/ui/input/index.ts';
@@ -154,6 +155,13 @@
 				aria-label="Search counters"
 			/>
 		</div>
+		<HelpTip topic="counters"
+			><p>
+				The ban counter sets the length of the next ban; the challenge counter is for information.
+			</p>
+			<p>Each drops by one per quiet period without a new ban or challenge.</p>
+			<p>Solving a CAPTCHA resets neither.</p></HelpTip
+		>
 		<ToggleGroup.Root
 			type="single"
 			bind:value={view}
@@ -302,7 +310,7 @@
 			{:else}
 				<Table.Row
 					><Table.Cell colspan={9} class="py-10 text-center text-muted-foreground"
-						>No address matches. Counters appear the first time an address is challenged or banned.</Table.Cell
+						>No address matches.</Table.Cell
 					></Table.Row
 				>
 			{/each}
@@ -314,10 +322,6 @@
 		</div>
 	{/if}
 </div>
-<p class="mt-2 text-sm text-muted-foreground">
-	The ban counter sets the length of the next ban; the challenge counter is for information. Each
-	drops by one per quiet period without a new ban or challenge. Solving a CAPTCHA resets neither.
-</p>
 
 <Dialog.Root open={editing !== null} onOpenChange={(o) => !o && (editing = null)}>
 	<Dialog.Content class="sm:max-w-md">

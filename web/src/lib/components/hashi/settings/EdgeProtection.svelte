@@ -9,9 +9,3 @@
 <EngineSummary />
 <ChallengeSettings />
 <EdgeSessions />
-<p class="text-md text-muted-foreground">
-	Sign-in providers and the GeoIP database are on <a
-		href="/connections"
-		class="text-foreground underline underline-offset-2">Connections</a
-	>.
-</p>

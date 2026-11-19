@@ -9,7 +9,7 @@ VERSION   ?= $(shell git describe --tags --always --dirty 2>/dev/null || echo de
 COMMIT    ?= $(shell git rev-parse --short HEAD 2>/dev/null || echo unknown)
 LDFLAGS   := -s -w -X git.juzo.io/juzo/hashi/internal/app.Version=$(VERSION) -X git.juzo.io/juzo/hashi/internal/app.Commit=$(COMMIT)
 
-.PHONY: check-go check-web scan scan-go scan-web pulse-sign pulse-sleeper pulse-image-size pulse-size pulse-dist test-integration test-e2e contract-capture contract-drift deploy-test build-config-check help image deploy rollback smoke check fmt-check lint test generate generate-check web-install web-check build-web build dev clean
+.PHONY: check-go check-web scan scan-go scan-web pulse-sign pulse-sleeper pulse-image-size pulse-size pulse-dist test-integration test-e2e contract-capture contract-drift deploy-test build-config-check help image deploy rollback smoke check fmt-check lint test generate generate-check web-install web-check help-text build-web build dev clean
 
 help: ## list targets
 	@awk 'BEGIN{FS=":.*## "} /^[a-z-]+:.*## /{printf "  %-18s %s\n",$$1,$$2}' $(MAKEFILE_LIST)
@@ -60,8 +60,12 @@ build-config-check: ## Dockerfile cross-compiles on $$BUILDPLATFORM; release kee
 web-install:
 	cd web && pnpm install --frozen-lockfile --silent
 
-web-check: web-install ## prettier + eslint + svelte-check + vitest
+web-check: web-install ## prettier + eslint + svelte-check + vitest, and the help-text report
 	cd web && pnpm run --silent lint && pnpm run --silent check && pnpm run --silent test
+	@cd web && node scripts/help-text.mjs
+
+help-text: ## every help sentence in the admin UI, by file (10c §4)
+	@cd web && node scripts/help-text.mjs --files --text
 
 build-web: web-install ## build the SPA into internal/web/dist (embedded by go build)
 	cd web && pnpm run --silent build

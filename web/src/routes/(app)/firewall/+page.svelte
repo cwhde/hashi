@@ -2,6 +2,7 @@
 	import { onMount } from 'svelte';
 	import PageHeader from '#lib/components/hashi/PageHeader.svelte';
 	import Panel from '#lib/components/hashi/Panel.svelte';
+	import HelpTip from '#lib/components/hashi/HelpTip.svelte';
 	import Tag from '#lib/components/hashi/Tag.svelte';
 	import Mono from '#lib/components/hashi/Mono.svelte';
 	import StatusBadge from '#lib/components/hashi/StatusBadge.svelte';
@@ -55,7 +56,7 @@
 
 <PageHeader
 	title="Firewall hosts"
-	description="Machines with a public IP that forward traffic to Traefik. Hashi owns one nftables table on each; NetBird, Proxmox and Docker rules stay untouched."
+	description="Machines with a public IP that forward traffic to Traefik."
 >
 	{#snippet actions()}<Button href="/connections?add=firewall"><Plus />Add firewall host</Button
 		>{/snippet}
@@ -71,11 +72,10 @@
 		{note} <a class="underline" href="/changes">Open changes</a>
 	</p>{/if}
 
-<Panel
-	title="Global policy"
-	description="Applied on every managed host. Where allow and block overlap, the longer prefix wins; on a tie, block."
-	class="mb-4"
->
+<Panel title="Global policy" description="On every managed host" class="mb-4">
+	{#snippet help()}<HelpTip topic="overlapping addresses"
+			><p>Where allow and block overlap, the longer prefix wins; on a tie, block.</p></HelpTip
+		>{/snippet}
 	<div class="grid gap-4 md:grid-cols-2">
 		{#each [{ key: 'allow', label: 'Always allow', help: 'Never dropped and never banned by the abuse engine.' }, { key: 'block', label: 'Block', help: 'Dropped before anything else.' }] as side (side.key)}
 			{@const k = side.key as 'allow' | 'block'}
@@ -143,8 +143,6 @@
 			</dl>
 		</Panel>
 	{:else}
-		<p class="text-md text-muted-foreground">
-			No firewall hosts yet. Add the machine that receives your public traffic.
-		</p>
+		<p class="text-md text-muted-foreground">No firewall hosts yet.</p>
 	{/each}
 </div>

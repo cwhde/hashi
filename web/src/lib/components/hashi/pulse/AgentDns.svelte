@@ -62,10 +62,7 @@
 </script>
 
 {#if v}
-	<Panel
-		title="Internal agent DNS"
-		description="Gives each Pulse agent a name through AdGuard. DNS only, not reverse proxy: no service is created at these names."
-	>
+	<Panel title="Internal agent DNS" description="DNS only: no service is created at these names">
 		<div class="space-y-3 text-md">
 			<label class="flex items-center justify-between gap-3">
 				<span>Create names for agents</span><Switch
@@ -99,7 +96,6 @@
 					min="0"
 					bind:value={v.remove_stale_after_hours}
 				/>
-				<p class="text-xs text-muted-foreground">0 keeps the last name and marks it stale.</p>
 			</div>
 			<div class="flex items-center justify-end gap-3">
 				{#if notice}<span role="status" class="text-ok-text">{notice}</span>{/if}

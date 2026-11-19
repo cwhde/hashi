@@ -36,7 +36,7 @@
 </script>
 
 {#if v}
-	<Panel title="Pulse" description="Agents with their own interval in their config keep it.">
+	<Panel title="Pulse">
 		<div class="space-y-3 text-md">
 			<div class="grid gap-3 sm:grid-cols-2">
 				<div class="space-y-1.5">
@@ -58,13 +58,7 @@
 			</div>
 			<label class="flex items-start gap-2">
 				<Switch bind:checked={v.auto_update} class="mt-0.5" />
-				<span
-					>Update agents automatically
-					<span class="block text-muted-foreground"
-						>Agents installed on a machine update themselves to the version this Hashi installs.
-						Docker agents follow the <code>latest</code> image through your image updater instead.</span
-					></span
-				>
+				<span>Update agents automatically</span>
 			</label>
 			<div class="flex items-center justify-end gap-3">
 				{#if notice}<span role="status" class="text-ok-text">{notice}</span>{/if}

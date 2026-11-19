@@ -2,10 +2,12 @@
 	import type { Snippet } from 'svelte';
 	import { cn } from '#lib/utils.ts';
 
-	// The one container: rounded, 1px border, surface fill, no shadow. Optional header row with title + actions.
+	// The one container: rounded, 1px border, surface fill, no shadow. Optional header row with title, a help icon
+	// (10c §4.7) and actions.
 	let {
 		title,
 		description,
+		help,
 		actions,
 		children,
 		flush = false,
@@ -13,6 +15,7 @@
 	}: {
 		title?: string;
 		description?: string;
+		help?: Snippet;
 		actions?: Snippet;
 		children: Snippet;
 		flush?: boolean;
@@ -24,7 +27,9 @@
 	{#if title || actions}
 		<header class="flex min-h-12 items-center gap-3 px-4 py-2.5 {flush ? 'border-b' : ''}">
 			<div class="min-w-0 flex-1">
-				{#if title}<h2 class="truncate text-base font-semibold">{title}</h2>{/if}
+				{#if title}<h2 class="flex items-center gap-1 text-base font-semibold">
+						<span class="truncate">{title}</span>{@render help?.()}
+					</h2>{/if}
 				{#if description}<p class="truncate text-sm text-muted-foreground">
 						{description}
 					</p>{/if}

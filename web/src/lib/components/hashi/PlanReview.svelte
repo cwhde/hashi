@@ -139,8 +139,7 @@
 			class="flex flex-wrap items-center justify-end gap-2 border-t bg-surface-2/50 px-4 py-3"
 		>
 			<p class="mr-auto text-sm text-muted-foreground">
-				{#if risk === 'high'}Approving asks for your passkey. Nothing changes until you approve.{:else}Will
-					apply on the next sync.{/if}
+				{#if risk === 'high'}Approving asks for your passkey.{:else}Will apply on the next sync.{/if}
 			</p>
 			<Button variant="ghost" size="sm">Discard</Button>
 			<Button size="sm">

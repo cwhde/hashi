@@ -253,10 +253,7 @@
 
 <svelte:head><title>DNS · Hashi</title></svelte:head>
 
-<PageHeader
-	title="DNS"
-	description="Hashi manages one zone. Records it does not own are shown but never changed outside the import and prune flow."
->
+<PageHeader title="DNS">
 	{#snippet actions()}
 		{#if zone}
 			<span class="text-sm text-muted-foreground"
@@ -280,9 +277,7 @@
 	<Skeleton class="mb-4 h-9 w-56" /><Skeleton class="h-96 rounded-2xl" />
 {:else if !zone}
 	<Panel title="No zone yet">
-		<p class="text-md text-muted-foreground">
-			The DNS provider is connected in setup step 3. Until then Hashi has no zone to show.
-		</p>
+		<Button size="sm" href="/setup">Continue setup</Button>
 	</Panel>
 {:else}
 	{#if zone.last_refresh_error}
@@ -414,21 +409,13 @@
 					{/each}
 				</div>
 			</div>
-			<p class="mt-2 text-sm text-muted-foreground">
-				NS and SOA are never changed by Hashi. Records Hashi does not own are shown as the provider
-				holds them; import one on the Import tab to edit it here.
-			</p>
 		</Tabs.Content>
 
 		<Tabs.Content value="adguard"><AdGuardRewrites /></Tabs.Content>
 		<Tabs.Content value="agents"><AgentNames /></Tabs.Content>
 
 		<Tabs.Content value="import">
-			<div class="mb-3 flex flex-wrap items-center gap-3">
-				<p class="flex-1 text-md text-muted-foreground">
-					Leave records alone (default), take them over as managed entries, or mark them for
-					removal.
-				</p>
+			<div class="mb-3 flex flex-wrap items-center justify-end gap-3">
 				{#if saved && !dirty}<span class="text-sm text-ok-text" aria-live="polite">{saved}</span
 					>{/if}
 				<Button size="sm" onclick={save} disabled={!!busy || !dirty}
@@ -436,9 +423,9 @@
 				>
 			</div>
 			<ImportTable rows={importRows} bind:decisions />
-			<p class="mt-2 text-sm text-muted-foreground">
-				Removals become a separate high-risk plan that lists every record and asks for your passkey.
-			</p>
+			{#if Object.values(decisions).includes('prune')}<p class="mt-2 text-sm text-warn-text">
+					Removing records is a high-risk plan you approve with your passkey.
+				</p>{/if}
 		</Tabs.Content>
 	</Tabs.Root>
 {/if}

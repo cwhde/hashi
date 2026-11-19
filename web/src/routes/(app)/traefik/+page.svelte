@@ -124,10 +124,7 @@
 
 <svelte:head><title>Traefik · Hashi</title></svelte:head>
 
-<PageHeader
-	title="Traefik"
-	description="Hashi installs, configures and updates Traefik on every host itself, and gives every host the same certificates."
->
+<PageHeader title="Traefik">
 	{#snippet actions()}<Button href="/connections?add=traefik">Add host</Button>{/snippet}
 </PageHeader>
 
@@ -218,7 +215,7 @@
 								</ul>
 							{:else}
 								<p class="rounded-xl border p-3 text-md text-muted-foreground">
-									Nothing applied yet. "Check and sync" plans the install.
+									Nothing applied yet.
 								</p>
 							{/if}
 						</div>
@@ -226,9 +223,11 @@
 				</Panel>
 			{:else}
 				<Panel>
-					<p class="text-md text-muted-foreground">
-						No Traefik host yet. <a href="/connections?add=traefik" class="underline">Add one</a>.
-					</p>
+					<div class="flex items-center gap-3 text-md text-muted-foreground">
+						No Traefik host yet.<Button size="sm" variant="outline" href="/connections?add=traefik"
+							>Add host</Button
+						>
+					</div>
 				</Panel>
 			{/each}
 		</Tabs.Content>
@@ -236,11 +235,7 @@
 		<Tabs.Content value="middlewares"><UserMiddlewares /></Tabs.Content>
 
 		<Tabs.Content value="certificates">
-			<Panel
-				title="Certificates"
-				description="Hashi requests them itself (DNS-01 through your zone), renews them 30 days before they expire and copies them to every host."
-				flush
-			>
+			<Panel title="Certificates" description="Renewed 30 days before expiry" flush>
 				{#if certs.length}
 					<ul class="divide-y text-md" aria-label="Certificates">
 						{#each certs as k (k.id)}
@@ -270,9 +265,7 @@
 						{/each}
 					</ul>
 				{:else}
-					<p class="px-4 py-3 text-md text-muted-foreground">
-						No certificate yet. Hashi issues it within the hour, or from setup step 4.
-					</p>
+					<p class="px-4 py-3 text-md text-muted-foreground">No certificate yet.</p>
 				{/if}
 			</Panel>
 		</Tabs.Content>

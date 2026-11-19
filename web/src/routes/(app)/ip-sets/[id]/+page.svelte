@@ -383,8 +383,7 @@
 						{/if}
 					{:else}
 						<div class="px-4 py-10 text-center text-md text-muted-foreground">
-							{#if q}Nothing in this set matches “{q}”.{:else}This set is empty, so it matches
-								nobody.
+							{#if q}Nothing in this set matches “{q}”.{:else}Empty: matches nobody
 								{#if s.editable}<Button
 										size="sm"
 										variant="outline"
@@ -394,10 +393,6 @@
 						</div>
 					{/if}
 				</div>
-				{#if usedAsTarget}<p class="mt-2 text-sm text-muted-foreground">
-						Used as a DNS value, upstream or SSH target, so only addresses can be added. If it ever
-						resolves to nothing, those places keep their last working address.
-					</p>{/if}
 			{/if}
 		</Tabs.Content>
 
@@ -414,11 +409,10 @@
 						{/each}
 					</ul>
 					{#if resolved.next_cursor}<p class="px-4 py-2 text-sm text-muted-foreground">
-							Showing the first {resolved.prefixes.length} of {resolved.v4_count +
-								resolved.v6_count} ranges.
+							First {resolved.prefixes.length} of {resolved.v4_count + resolved.v6_count} ranges
 						</p>{/if}
 				{:else}
-					<p class="px-4 py-6 text-md text-muted-foreground">
+					<p class="px-4 py-6 text-md text-warn-text">
 						Resolves to nothing right now, so it matches nobody.
 					</p>
 				{/if}
@@ -459,10 +453,7 @@
 						{/each}
 					</ul>
 				{:else}
-					<p class="px-4 py-6 text-md text-muted-foreground">
-						Nothing uses this set yet. Pick it in a rule, the firewall policy, a DNS record or a
-						service.
-					</p>
+					<p class="px-4 py-6 text-md text-muted-foreground">Nothing uses this set yet.</p>
 				{/if}
 			</Panel>
 			{#if s.editable}
@@ -528,7 +519,9 @@
 		<div class="space-y-4 px-4 pb-4">
 			<div class="space-y-1.5">
 				<Label for="rs">Name</Label><Input id="rs" class="font-mono" bind:value={meta.slug} />
-				<p class="text-sm text-muted-foreground">Lowercase letters, digits and dashes.</p>
+				{#if meta.slug && !/^[a-z0-9-]+$/.test(meta.slug)}<p class="text-sm text-bad-text">
+						Lowercase letters, digits and dashes only.
+					</p>{/if}
 			</div>
 			<div class="space-y-1.5">
 				<Label for="rd">Description</Label><Textarea

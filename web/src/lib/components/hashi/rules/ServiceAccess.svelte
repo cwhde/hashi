@@ -141,9 +141,7 @@
 				{/if}
 			{/snippet}
 			{#if entries.length === 0 && access.editable}
-				<p class="border-b px-4 py-3 text-md text-muted-foreground">
-					No rules of its own. Everyone not stopped by the global rules gets the fallback.
-				</p>
+				<p class="border-b px-4 py-3 text-md text-muted-foreground">No rules of its own.</p>
 			{/if}
 			<RuleEntryList
 				bind:entries
@@ -155,11 +153,7 @@
 			/>
 		</Panel>
 
-		<Panel
-			flush
-			title="What every request goes through"
-			description="All rules in order; the first match decides. Try an address and a path."
-		>
+		<Panel flush title="What every request goes through">
 			<form
 				class="flex flex-wrap items-center gap-2 border-b px-4 py-2.5"
 				onsubmit={(e) => {

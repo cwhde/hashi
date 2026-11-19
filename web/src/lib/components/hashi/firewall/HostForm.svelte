@@ -107,7 +107,6 @@
 	<div class="space-y-1.5">
 		<Label for="fw-name">Name</Label>
 		<Input id="fw-name" bind:value={form.name} placeholder="edge-a" class="h-10" required />
-		<p class="text-xs text-muted-foreground">Becomes the host's DNS name.</p>
 	</div>
 	<div class="space-y-1.5">
 		<Label for="fw-mode">How it is reached</Label>
@@ -160,7 +159,6 @@
 					class="h-10"
 					required
 				/>
-				<p class="text-xs text-muted-foreground">Stored encrypted, never shown again.</p>
 			</div>
 		{:else if form.auth === 'private_key'}
 			<div class="space-y-1.5 md:col-span-2">
@@ -173,7 +171,6 @@
 					required
 					class="w-full rounded-[10px] border bg-transparent px-3 py-2 font-mono text-sm"
 				></textarea>
-				<p class="text-xs text-muted-foreground">Stored encrypted, never shown again.</p>
 			</div>
 			<div class="space-y-1.5">
 				<Label for="fw-pass">Passphrase (if any)</Label>
@@ -235,14 +232,10 @@
 	<div class="space-y-1.5">
 		<Label for="fw-tip">Traefik's address on this network</Label>
 		<Input id="fw-tip" bind:value={form.traefikIp} class="h-10" required />
-		<p class="text-xs text-muted-foreground">Public traffic is forwarded here.</p>
 	</div>
 	<div class="space-y-1.5">
 		<Label for="fw-sub">Networks behind this host</Label>
 		<Input id="fw-sub" bind:value={form.subnets} placeholder="10.40.4.0/24" class="h-10" required />
-		<p class="text-xs text-muted-foreground">
-			Services with a target in one of these run on this host.
-		</p>
 	</div>
 	<div class="md:col-span-2">
 		<Button type="submit" disabled={busy}>
@@ -257,7 +250,7 @@
 			<ShieldCheck class="size-4" />Confirm this host key
 		</div>
 		<p class="mt-1 text-md text-muted-foreground">
-			First contact with {form.host}. Compare it with what the host shows.
+			First contact: compare it with what the host shows
 		</p>
 		<Mono class="mt-3 block rounded-lg bg-surface-2 px-3 py-2"
 			>{scanned.type} {scanned.fingerprint}</Mono

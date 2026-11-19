@@ -2,6 +2,7 @@
 	import { onMount } from 'svelte';
 	import { goto } from '$app/navigation';
 	import PageHeader from '#lib/components/hashi/PageHeader.svelte';
+	import HelpTip from '#lib/components/hashi/HelpTip.svelte';
 	import Tag from '#lib/components/hashi/Tag.svelte';
 	import { Button } from '#lib/components/ui/button/index.ts';
 	import { Input } from '#lib/components/ui/input/index.ts';
@@ -39,10 +40,12 @@
 
 <svelte:head><title>Rule sets · Hashi</title></svelte:head>
 
-<PageHeader
-	title="Rule sets"
-	description="Reusable lists of rules. A service runs its own rules first, then the global set, then its fallback. The first rule that matches decides."
->
+<PageHeader title="Rule sets">
+	{#snippet help()}<HelpTip topic="rule order"
+			><p>A service runs its own rules first, then the global set, then its fallback.</p>
+			<p>The first rule that matches decides.</p>
+			<p>An attached rule set is checked completely at its position.</p></HelpTip
+		>{/snippet}
 	{#snippet actions()}<Button onclick={() => (adding = true)}><Plus />Add rule set</Button
 		>{/snippet}
 </PageHeader>
@@ -97,10 +100,6 @@
 			</Table.Body>
 		</Table.Root>
 	</div>
-	<p class="mt-3 text-sm text-muted-foreground">
-		Every HTTP service also has its own rule set with a fallback; you edit it on the service's
-		Access tab.
-	</p>
 {/if}
 
 <Sheet.Root bind:open={adding}>

@@ -30,9 +30,9 @@
 			<div class="space-y-1.5">
 				<Label for="sx-port">Public port</Label>
 				<Input id="sx-port" bind:value={publicPort} inputmode="numeric" class="max-w-32" required />
-				<p class="text-xs text-muted-foreground">
-					Opening a port is a high-risk change: it waits for your approval.
-				</p>
+				{#if publicPort}<p class="text-xs text-warn-text">
+						Opening a port is a high-risk change: it waits for your approval.
+					</p>{/if}
 			</div>
 			{#if kind === 'tcp'}
 				<div class="flex items-center justify-between gap-3">

@@ -168,8 +168,7 @@
 
 <h1 class="mt-1 text-title font-semibold">Connect a Traefik host</h1>
 <p class="mt-1 max-w-[62ch] text-md text-muted-foreground">
-	Hashi installs and runs its own Traefik on this machine over SSH. Existing Traefik config is
-	backed up and only replaced after you confirm.
+	Hashi installs its own Traefik over SSH; existing config is backed up first.
 </p>
 
 <section class="mt-6 rounded-3xl border bg-card p-6">
@@ -207,9 +206,6 @@
 			</div>
 			<div class="space-y-1.5">
 				<Label for="tu">User</Label><Input id="tu" bind:value={form.user} class="h-10" />
-				<p class="text-xs text-muted-foreground">
-					Hashi installs a service, so it logs in as root.
-				</p>
 			</div>
 			<div class="space-y-1.5">
 				<Label for="tn">Name in Hashi</Label><Input id="tn" bind:value={form.name} class="h-10" />
@@ -260,7 +256,6 @@
 							class="h-10"
 						/>
 					{/if}
-					<p class="text-xs text-muted-foreground">Stored encrypted, never shown again.</p>
 				</div>
 				{#if form.auth === 'private_key'}
 					<div class="space-y-1.5">
@@ -290,9 +285,9 @@
 					<ShieldCheck class="size-4" />Confirm this host key
 				</div>
 				<p class="mt-1 text-md text-muted-foreground">
-					First contact with {form.host}. Compare it with <Mono
+					First contact: compare with <Mono
 						>ssh-keygen -lf /etc/ssh/ssh_host_{keyFile(scanned.type)}_key.pub</Mono
-					> on the host.
+					> on the host
 				</p>
 				<Mono class="mt-3 block rounded-lg bg-surface-2 px-3 py-2"
 					><span data-testid="host-key">{scanned.type} {scanned.fingerprint}</span></Mono
@@ -370,10 +365,7 @@
 		<section class="mt-8">
 			<h2 class="text-lg font-semibold">Install</h2>
 			<p class="mt-1 mb-3 max-w-[70ch] text-md text-muted-foreground">
-				Traefik {installed
-					? conn.installed_version + ' runs on the host.'
-					: 'is downloaded, checked against its published checksum and installed with Hashi’s files.'}
-				The plan lists every file before anything is written.
+				{#if installed}Traefik {conn.installed_version} runs on the host{/if}
 			</p>
 			{#if plan}
 				<PlanReview
@@ -388,9 +380,6 @@
 					{/snippet}
 					{#snippet footer()}
 						{#if plan?.status === 'pending' || plan?.status === 'approved'}
-							<p class="mr-auto text-sm text-muted-foreground">
-								Approving writes these changes to {conn?.name} and restarts Traefik there.
-							</p>
 							<Button variant="ghost" size="sm" onclick={() => (plan = null)}>Not now</Button>
 							<Button size="sm" disabled={!!busy} onclick={() => plan && runPlan(plan.id)}
 								>{busy === 'run' ? 'Installing…' : 'Approve and run'}</Button

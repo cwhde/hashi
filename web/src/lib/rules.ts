@@ -6,11 +6,11 @@ export type RuleEntry = Schemas['RuleEntry'];
 export type RuleEntryInput = Schemas['RuleEntryInput'];
 export type FlatRule = Schemas['FlatRule'];
 export type Provider = Schemas['SSOProvider'];
-export type Action = 'none' | 'deny' | 'pass_authentication';
+export type Action = 'none' | 'deny' | 'pass_captcha' | 'pass_authentication';
 
-// What each action means, in the words the rule editor shows (06 §4.1). Pass CAPTCHA arrives with the abuse engine.
+// What each action means, in the words the rule editor shows (06 §4.1).
 export const actionMeta: Record<
-	Action | 'pass_captcha',
+	Action,
 	{ label: string; tone: 'ok' | 'bad' | 'warn' | 'info'; help: string }
 > = {
 	none: {
@@ -24,9 +24,13 @@ export const actionMeta: Record<
 		tone: 'info',
 		help: 'Ask for a login; with allowed groups, only those get in'
 	},
-	pass_captcha: { label: 'Pass CAPTCHA', tone: 'warn', help: '' }
+	pass_captcha: {
+		label: 'Pass CAPTCHA',
+		tone: 'warn',
+		help: 'Show the challenge page; a solved one lets the visitor through for a day'
+	}
 };
-export const actions: Action[] = ['none', 'deny', 'pass_authentication'];
+export const actions: Action[] = ['none', 'deny', 'pass_captcha', 'pass_authentication'];
 
 export const toInput = (e: RuleEntry): RuleEntryInput =>
 	e.type === 'set'

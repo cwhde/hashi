@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import Panel from '#lib/components/hashi/Panel.svelte';
+	import HelpTip from '#lib/components/hashi/HelpTip.svelte';
 	import Mono from '#lib/components/hashi/Mono.svelte';
 	import { Button } from '#lib/components/ui/button/index.ts';
 	import { Input } from '#lib/components/ui/input/index.ts';
@@ -78,14 +79,18 @@
 </script>
 
 {#if view && !view.editable}
-	<Panel title="WAF">
-		<p class="text-md text-muted-foreground">
-			Hashi’s own services use the default mode. TCP and UDP services are protected at the firewall.
-		</p>
-	</Panel>
+	<Panel title="WAF" description="Default mode, fixed for Hashi’s own services"><span></span></Panel
+	>
 {:else if view}
 	<div class="grid gap-4 lg:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)]">
-		<Panel flush title="Mode per path" description="The most specific path wins.">
+		<Panel flush title="Mode per path">
+			{#snippet help()}<HelpTip topic="WAF modes"
+					><p>The most specific path wins.</p>
+					<p>
+						The WAF checks addresses, headers, cookies and query strings. Request bodies are not
+						checked, so uploads, WebDAV and git work everywhere.
+					</p></HelpTip
+				>{/snippet}
 			{#snippet actions()}<Button
 					size="sm"
 					variant="outline"
@@ -141,23 +146,14 @@
 					</li>
 				{/each}
 			</ul>
-			<p class="border-t px-4 py-3 text-sm text-muted-foreground">
-				The WAF checks addresses, headers, cookies and query strings for attacks; uploads, WebDAV
-				and git work everywhere. Request bodies are not checked.
-			</p>
 		</Panel>
 		<Panel title="Exclusions" description="Rules switched off where they misfire">
-			<div class="space-y-1.5">
-				<Input
-					bind:value={exclusions}
-					placeholder="e.g. 942100, 920350"
-					class="font-mono"
-					aria-label="Rule IDs"
-				/>
-				<p class="text-sm text-muted-foreground">
-					Rule IDs for the whole service. Matches count towards a challenge.
-				</p>
-			</div>
+			<Input
+				bind:value={exclusions}
+				placeholder="e.g. 942100, 920350"
+				class="font-mono"
+				aria-label="Rule IDs"
+			/>
 		</Panel>
 	</div>
 {:else if error}

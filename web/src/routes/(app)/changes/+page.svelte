@@ -68,10 +68,7 @@
 
 <svelte:head><title>Pending changes · Hashi</title></svelte:head>
 
-<PageHeader
-	title="Pending changes"
-	description="Every change to DNS is planned first. You see the exact values here; what you approve is exactly what gets applied."
-/>
+<PageHeader title="Pending changes" />
 
 {#if error}
 	<p
@@ -91,19 +88,15 @@
 			<Skeleton class="h-48 rounded-2xl" />
 		{:else if open.length === 0}
 			<Panel title="Nothing waiting">
-				<p class="text-md text-muted-foreground">
-					Hashi and the DNS provider agree. New changes appear here when you save something or the
-					background sync finds a difference.
-				</p>
+				<p class="text-md text-muted-foreground">Nothing waits for approval.</p>
 			</Panel>
 		{/if}
 		{#each open as p (p.id)}
 			<PlanReview title={p.title} trigger={triggerText(p)} risk={p.risk} items={reviewItems(p)}>
 				{#snippet footer()}
 					<p class="mr-auto text-sm text-muted-foreground">
-						{#if p.status === 'pending'}Approving asks for your passkey. Nothing changes until you
-							approve.{:else if p.status === 'applying'}Applying now…{:else}Approved; applies on the
-							next sync.{/if}
+						{#if p.status === 'pending'}Approving asks for your passkey.{:else if p.status === 'applying'}Applying
+							now…{:else}Approved; applies on the next sync.{/if}
 					</p>
 					{#if p.status !== 'applying'}
 						<Button variant="ghost" size="sm" disabled={!!busy} onclick={() => act(p, 'discard')}

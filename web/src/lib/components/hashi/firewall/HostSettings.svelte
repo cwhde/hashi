@@ -94,9 +94,6 @@
 				>This host also routes NetBird traffic to its networks</option
 			>
 		</select>
-		<p class="text-xs text-muted-foreground">
-			Hashi never changes NetBird's rules. Its interface and port stay open.
-		</p>
 	</div>
 	<label class="flex items-start gap-2.5 text-md">
 		<input type="checkbox" bind:checked={drop} class="mt-0.5 accent-primary" />

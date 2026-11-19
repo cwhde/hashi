@@ -58,8 +58,7 @@
 {#if error}<p role="alert" class="text-md text-bad-text">{error}</p>{/if}
 {#if loaded && items.length === 0 && !error}
 	<Panel title="No AdGuard instance">
-		<p class="text-md text-muted-foreground">Add one to manage internal rewrites.</p>
-		<Button class="mt-3" size="sm" variant="outline" href="/connections">Go to Connections</Button>
+		<Button size="sm" variant="outline" href="/connections">Go to Connections</Button>
 	</Panel>
 {/if}
 {#if items.length}

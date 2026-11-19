@@ -113,12 +113,6 @@
 			>{isChallenge ? 'Challenge now' : 'Ban now'}</Button
 		>
 	</form>
-	<p class="text-sm text-muted-foreground">
-		{isChallenge
-			? 'Without minutes the challenge lasts as long as the engine setting says.'
-			: 'Without minutes the ban lasts as long as the address’s ban counter says.'} Allowed addresses
-		are never added.
-	</p>
 	<Panel
 		flush
 		title="{total} {isChallenge ? 'challenged' : 'banned'} {total === 1 ? 'address' : 'addresses'}"

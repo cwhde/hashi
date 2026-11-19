@@ -302,7 +302,7 @@
 <svelte:head><title>Scripts · Hashi</title></svelte:head>
 <PageHeader
 	title="Scripts"
-	description="Shell scripts Hashi keeps on your firewall hosts and runs on a schedule or by hand. They run as root, so saving and running ask for your passkey."
+	description="Run as root on your firewall hosts, on a schedule or by hand."
 >
 	{#snippet actions()}<Button onclick={() => pick('new')}><Plus />New script</Button>{/snippet}
 </PageHeader>
@@ -344,9 +344,7 @@
 					</div>
 				</button>
 			{:else}
-				<p class="px-3 py-2.5 text-md text-muted-foreground">
-					No scripts yet. Add one to run it on your firewall hosts.
-				</p>
+				<p class="px-3 py-2.5 text-md text-muted-foreground">No scripts yet.</p>
 			{/each}
 		</nav>
 
@@ -471,9 +469,7 @@
 								>
 							</div>
 						{:else}
-							<p class="text-sm text-muted-foreground">
-								None. Secret values stay in Hashi's vault and are replaced in run output.
-							</p>
+							<p class="text-sm text-muted-foreground">None</p>
 						{/each}
 					</fieldset>
 					<fieldset class="border-t px-4 py-3">
@@ -550,10 +546,6 @@
 										>{/if}
 								{/snippet}
 								{#snippet footer()}
-									<p class="mr-auto text-sm text-muted-foreground">
-										Applying puts every waiting script change for this host in place. It asks for
-										your passkey.
-									</p>
 									{#if p.status === 'pending' || p.status === 'approved'}<Button
 											size="sm"
 											disabled={planBusy}

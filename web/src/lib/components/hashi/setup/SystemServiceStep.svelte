@@ -79,10 +79,6 @@
 </script>
 
 <h1 class="mt-1 text-title font-semibold">Publish Hashi</h1>
-<p class="mt-1 max-w-[62ch] text-md text-muted-foreground">
-	Hashi adds itself as the first service: <Mono>{admin}</Mono> on every Traefik host, forwarded to its
-	internal address, with a certificate that covers the name.
-</p>
 
 <section class="mt-6 rounded-3xl border bg-card p-6">
 	<ul class="space-y-2 text-md">
@@ -107,10 +103,6 @@
 		{/if}
 	</ul>
 	{#if !plan && !fwPlan && step?.status !== 'done'}
-		<p class="mt-4 max-w-[62ch] text-sm text-muted-foreground">
-			A name a level deeper than the root (like <Mono>dev.hashi.example.com</Mono>) needs a new
-			wildcard certificate first; that takes about a minute.
-		</p>
 		<Button class="mt-4" onclick={publish} disabled={!!busy}
 			>{busy === 'publish' ? 'Preparing… (up to a minute)' : 'Prepare'}</Button
 		>
@@ -141,10 +133,6 @@
 			{/snippet}
 			{#snippet footer()}
 				{#if plan?.status === 'pending' || plan?.status === 'approved'}
-					<p class="mr-auto text-sm text-muted-foreground">
-						Approving writes these files to the Traefik host. Traefik picks them up without a
-						restart.
-					</p>
 					<Button size="sm" disabled={!!busy} onclick={() => plan && run(plan.id)}
 						>{busy === 'run' ? 'Publishing…' : 'Approve and run'}</Button
 					>
@@ -170,8 +158,8 @@
 			{#snippet footer()}
 				{#if fwPlan?.status === 'pending' || fwPlan?.status === 'approved'}
 					<p class="mr-auto text-sm text-muted-foreground">
-						Opens the public ports. If Hashi cannot log in again within 3 minutes, the host goes
-						back to how it was.
+						Opens the public ports, and rolls back by itself if Hashi can't log in again within 3
+						minutes.
 					</p>
 					<Button size="sm" disabled={!!busy} onclick={() => fwPlan && runFirewall(fwPlan.id)}
 						>{busy === 'firewall' ? 'Applying…' : 'Approve and run'}</Button

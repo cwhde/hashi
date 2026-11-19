@@ -3,6 +3,7 @@
 	import { onMount } from 'svelte';
 	import Panel from '#lib/components/hashi/Panel.svelte';
 	import Mono from '#lib/components/hashi/Mono.svelte';
+	import HelpTip from '#lib/components/hashi/HelpTip.svelte';
 	import Tag from '#lib/components/hashi/Tag.svelte';
 	import CodeEditor from '#lib/components/hashi/CodeEditor.svelte';
 	import { Button } from '#lib/components/ui/button/index.ts';
@@ -148,6 +149,10 @@
 		description="Switch them on per service or route on the service pages"
 		flush
 	>
+		{#snippet help()}<HelpTip topic="your middlewares"
+				><p>They run after Hashi's sign-in and access checks, never before.</p>
+				<p>The Hashi admin service never gets them.</p></HelpTip
+			>{/snippet}
 		{#snippet actions()}<Button
 				size="sm"
 				onclick={save}
@@ -216,11 +221,6 @@
 							</li>
 						{/each}
 					</ul>
-					<p class="mt-4 text-xs text-muted-foreground">
-						A file that fails the check is never saved; the hosts keep the last applied one. Your
-						middlewares run after Hashi's sign-in and access checks, never before. The Hashi admin
-						service never gets them.
-					</p>
 				{/if}
 			</div>
 		</div>

@@ -1,5 +1,6 @@
 <script lang="ts">
 	import Panel from '#lib/components/hashi/Panel.svelte';
+	import HelpTip from '#lib/components/hashi/HelpTip.svelte';
 	import Tag from '#lib/components/hashi/Tag.svelte';
 	import Mono from '#lib/components/hashi/Mono.svelte';
 	import VaultUnlockDialog from '#lib/components/hashi/VaultUnlockDialog.svelte';
@@ -67,6 +68,16 @@
 </script>
 
 <Panel title="Vault">
+	{#snippet help()}<HelpTip topic="vault modes"
+			><p>
+				Service mode unlocks secrets with the deployment's master key, so syncs keep running after a
+				restart.
+			</p>
+			<p>
+				Strict mode keeps the master key off the disk: after every restart Hashi stays locked until
+				you unlock it with a passkey or the recovery key.
+			</p></HelpTip
+		>{/snippet}
 	<div class="space-y-4 text-md">
 		<div class="flex flex-wrap items-start gap-3">
 			{#if vault.locked}<Lock class="mt-0.5 size-4 text-warn-text" />{:else}<LockOpen
@@ -76,15 +87,6 @@
 				<p class="flex flex-wrap items-center gap-2">
 					<span class="font-medium">{strict ? 'Strict mode' : 'Service mode'}</span>
 					<Tag tone={vault.locked ? 'warn' : 'ok'}>{vault.locked ? 'locked' : 'unlocked'}</Tag>
-				</p>
-				<p class="text-muted-foreground">
-					{#if strict}
-						The master key is not on disk. After every restart Hashi stays locked until you unlock
-						it with a passkey below or with the recovery key.
-					{:else}
-						Secrets unlock with the deployment's master key, so syncs keep running after a restart.
-						Strict mode keeps them locked until you unlock with a passkey or the recovery key.
-					{/if}
 				</p>
 				<p class="text-muted-foreground">
 					{vault.secrets} stored secret{vault.secrets === 1 ? '' : 's'} · master key version {vault.key_version}
@@ -123,10 +125,7 @@
 			</div>
 			{#if vault.unlockers.length === 0}
 				<p class="px-3 py-3 text-muted-foreground">
-					None yet. Pick a passkey you sign in with, or create one on a USB security key. Passkeys
-					kept in a password manager often can’t unlock. {strict
-						? 'Until then, unlock with the recovery key.'
-						: 'Used in strict mode only.'}
+					None yet. Passkeys kept in a password manager often can’t unlock.
 				</p>
 			{:else}
 				<ul class="divide-y">

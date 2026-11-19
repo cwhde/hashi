@@ -316,9 +316,6 @@
 				{#each Array(11).keys() as i (i)}<Skeleton class="h-9" />{/each}
 			</div>
 		{/if}
-		<p class="mt-6 text-sm text-muted-foreground">
-			Progress is saved after every step. You can close this page and continue later.
-		</p>
 	</aside>
 
 	<main class="min-w-0">
@@ -334,8 +331,7 @@
 			{#if step.n === 1}
 				<h1 class="mt-1 text-title font-semibold">Sign in with the bootstrap login</h1>
 				<p class="mt-1 max-w-[62ch] text-md text-muted-foreground">
-					Hashi printed a one-time username and password in its container log on first start. It
-					works only from a private network and stops working when setup is complete.
+					The username and password are in Hashi's container log from its first start.
 				</p>
 				<section class="mt-6 rounded-3xl border bg-card p-6">
 					{#if isSetupSession}
@@ -365,8 +361,7 @@
 							</div>
 							<div class="md:col-span-2">
 								<p class="text-sm text-muted-foreground">
-									Lost it? Run <code class="font-mono">hashi bootstrap reset</code> in the container for
-									a new one.
+									Lost it? Run <code class="font-mono">hashi bootstrap reset</code> in the container.
 								</p>
 								<Button type="submit" class="mt-4" disabled={busy || !username || !password}
 									>Sign in</Button
@@ -378,8 +373,7 @@
 			{:else if step.n === 2}
 				<h1 class="mt-1 text-title font-semibold">Base settings</h1>
 				<p class="mt-1 max-w-[62ch] text-md text-muted-foreground">
-					Passkeys are bound to the root domain, so it cannot change after setup. The admin domain
-					can.
+					Passkeys are bound to the root domain, so it cannot change after setup.
 				</p>
 				<section class="mt-6 rounded-3xl border bg-card p-6">
 					<div class="grid gap-4 md:grid-cols-2">
@@ -400,14 +394,11 @@
 							/>
 						</div>
 						<div class="space-y-1.5">
-							<Label for="iu">Internal Hashi URL</Label><Input
+							<Label for="iu">Address Traefik uses to reach Hashi</Label><Input
 								id="iu"
 								bind:value={base.internal_url}
 								class="h-10 font-mono"
 							/>
-							<p class="text-xs text-muted-foreground">
-								How Traefik reaches Hashi on your network.
-							</p>
 						</div>
 						<div class="space-y-1.5">
 							<Label for="si">Reconcile every (minutes)</Label>
@@ -459,11 +450,6 @@
 				</div>
 			{:else if step.n === 3}
 				<h1 class="mt-1 text-title font-semibold">Connect your DNS provider</h1>
-				<p class="mt-1 max-w-[62ch] text-md text-muted-foreground">
-					Hashi manages one zone: the one that contains <Mono
-						>{setup.base_settings?.root_domain}</Mono
-					>. This step only reads from the provider; nothing in the zone changes.
-				</p>
 				<section class="mt-6 rounded-3xl border bg-card p-6">
 					{#if dnsZone && !changingToken}
 						<div class="flex flex-wrap items-center gap-x-4 gap-y-2 text-md">
@@ -511,17 +497,13 @@
 								/>
 							</div>
 							<p class="text-sm text-muted-foreground md:col-span-3">
-								A Hetzner Cloud project token with read and write access (Security → API tokens in
-								the Cloud Console). Read and write, because later slices create records; this step
-								only reads. It is stored encrypted and never shown again. The default TTL applies to
-								records Hashi creates.
+								A Hetzner Cloud project token with read and write access.
 							</p>
 							{#if zoneChoices.length > 0}
 								<fieldset class="md:col-span-3">
 									<legend class="text-md font-medium">Choose the zone Hashi manages</legend>
 									<p class="mt-0.5 text-sm text-muted-foreground">
-										None of the {zoneChoices.length} zones this token sees contains the root domain. The
-										other zones are ignored.
+										None of the {zoneChoices.length} zones this token sees contains the root domain.
 									</p>
 									<div class="mt-2 grid gap-1.5 sm:grid-cols-2">
 										{#each zoneChoices as z (z.id)}
@@ -569,11 +551,6 @@
 				{#if dnsZone}
 					<section class="mt-8">
 						<h2 class="text-lg font-semibold">Write access (optional)</h2>
-						<p class="mt-1 mb-3 max-w-[70ch] text-md text-muted-foreground">
-							The check above only read the zone. To confirm Hashi can also write, it can create a
-							test record named <Mono>_hashi-test</Mono>, read it back and delete it again. Nothing
-							is written until you approve the plan.
-						</p>
 						{#if probePlan}
 							<PlanReview
 								title={probePlan.title}
@@ -587,9 +564,6 @@
 								{/snippet}
 								{#snippet footer()}
 									{#if probePlan?.status === 'pending' || probePlan?.status === 'approved'}
-										<p class="mr-auto text-sm text-muted-foreground">
-											Approving writes these two changes to your zone.
-										</p>
 										<Button variant="ghost" size="sm" onclick={() => (probePlan = null)}
 											>Not now</Button
 										>
@@ -616,11 +590,6 @@
 				{/if}
 				{#if dnsZone && importRows}
 					<h2 class="mt-8 text-lg font-semibold">Existing records</h2>
-					<p class="mt-1 mb-3 max-w-[70ch] text-md text-muted-foreground">
-						Hashi leaves every record alone unless you choose otherwise. Import makes it a managed
-						entry you edit in Hashi; Remove only marks it: deleting is a separate plan you approve
-						with your passkey later. NS and SOA are never changed.
-					</p>
 					<ImportTable rows={importRows} bind:decisions />
 					<div class="mt-6 flex justify-end">
 						<Button onclick={saveImport} disabled={busy}
@@ -659,8 +628,8 @@
 			{:else if step.n === 9}
 				<h1 class="mt-1 text-title font-semibold">Passkey and recovery key</h1>
 				<p class="mt-1 max-w-[62ch] text-md text-muted-foreground">
-					After setup, only passkeys sign in. The recovery key restores the vault on a new host if
-					the master key is lost; keep it in your password manager.
+					The recovery key restores the vault if the master key is lost; keep it in your password
+					manager.
 				</p>
 				<section class="mt-6 rounded-3xl border bg-card p-6">
 					<h2 class="text-base font-semibold">1. Passkey</h2>
@@ -696,9 +665,7 @@
 							<Check class="size-4 text-ok-text" />Recovery key confirmed and tested
 						</p>
 					{:else if recoveryKey}
-						<p class="mt-2 text-md text-muted-foreground">
-							Shown once. Save it now, then type its last group to confirm.
-						</p>
+						<p class="mt-2 text-md text-muted-foreground">Shown once.</p>
 						<div class="mt-3 flex items-start gap-2">
 							<Mono class="block flex-1 rounded-lg bg-surface-2 px-3 py-2 break-all"
 								><span data-testid="recovery-key">{recoveryKey}</span></Mono
@@ -732,14 +699,24 @@
 				</section>
 			{:else if step.n === 10}
 				<h1 class="mt-1 text-title font-semibold">Optional integrations</h1>
-				<p class="mt-1 max-w-[62ch] text-md text-muted-foreground">
-					Hashi works without these. Each can be added any time after setup.
-				</p>
 				<section class="mt-6 rounded-3xl border bg-card p-6">
 					<ul class="space-y-1.5 text-md">
-						<li>AdGuard Home: Connections</li>
-						<li>Internal agent names: Settings, Internal agent DNS</li>
-						<li>Alerts by Telegram or email: Settings, Notifications</li>
+						<li>
+							AdGuard Home: <a href="/connections" class="underline underline-offset-2"
+								>Connections</a
+							>
+						</li>
+						<li>
+							Agent names: <a href="/settings?category=dns" class="underline underline-offset-2"
+								>Settings → DNS and agent names</a
+							>
+						</li>
+						<li>
+							Alerts by Telegram or email: <a
+								href="/settings?category=monitoring"
+								class="underline underline-offset-2">Settings → Monitoring and notifications</a
+							>
+						</li>
 					</ul>
 					{#if error}{@render failure(error)}{/if}
 				</section>
@@ -749,8 +726,8 @@
 			{:else if step.n === 11}
 				<h1 class="mt-1 text-title font-semibold">Finish setup</h1>
 				<p class="mt-1 max-w-[62ch] text-md text-muted-foreground">
-					Finishing deletes the bootstrap login and signs out this session. From then on you sign in
-					with your passkey.
+					Finishing deletes the bootstrap login and signs you out; then you sign in with your
+					passkey.
 				</p>
 				<section class="mt-6 rounded-3xl border bg-card p-6">
 					<ul class="space-y-1.5 text-md">
@@ -759,10 +736,7 @@
 								{#if s.status === 'done'}<Check class="size-4 text-ok-text" />{:else}<span
 										class="size-4 text-center text-muted-foreground">·</span
 									>{/if}
-								<span class={s.status === 'done' ? '' : 'text-muted-foreground'}
-									>{s.title}{#if !s.built}
-										— arrives in slice {s.slice}{/if}</span
-								>
+								<span class={s.status === 'done' ? '' : 'text-muted-foreground'}>{s.title}</span>
 							</li>
 						{/each}
 					</ul>
@@ -775,8 +749,7 @@
 				<h1 class="mt-1 text-title font-semibold">{step.title}</h1>
 				<section class="mt-6 rounded-3xl border bg-card p-6">
 					<p class="flex gap-2 text-md text-muted-foreground">
-						<Clock class="mt-0.5 size-4 shrink-0" />This step arrives with slice {step.slice}. Until
-						then setup cannot finish; everything you entered so far stays saved.
+						<Clock class="mt-0.5 size-4 shrink-0" />Not in this version
 					</p>
 				</section>
 			{/if}

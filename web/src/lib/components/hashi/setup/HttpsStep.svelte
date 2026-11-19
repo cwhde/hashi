@@ -39,21 +39,13 @@
 
 <h1 class="mt-1 text-title font-semibold">Open Hashi over HTTPS</h1>
 <p class="mt-1 max-w-[62ch] text-md text-muted-foreground">
-	Passkeys only work on Hashi's own HTTPS address. This step opens setup on <Mono
-		>https://{admin}</Mono
-	> through the Traefik host and continues there.
+	Passkeys only work on Hashi's own HTTPS address.
 </p>
 
 <section class="mt-6 rounded-3xl border bg-card p-6">
 	{#if step?.status === 'done' && here}
 		<p class="flex items-center gap-2 text-md">
 			<Check class="size-4 text-ok-text" />This page came through Hashi's Traefik over HTTPS.
-		</p>
-		<p class="mt-2 text-md text-muted-foreground">
-			You can move services to Hashi now, before setup is finished: <a
-				href="/services"
-				class="underline underline-offset-2">Services</a
-			>.
 		</p>
 	{:else if step?.status === 'done'}
 		<p class="flex items-center gap-2 text-md">
@@ -65,7 +57,6 @@
 	{:else}
 		<ul class="space-y-1.5 text-md text-muted-foreground">
 			<li>Your computer must reach the Traefik host and resolve {admin} to it.</li>
-			<li>The link works once and for five minutes. You stay signed in on the new address.</li>
 		</ul>
 		<Button class="mt-4" onclick={open} disabled={busy}
 			><ExternalLink />{busy ? 'Opening…' : `Open https://${admin}`}</Button

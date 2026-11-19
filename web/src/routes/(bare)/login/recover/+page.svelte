@@ -71,9 +71,7 @@
 		{#if phase === 'opening'}
 			<p class="mt-2 text-md text-muted-foreground">Checking the recovery link…</p>
 		{:else if phase === 'ready'}
-			<p class="mt-2 text-md text-muted-foreground">
-				This one-time session can only add one passkey. Your other passkeys stay as they are.
-			</p>
+			<p class="mt-2 text-md text-muted-foreground">This one-time session can add one passkey.</p>
 			<div class="mt-5 space-y-1.5">
 				<Label for="pk-name">Passkey name</Label>
 				<Input id="pk-name" bind:value={name} placeholder="Laptop" maxlength={64} />

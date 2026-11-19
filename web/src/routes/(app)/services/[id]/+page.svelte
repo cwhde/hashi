@@ -2,6 +2,7 @@
 	import { Draft, guardUnsaved } from '#lib/unsaved.svelte.ts';
 	import { hrefWithTab, tabFrom } from '#lib/url-tab.ts';
 	import ServiceExtras from '#lib/components/hashi/services/ServiceExtras.svelte';
+	import MoreOptions from '#lib/components/hashi/MoreOptions.svelte';
 	import ServiceAccess from '#lib/components/hashi/rules/ServiceAccess.svelte';
 	import ServiceWaf from '#lib/components/hashi/services/ServiceWaf.svelte';
 	import ServiceTraffic from '#lib/components/hashi/services/ServiceTraffic.svelte';
@@ -12,6 +13,7 @@
 	import Panel from '#lib/components/hashi/Panel.svelte';
 	import Tag from '#lib/components/hashi/Tag.svelte';
 	import Mono from '#lib/components/hashi/Mono.svelte';
+	import StatusDot from '#lib/components/hashi/StatusDot.svelte';
 	import { Button } from '#lib/components/ui/button/index.ts';
 	import { Input } from '#lib/components/ui/input/index.ts';
 	import { Label } from '#lib/components/ui/label/index.ts';
@@ -56,6 +58,8 @@
 	let extra = $state({ upstream: upstreamOf(), publicPort: '', proxy: false, entryHost: '' });
 	let root = $state('');
 	let yaml = $state('');
+	// The checks Status runs for this service (bug 61), shown in the summary with a link to each.
+	let checks = $state<Schemas['MonitorEndpoint'][]>([]);
 	// Names from the user middleware file and the ones on every service (04 §4, 09 §2).
 	let mwNames = $state<string[]>([]);
 	let mwEvery = $state<string[]>([]);
@@ -84,6 +88,9 @@
 		void api
 			.GET('/api/services/{id}/publication', { params: { path: { id } } })
 			.then((p) => (pub = p.data ?? null));
+		void api
+			.GET('/api/monitor/endpoints')
+			.then((m) => (checks = (m.data?.endpoints ?? []).filter((e) => e.source_id === id)));
 		edit = toInput(s.data);
 		extra = {
 			upstream: upstreamOf(s.data.target),
@@ -210,7 +217,7 @@
 	}
 	const matchText = { prefix: 'starts with', exact: 'is exactly', regex: 'matches regex' } as const;
 	// The open tab lives in the address (bug 41).
-	const tabs = ['routing', 'traffic', 'access', 'waf', 'monitoring', 'config'];
+	const tabs = ['routing', 'traffic', 'access', 'waf', 'config'];
 	let tab = $state(tabFrom(page.url, tabs));
 	const setTab = (t: string) =>
 		goto(hrefWithTab(page.url, tabs, t), { replace: true, reset: false });
@@ -271,7 +278,7 @@
 				</div>
 			{/if}
 		</div>
-		<dl class="mt-4 grid grid-cols-2 gap-x-6 gap-y-3 text-md sm:grid-cols-4">
+		<dl class="mt-4 grid grid-cols-2 gap-x-6 gap-y-3 text-md sm:grid-cols-3 lg:grid-cols-5">
 			<div>
 				<dt class="text-xs text-muted-foreground">State</dt>
 				<dd>
@@ -288,6 +295,16 @@
 			<div>
 				<dt class="text-xs text-muted-foreground">Routes</dt>
 				<dd>{svc.advanced_routes ? svc.routes.length : 'whole service to one upstream'}</dd>
+			</div>
+			<div class="min-w-0">
+				<dt class="text-xs text-muted-foreground">Checks</dt>
+				<dd class="truncate">
+					{#each checks as c, i (c.id)}{i ? ', ' : ''}<a
+							href="/status/{c.id}"
+							class="inline-flex items-center gap-1.5 hover:underline"
+							><StatusDot state={c.state} />{c.name}</a
+						>{:else}<span class="text-muted-foreground">none</span>{/each}
+				</dd>
 			</div>
 			<div class="min-w-0">
 				<dt class="text-xs text-muted-foreground">Behind</dt>
@@ -338,19 +355,21 @@
 		<Tabs.List class="mb-4 max-w-full justify-start overflow-x-auto">
 			<Tabs.Trigger value="routing">Routing</Tabs.Trigger>
 			{#if !isStream(svc.kind) && !system}<Tabs.Trigger value="traffic">Traffic</Tabs.Trigger>{/if}
-			<Tabs.Trigger value="access">Access</Tabs.Trigger>
-			<Tabs.Trigger value="waf">WAF</Tabs.Trigger>
-			<Tabs.Trigger value="monitoring">Monitoring</Tabs.Trigger>
+			{#if !isStream(svc.kind)}<Tabs.Trigger value="access">Access</Tabs.Trigger>
+				<Tabs.Trigger value="waf">WAF</Tabs.Trigger>{/if}
 			<Tabs.Trigger value="config">Rendered config</Tabs.Trigger>
 		</Tabs.List>
 
 		<Tabs.Content value="routing" class="grid gap-4 lg:grid-cols-2">
 			<Panel title="Public address">
 				<fieldset class="space-y-4" disabled={system}>
-					<div class="grid gap-4 sm:grid-cols-2">
-						<div class="space-y-1.5">
-							<Label for="n">Name</Label><Input id="n" bind:value={edit.name} />
-						</div>
+					<div class="space-y-1.5">
+						<Label for="n">Name</Label><Input id="n" bind:value={edit.name} />
+					</div>
+					<div class="space-y-1.5">
+						<Label for="h">Domain</Label><Input id="h" bind:value={edit.host_name} />
+					</div>
+					<MoreOptions changed={edit.tls_min_version ? 1 : 0}>
 						<div class="space-y-1.5">
 							<Label for="sl">Short name</Label><Input
 								id="sl"
@@ -358,31 +377,24 @@
 								class="font-mono"
 							/>
 						</div>
-					</div>
-					<div class="space-y-1.5">
-						<Label for="h">Domain</Label><Input id="h" bind:value={edit.host_name} />
-						<p class="text-sm text-muted-foreground">
-							Inside the managed zone. DNS records for services arrive with firewall hosts; until
-							then the name points where you set it on the DNS page.
-						</p>
-					</div>
-					<div class="space-y-1.5">
-						<Label>Minimum TLS version for visitors</Label>
-						<Select.Root type="single" bind:value={edit.tls_min_version}>
-							<Select.Trigger class="w-full"
-								>{edit.tls_min_version === 'VersionTLS13'
-									? 'TLS 1.3'
-									: edit.tls_min_version === 'VersionTLS12'
-										? 'TLS 1.2'
-										: 'Traefik default'}</Select.Trigger
-							>
-							<Select.Content>
-								<Select.Item value="">Traefik default</Select.Item>
-								<Select.Item value="VersionTLS12">TLS 1.2</Select.Item>
-								<Select.Item value="VersionTLS13">TLS 1.3</Select.Item>
-							</Select.Content>
-						</Select.Root>
-					</div>
+						<div class="space-y-1.5">
+							<Label>Minimum TLS version for visitors</Label>
+							<Select.Root type="single" bind:value={edit.tls_min_version}>
+								<Select.Trigger class="w-full"
+									>{edit.tls_min_version === 'VersionTLS13'
+										? 'TLS 1.3'
+										: edit.tls_min_version === 'VersionTLS12'
+											? 'TLS 1.2'
+											: 'Traefik default'}</Select.Trigger
+								>
+								<Select.Content>
+									<Select.Item value="">Traefik default</Select.Item>
+									<Select.Item value="VersionTLS12">TLS 1.2</Select.Item>
+									<Select.Item value="VersionTLS13">TLS 1.3</Select.Item>
+								</Select.Content>
+							</Select.Root>
+						</div>
+					</MoreOptions>
 					<div class="space-y-3 rounded-xl border p-3">
 						<div class="flex items-center justify-between gap-3">
 							<Label for="d1">Show on the app dashboard</Label><Switch
@@ -431,7 +443,10 @@
 						bind:entryHost={extra.entryHost}
 					/>
 					{#if edit.kind === 'https'}
-						<div class="space-y-3 rounded-xl border p-3">
+						<MoreOptions
+							label="Upstream certificate"
+							changed={(edit.tls_server_name ? 1 : 0) + (edit.tls_skip_verify ? 1 : 0)}
+						>
 							<div class="space-y-1.5">
 								<Label for="sni">Upstream certificate name</Label>
 								<Input id="sni" bind:value={edit.tls_server_name} placeholder="optional" />
@@ -442,13 +457,9 @@
 									bind:checked={edit.tls_skip_verify}
 								/>
 							</div>
-						</div>
+						</MoreOptions>
 					{/if}
 					{#if edit.advanced_routes && !isStream(edit.kind)}
-						<p class="text-sm text-muted-foreground">
-							Requests matching a route go to its targets; everything else goes to the upstream
-							above. Higher priority is checked first.
-						</p>
 						<ul class="space-y-3" aria-label="Routes">
 							{#each edit.routes ?? [] as r, i (r.id ?? i)}
 								<li class="space-y-2 rounded-xl border p-3">
@@ -566,28 +577,15 @@
 		{/if}
 
 		<Tabs.Content value="access">
-			{#if svc && !isStream(svc.kind)}<ServiceAccess serviceId={id} />{:else}<Panel title="Access">
-					<p class="text-md text-muted-foreground">
-						TCP and UDP services are protected at the firewall.
-					</p>
-				</Panel>{/if}
+			{#if !isStream(svc.kind)}<ServiceAccess serviceId={id} />{/if}
 		</Tabs.Content>
 
 		<Tabs.Content value="waf"><ServiceWaf serviceId={id} bind:this={waf} /></Tabs.Content>
 
-		<Tabs.Content value="monitoring">
-			<Panel title="Monitoring">
-				<p class="text-md text-muted-foreground">
-					Checks of the public address and the upstream arrive with monitoring (S7). "Monitor" above
-					already decides whether this service gets them.
-				</p>
-			</Panel>
-		</Tabs.Content>
-
 		<Tabs.Content value="config">
 			<Panel
-				title="10-hashi-http-services.yml"
-				description="What Hashi renders for this service on every Traefik host. Read-only."
+				title={isStream(svc.kind) ? '20-hashi-stream-services.yml' : '10-hashi-http-services.yml'}
+				description={svc.enabled ? 'On every Traefik host' : 'Off: not on any Traefik host'}
 				flush
 			>
 				{#if yaml}

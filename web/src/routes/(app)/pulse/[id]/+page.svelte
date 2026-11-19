@@ -118,7 +118,7 @@
 >
 {#if error}<p role="alert" class="mb-4 text-md text-bad-text">{error}</p>{/if}
 {#if missing}
-	<p class="text-md text-muted-foreground">No such agent. It may have been removed.</p>
+	<p class="text-md text-muted-foreground">No such agent.</p>
 {:else if !agent}
 	<Skeleton class="h-10 w-64" /><Skeleton class="mt-4 h-64 rounded-2xl" />
 {:else}
@@ -144,7 +144,7 @@
 	<div class="grid gap-4 lg:grid-cols-2">
 		<Panel title="Main address">
 			{#if agent.addresses.length === 0}
-				<p class="text-md text-muted-foreground">The agent has not reported an address yet.</p>
+				<p class="text-md text-muted-foreground">No address reported yet.</p>
 			{:else}
 				<RadioGroup.Root
 					value={main}
@@ -235,7 +235,7 @@
 						aria-label="Trust its own report of its public address"
 					/>
 				</label>
-				{#if form.trust_reported_ip}<p class="text-xs text-muted-foreground">
+				{#if form.trust_reported_ip}<p class="text-xs text-warn-text">
 						Only for a machine that reaches Hashi over a private path. With its token, someone could
 						name any public address here.
 					</p>{/if}
@@ -265,9 +265,7 @@
 					{/each}
 				</ul>
 			{:else}
-				<p class="text-md text-muted-foreground">
-					Nothing follows this agent yet. Pick it as a service upstream, or put it in an IP set.
-				</p>
+				<p class="text-md text-muted-foreground">Nothing follows this agent yet.</p>
 			{/if}
 		</Panel>
 	</div>
