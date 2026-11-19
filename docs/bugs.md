@@ -39,6 +39,9 @@ All open entries are planned into the 0.13 bug round (slices 13.1 onwards in `do
 | 89 | later | reported | IP set → Resolved, large feeds | "Showing the first 200 of 1621 ranges." with no way to see more, although the API has a cursor and Items has "Show more". (Codex R-013) | 2026-11-15 |
 | 107 | visual | reported | Status list | Once stayed on placeholder cards for more than 4 s although its calls answered within 0.6 s; loaded on the next try. Not measured further. (13.4 walk) Tried again on prod 2026-11-19 (0.13.4-beta.3): 12 in-app visits, cards after 0.65–0.88 s each; not reproduced, so not fixed (fix needs a reproduction). | 2026-11-19 |
 | 16 | recurring | reported | CI → integration → TestIntegrationPocketID | Pocket ID v2.19.1 sometimes answers the client create with `credentials: {secrets: []}` and no `createdSecret`, so the test has no secret. Seen again 2026-11-19 (run 1257, passed on rerun or earlier runs). Likely a race in Pocket ID; a fix would read or regenerate the secret after create. | 2026-11-19 |
+| 145 | visual | reported | Public status page → top banner | "6 services are down. Others are working." — drop "Others are working". The banner and the "Updated …" line look off together: the timestamp sits tight under the banner with a bigger gap before the first card, so it belongs to neither. (owner) | 2026-11-19 |
+| 146 | visual | reported | Public apps page → Search | In Firefox the Search button looks broken before it is first clicked; after clicking it, and after leaving it, it looks right. Not checked in Chrome yet. (owner) | 2026-11-19 |
+| 147 | visual | reported | Public apps page → header | Shows "48 / 54 hosts online · 1 / 1 Linux firewall hosts available". Up/down counts belong on the status page, not the app dashboard: remove them. Some spacing on the page is off too (owner didn't say where; look for it). (owner) | 2026-11-19 |
 
 ## Details
 

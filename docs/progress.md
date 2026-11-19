@@ -17,13 +17,13 @@ first, structure before text, search after the settings regroup.
 | 13.2 | UI foundation: shared parts, browser chrome, drafts, SvelteKit 3 | 96, 1, 3, 6, 7, 8, 15, 40, 41, 42, 43, 44, 45, 60, 67, 69, 70, 71, 72, 73, 83, 91, 92 | Visual tests in all four themes at 390 and 1440 px; no page wider than the screen; every page has its title, the 橋 favicon, its tab in the address; leaving with unsaved edits asks; drafts survive category and tab switches |
 | 13.3 | Connections and targets | 17, 20, 22, 23, 24, 56, 57, 58, 63, 64, 66, 68, 90, 97 | A firewall host, a Traefik host and an agent added from Connections; a service targets an agent directly and follows its main address change; Used by lists rules; every reference is a named link |
 | 13.4 | Settings regroup, text and disclosure on every page | 36, 38, 46 (Settings page split), 39, 48, 49, 51, 61, 62, 65, 78, 84, 93, 94, 98; from the walk 31, 75, 99–125; then 126–137 | Settings grouped as 10c §1; every page passes the 10c checklist; help sentences below 40 app-wide; owner walks every page and accepts it |
-| 13.5 | Plans, status and alerts tell the truth | 12, 34, 35, 59, 76, 77, 79, 80, 82, 85, 86, 87, 88 | Cause of the NetBird check failure known and the waiting firewall plan resolved with the owner; the approval screen says what is at stake; a real host outage sends one grouped alert |
+| 13.5 | Plans, status and alerts tell the truth | 12, 34, 35, 59, 76, 77, 79, 80, 82, 85, 86, 87, 88; from 13.4: 107, 145, 146, 147; 16 (flaky CI test, recurring) | Cause of the NetBird check failure known and the waiting firewall plan resolved with the owner; the approval screen says what is at stake; a real host outage sends one grouped alert |
 | 13.6 | Security and IP sets | 18, 26, 81, 89 | Measured thresholds with 3× headroom; WAF exclusions by name; Counters and address links correct |
 | 13.7 | Global search | 4 | Search finds every kind of object, every setting and every tab from any page, keyboard only |
 | 13.8 | Public page assets | 30 | Overview built from its mock with working widget settings; public page icons and logos replaceable |
 | 13.9 | Pulse on OpenWrt | 21 | Agent installed, started, self-updated and reporting its address on the owner's own OpenWrt router |
 
-Next: 13.4. After 13.9: a last bug sweep, then `v1.0.0`.
+Next: 13.5. After 13.9: a last bug sweep, then `v1.0.0`.
 
 **13.2 done** (2026-11-17, `v0.13.2-beta.1`, PR #69). Gate: the end-to-end run on the release commit walks all 16
 top-level pages at 390 and 1440 px in all four themes with no page wider than the screen, checks every title
@@ -45,6 +45,9 @@ another reported address moved the service's upstream and the agent's internal A
 and the service deleted (its hidden set went with it). Found: "Let the agent choose" kept the pinned address as long
 as the agent still reported it (the beat keeps the current address); fixed with a reproducing test, ships with the next
 release. Not done on prod: adding a Traefik or firewall host from Connections (no spare machine; covered by e2e).
+
+**13.4 done** (2026-11-19, `v0.13.4-beta.5`). Gate: Settings grouped as 10c §1; owner walked every page over five betas
+and accepted on 2026-11-19. Grouped alerts (144) shipped here, ahead of 13.5's gate, which still needs a real outage.
 
 ### 13.4 checklist (two PRs: A settings in their place, B text and disclosure)
 
@@ -99,7 +102,7 @@ PR C, the owner's walk (2026-11-19; 31, 75, 99–125). The owner accepts 13.4 on
 - [x] Overview start page from its mock with widgets the owner can turn on/off and reorder (31)
 - [x] With the owner: which IP sets to delete (121). Every set is in use (checked on prod read-only). The owner: leave them; a later pass over all settings and configuration will tidy them, so it is not a bug
 - [x] make check, integration, e2e; deploy with the owner's OK (`v0.13.4-beta.2`, 2026-11-19)
-- [ ] The owner walks again and accepts
+- [x] The owner walks again and accepts (later walks: PR D, PR E)
 
 PR D, what the walk after beta.2 left (2026-11-19). Already in beta.3: 120, 126, 127, 128–132, 135. The PR C bugs were
 still listed in `bugs.md` although fixed; removed after a check of the code and of prod (103: no check without address).
@@ -107,9 +110,16 @@ still listed in `bugs.md` although fixed; removed after a check of the code and 
 - [x] A stream service's "no internal Traefik address" note was the wrong message: streams never get a rewrite; note skips them, switch hidden (137)
 - [x] Security dashboard 7d and 30d still slow on prod (2.2 s, 5.7 s) (99): hourly rollup tables and retention (01 §4.3); 30d reads ~98k hour rows instead of 3.4 M minutes, each query 0.02–0.14 s on a read-only in-memory copy on prod (was 0.7–1.2 s)
 - [x] Status placeholders once stuck (107): try to reproduce. Not reproduced on prod (12 visits, 0.65–0.88 s); stays in bugs.md
-- [ ] With the owner: which IP sets to delete (121). Checked on prod read-only 2026-11-19: every set is in use. The per-agent sets are Hashi's hidden ones (services and AdGuard naming an agent) and go by themselves. Rules can only name sets, so the agent-backed home set stays. Only two single-range sets overlap the built-in private networks set; swapping them would widen those rules. Waiting for the owner's answer
+- [x] With the owner: which IP sets to delete (121): leave them (see PR C)
 - [x] make check, integration, e2e; release and deploy with the owner's OK
-- [ ] The owner walks and accepts
+- [x] The owner walks and accepts
+
+PR E, what the walk after beta.4 left (2026-11-19, `v0.13.4-beta.5`):
+- [x] Apps page crashed in the browser on game servers sharing a web name (139); e2e now opens both public pages in a browser and fails on a crash
+- [x] Abuse engine settings in plain words, aligned; side panels take their own width (140, 141); no gaps under cards, Overview security card uses its height (142)
+- [x] Time between alerts in minutes (143); alerts close together go out as one message, wait restarts per alert, 2 min cap (144)
+- [x] Status page categories: order, hide, or one list (138), in Settings → Public pages
+- [x] The owner accepts (2026-11-19) and asks for the next slice. New findings 145–147 go to 13.5
 
 ### 13.3 checklist (two PRs: A fixes and agent targets, B Connections)
 
