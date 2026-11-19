@@ -14,7 +14,7 @@
 		if (publicPage) return;
 		try {
 			const s = await session.refresh();
-			goto(routeFor(s) ?? '/activity', { replace: true });
+			goto(routeFor(s) ?? '/overview', { replace: true });
 		} catch (e) {
 			failed = problemText(e);
 		}

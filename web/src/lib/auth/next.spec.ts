@@ -17,6 +17,6 @@ describe('signInHref', () => {
 describe('safeNext', () => {
 	it('refuses other origins', () => {
 		for (const bad of ['//evil.test', '/\\evil.test', 'https://evil.test', '', null])
-			expect(safeNext(bad)).toBe('/activity');
+			expect(safeNext(bad)).toBe('/overview');
 	});
 });

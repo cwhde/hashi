@@ -1215,6 +1215,39 @@ func (e NotificationRouteMinSeverity) Valid() bool {
 	}
 }
 
+// Defines values for OverviewWidgetId.
+const (
+	OverviewWidgetIdActivity     OverviewWidgetId = "activity"
+	OverviewWidgetIdAttention    OverviewWidgetId = "attention"
+	OverviewWidgetIdCertificates OverviewWidgetId = "certificates"
+	OverviewWidgetIdChanges      OverviewWidgetId = "changes"
+	OverviewWidgetIdEdge         OverviewWidgetId = "edge"
+	OverviewWidgetIdHealth       OverviewWidgetId = "health"
+	OverviewWidgetIdSecurity     OverviewWidgetId = "security"
+)
+
+// Valid indicates whether the value is a known member of the OverviewWidgetId enum.
+func (e OverviewWidgetId) Valid() bool {
+	switch e {
+	case OverviewWidgetIdActivity:
+		return true
+	case OverviewWidgetIdAttention:
+		return true
+	case OverviewWidgetIdCertificates:
+		return true
+	case OverviewWidgetIdChanges:
+		return true
+	case OverviewWidgetIdEdge:
+		return true
+	case OverviewWidgetIdHealth:
+		return true
+	case OverviewWidgetIdSecurity:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for PublicAppsDefaultSort.
 const (
 	PublicAppsDefaultSortGroup  PublicAppsDefaultSort = "group"
@@ -2027,37 +2060,37 @@ func (e SyncPlanStatus) Valid() bool {
 
 // Defines values for SyncPlanSubsystem.
 const (
-	Adguard          SyncPlanSubsystem = "adguard"
-	Certificates     SyncPlanSubsystem = "certificates"
-	DnsProbe         SyncPlanSubsystem = "dns-probe"
-	DnsPrune         SyncPlanSubsystem = "dns-prune"
-	DnsRecordDeletes SyncPlanSubsystem = "dns-record-deletes"
-	DnsRecords       SyncPlanSubsystem = "dns-records"
-	Firewall         SyncPlanSubsystem = "firewall"
-	Scripts          SyncPlanSubsystem = "scripts"
-	Traefik          SyncPlanSubsystem = "traefik"
+	SyncPlanSubsystemAdguard          SyncPlanSubsystem = "adguard"
+	SyncPlanSubsystemCertificates     SyncPlanSubsystem = "certificates"
+	SyncPlanSubsystemDnsProbe         SyncPlanSubsystem = "dns-probe"
+	SyncPlanSubsystemDnsPrune         SyncPlanSubsystem = "dns-prune"
+	SyncPlanSubsystemDnsRecordDeletes SyncPlanSubsystem = "dns-record-deletes"
+	SyncPlanSubsystemDnsRecords       SyncPlanSubsystem = "dns-records"
+	SyncPlanSubsystemFirewall         SyncPlanSubsystem = "firewall"
+	SyncPlanSubsystemScripts          SyncPlanSubsystem = "scripts"
+	SyncPlanSubsystemTraefik          SyncPlanSubsystem = "traefik"
 )
 
 // Valid indicates whether the value is a known member of the SyncPlanSubsystem enum.
 func (e SyncPlanSubsystem) Valid() bool {
 	switch e {
-	case Adguard:
+	case SyncPlanSubsystemAdguard:
 		return true
-	case Certificates:
+	case SyncPlanSubsystemCertificates:
 		return true
-	case DnsProbe:
+	case SyncPlanSubsystemDnsProbe:
 		return true
-	case DnsPrune:
+	case SyncPlanSubsystemDnsPrune:
 		return true
-	case DnsRecordDeletes:
+	case SyncPlanSubsystemDnsRecordDeletes:
 		return true
-	case DnsRecords:
+	case SyncPlanSubsystemDnsRecords:
 		return true
-	case Firewall:
+	case SyncPlanSubsystemFirewall:
 		return true
-	case Scripts:
+	case SyncPlanSubsystemScripts:
 		return true
-	case Traefik:
+	case SyncPlanSubsystemTraefik:
 		return true
 	default:
 		return false
@@ -2582,9 +2615,12 @@ type AllSettings struct {
 // AppearanceSettings defines model for AppearanceSettings.
 type AppearanceSettings struct {
 	// CustomTheme The admin's palette (10-ui §2); the other roles are derived. Refused when text is unreadable.
-	CustomTheme            *CustomTheme `json:"custom_theme,omitempty"`
-	PublicDashboardEnabled bool         `json:"public_dashboard_enabled"`
-	PublicStatusEnabled    bool         `json:"public_status_enabled"`
+	CustomTheme *CustomTheme `json:"custom_theme,omitempty"`
+
+	// OverviewWidgets The overview's widgets in the admin's order (10-ui §3). Left out on a save: the stored order stays.
+	OverviewWidgets        *[]OverviewWidget `json:"overview_widgets,omitempty"`
+	PublicDashboardEnabled bool              `json:"public_dashboard_enabled"`
+	PublicStatusEnabled    bool              `json:"public_status_enabled"`
 
 	// ReduceTransparency Solid backgrounds instead of translucent overlays
 	ReduceTransparency *bool `json:"reduce_transparency,omitempty"`
@@ -4078,6 +4114,15 @@ type NotificationRoute struct {
 
 // NotificationRouteMinSeverity defines model for NotificationRoute.MinSeverity.
 type NotificationRouteMinSeverity string
+
+// OverviewWidget defines model for OverviewWidget.
+type OverviewWidget struct {
+	Id      OverviewWidgetId `json:"id"`
+	Visible bool             `json:"visible"`
+}
+
+// OverviewWidgetId defines model for OverviewWidget.Id.
+type OverviewWidgetId string
 
 // Passkey defines model for Passkey.
 type Passkey struct {

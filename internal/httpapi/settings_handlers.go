@@ -31,6 +31,11 @@ func securityBody(v settings.Security) gen.SecuritySettings {
 func appearanceBody(a settings.Appearance) gen.AppearanceSettings {
 	out := gen.AppearanceSettings{Theme: a.Theme, PublicDashboardEnabled: a.PublicDashboardEnabled, PublicStatusEnabled: a.PublicStatusEnabled,
 		ReduceTransparency: ptr(a.ReduceTransparency)}
+	widgets := make([]gen.OverviewWidget, 0, len(a.OverviewWidgets))
+	for _, w := range a.OverviewWidgets {
+		widgets = append(widgets, gen.OverviewWidget{Id: gen.OverviewWidgetId(w.ID), Visible: w.Visible})
+	}
+	out.OverviewWidgets = &widgets
 	if c := a.CustomTheme; c != nil {
 		out.CustomTheme = &gen.CustomTheme{Canvas: c.Canvas, Surface: c.Surface, Text: c.Text, Muted: c.Muted, Border: c.Border,
 			Accent: c.Accent, Roundness: gen.CustomThemeRoundness(c.Roundness)}
@@ -44,6 +49,12 @@ func appearanceBody(a settings.Appearance) gen.AppearanceSettings {
 func appearanceOf(b gen.AppearanceSettings) settings.Appearance {
 	v := settings.Appearance{Theme: b.Theme, PublicDashboardEnabled: b.PublicDashboardEnabled, PublicStatusEnabled: b.PublicStatusEnabled,
 		ReduceTransparency: deref(b.ReduceTransparency)}
+	if b.OverviewWidgets != nil {
+		v.OverviewWidgets = []settings.Widget{}
+		for _, w := range *b.OverviewWidgets {
+			v.OverviewWidgets = append(v.OverviewWidgets, settings.Widget{ID: string(w.Id), Visible: w.Visible})
+		}
+	}
 	if c := b.CustomTheme; c != nil {
 		v.CustomTheme = &settings.CustomTheme{Canvas: strings.ToLower(c.Canvas), Surface: strings.ToLower(c.Surface),
 			Text: strings.ToLower(c.Text), Muted: strings.ToLower(c.Muted), Border: strings.ToLower(c.Border),
@@ -203,6 +214,13 @@ func (s *Server) GetAppearanceSettings(ctx context.Context, _ gen.GetAppearanceS
 
 func (s *Server) PutAppearanceSettings(ctx context.Context, req gen.PutAppearanceSettingsRequestObject) (gen.PutAppearanceSettingsResponseObject, error) {
 	v := appearanceOf(*req.Body)
+	if req.Body.OverviewWidgets == nil { // a page that doesn't show the widgets keeps their order
+		cur, err := settings.Get[settings.Appearance](ctx, s.Store.R)
+		if err != nil {
+			return nil, err
+		}
+		v.OverviewWidgets = cur.OverviewWidgets
+	}
 	if err := saveSetting(ctx, s, v, nil); err != nil {
 		return nil, err
 	}

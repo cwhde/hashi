@@ -199,7 +199,9 @@ test('setup with a passkey, then sign in with it', async ({ page, request }) => 
 	await expect(fwChecks).toContainText('nftables 1.1.3');
 	await expect(fwChecks).toContainText('NetBird 0.81.3');
 	await page.getByLabel('NetBird', { exact: true }).click();
-	await page.getByRole('option', { name: 'This host also routes NetBird traffic to its networks' }).click();
+	await page
+		.getByRole('option', { name: 'This host also routes NetBird traffic to its networks' })
+		.click();
 	await page.getByRole('button', { name: 'Save settings' }).click();
 	await expect(page.getByLabel('NetBird', { exact: true })).toHaveValue('routing');
 	await page.getByLabel(/Hashi may manage its own firewall table/).check();
@@ -273,7 +275,9 @@ test('setup with a passkey, then sign in with it', async ({ page, request }) => 
 
 	// Passkey sign-in.
 	await page.getByRole('button', { name: 'Sign in with a passkey' }).click();
-	await expect(page).toHaveURL(/\/activity$/);
+	await expect(page).toHaveURL(/\/overview$/); // the start page (bug 31)
+	await expect(page.getByRole('heading', { name: 'Overview' })).toBeVisible();
+	await page.getByRole('link', { name: 'Activity', exact: true }).first().click();
 	await expect(page.getByRole('cell', { name: 'setup.completed' })).toBeVisible();
 	await expect(page.getByRole('cell', { name: 'auth.passkey.login' })).toBeVisible();
 
@@ -532,7 +536,7 @@ test('setup with a passkey, then sign in with it', async ({ page, request }) => 
 	expect(s.authenticated).toBe(false);
 	await removeUsb(); // sign in with the first passkey for sure
 	await page.getByRole('button', { name: 'Sign in with a passkey' }).click();
-	await expect(page).toHaveURL(/\/activity$/);
+	await expect(page).toHaveURL(/\/overview$/);
 
 	// Status: Hashi's own endpoint is checked without a browser; a user check, its page and settings; the public view.
 	await page.getByRole('link', { name: 'Status', exact: true }).first().click();
@@ -950,9 +954,37 @@ test('setup with a passkey, then sign in with it', async ({ page, request }) => 
 		.toMatchObject({ reduce_transparency: true });
 	await page.getByRole('button', { name: 'Use Graphite again' }).click();
 	await expect(page.locator('html')).toHaveAttribute('data-theme', 'graphite');
+	// Overview widgets (bug 31): hiding one and moving another changes the start page; both are saved at once.
+	const widgetList = page.getByRole('list', { name: 'Overview widgets' }).getByRole('listitem');
+	await page.getByRole('switch', { name: 'Show Recent activity' }).click();
+	await expect(page.getByRole('switch', { name: 'Show Recent activity' })).not.toBeChecked();
+	await page.getByRole('button', { name: 'Move Edge hosts up' }).click();
+	await expect(widgetList.nth(2)).toContainText('Edge hosts');
+	await page.goto(`${state.baseURL}/overview`);
+	await expect(page.getByRole('main').getByRole('heading', { level: 2 })).toHaveText([
+		'Changes waiting',
+		'Needs attention',
+		'Edge hosts',
+		'Service health',
+		'Security, last 24 h',
+		'Certificates'
+	]);
+	await page.goto(`${state.baseURL}/settings?category=appearance`);
+	await page.getByRole('button', { name: 'Move Edge hosts down' }).click();
+	await expect(widgetList.nth(3)).toContainText('Edge hosts');
+	await page.getByRole('switch', { name: 'Show Recent activity' }).click();
+	await expect(page.getByRole('switch', { name: 'Show Recent activity' })).toBeChecked();
 	// Times in UTC: Activity shows them with the zone.
 	await page.goto(`${state.baseURL}/settings?category=general`);
 	await page.getByRole('radio', { name: 'UTC' }).click();
+	// Leaving with an unsaved change asks in the app's own dialog (bug 108); Stay keeps the change.
+	await page.getByRole('link', { name: 'Activity' }).first().click();
+	await page
+		.getByRole('alertdialog', { name: 'Leave without saving?' })
+		.getByRole('button', { name: 'Stay' })
+		.click();
+	await expect(page).toHaveURL(/category=general/);
+	await expect(page.getByRole('radio', { name: 'UTC' })).toBeChecked();
 	await page.getByRole('button', { name: 'Save', exact: true }).click();
 	await expect(page.getByRole('status')).toContainText('Saved');
 	await page.goto(`${state.baseURL}/activity`);
@@ -997,6 +1029,7 @@ test('setup with a passkey, then sign in with it', async ({ page, request }) => 
 		'/traefik',
 		'/firewall',
 		'/pulse',
+		'/overview',
 		'/security',
 		'/ip-sets',
 		'/ip-sets/address',
@@ -1133,7 +1166,7 @@ test('console recovery link registers a replacement passkey', async ({ browser }
 	await expect(page.getByText('The new passkey is saved')).toBeVisible();
 	await page.getByRole('button', { name: 'Go to sign-in' }).click();
 	await page.getByRole('button', { name: 'Sign in with a passkey' }).click();
-	await expect(page).toHaveURL(/\/activity$/);
+	await expect(page).toHaveURL(/\/overview$/);
 	// The link works once.
 	const again = await page.request.post(`${state.baseURL}/api/auth/recover`, { data: { token } });
 	expect(again.status()).toBe(403);

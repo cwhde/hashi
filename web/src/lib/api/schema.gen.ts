@@ -5004,6 +5004,13 @@ export interface components {
             reduce_transparency?: boolean;
             public_dashboard_enabled: boolean;
             public_status_enabled: boolean;
+            /** @description The overview's widgets in the admin's order (10-ui §3). Left out on a save: the stored order stays. */
+            overview_widgets?: components["schemas"]["OverviewWidget"][];
+        };
+        OverviewWidget: {
+            /** @enum {string} */
+            id: "changes" | "attention" | "health" | "edge" | "security" | "certificates" | "activity";
+            visible: boolean;
         };
         /** @description The admin's palette (10-ui §2); the other roles are derived. Refused when text is unreadable. */
         CustomTheme: {

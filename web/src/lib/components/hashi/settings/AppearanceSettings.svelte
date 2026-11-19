@@ -1,6 +1,6 @@
 <script lang="ts">
-	// Settings → Appearance (09 §2): theme, your own theme, comfort. A choice here applies and saves at once (bug 39);
-	// only the custom theme editor has a Save, because it is a form.
+	// Settings → Appearance (09 §2): theme, your own theme, comfort, the Overview's widgets. A choice here applies and
+	// saves at once (bug 39); only the custom theme editor has a Save, because it is a form.
 	import { onMount } from 'svelte';
 	import Panel from '#lib/components/hashi/Panel.svelte';
 	import CustomThemeEditor from '#lib/components/hashi/CustomThemeEditor.svelte';
@@ -10,6 +10,9 @@
 	import { cn } from '#lib/utils.ts';
 	import { theme, themes, customVars, type CustomTheme, type ThemeId } from '#lib/theme.svelte.ts';
 	import { Saver } from '#lib/settings/saver.svelte.ts';
+	import { Button } from '#lib/components/ui/button/index.ts';
+	import { ArrowDown, ArrowUp } from '@lucide/svelte';
+	import { arrange, widgetNames, type Widget } from '#lib/overview.ts';
 
 	let a = $state<Schemas['AppearanceSettings'] | null>(null);
 	let error = $state('');
@@ -38,6 +41,24 @@
 		}, 'Switched back. Your custom theme stays saved.');
 	};
 	const solid = (on: boolean) => saver.run(() => theme.saveSolid(on), '');
+
+	// The Overview's widgets (bug 31): on or off and their order, saved at once like the other choices here.
+	const widgets = $derived(arrange(a?.overview_widgets));
+	const saveWidgets = (next: Widget[]) =>
+		saver.run(async () => {
+			const cur = await api.GET('/api/settings/appearance');
+			if (!cur.data) throw cur.error;
+			a = await withReauth(() =>
+				api.PUT('/api/settings/appearance', { body: { ...cur.data, overview_widgets: next } })
+			);
+		}, '');
+	const toggle = (i: number, visible: boolean) =>
+		saveWidgets(widgets.map((w, j) => (j === i ? { ...w, visible } : w)));
+	function move(i: number, by: -1 | 1) {
+		const next = [...widgets];
+		[next[i], next[i + by]] = [next[i + by]!, next[i]!];
+		return saveWidgets(next);
+	}
 </script>
 
 {#snippet card(id: ThemeId, name: string, style: string, mode?: string)}
@@ -90,6 +111,35 @@
 				disabled={saver.busy}
 			/></label
 		>
+	</Panel>
+	<Panel title="Overview" flush>
+		<ul class="divide-y" aria-label="Overview widgets">
+			{#each widgets as w, i (w.id)}
+				<li class="flex items-center gap-2 px-4 py-2 text-md">
+					<span class="min-w-0 flex-1 truncate">{widgetNames[w.id]}</span>
+					<Button
+						variant="ghost"
+						size="icon-sm"
+						disabled={saver.busy || i === 0}
+						onclick={() => void move(i, -1)}
+						aria-label="Move {widgetNames[w.id]} up"><ArrowUp /></Button
+					>
+					<Button
+						variant="ghost"
+						size="icon-sm"
+						disabled={saver.busy || i === widgets.length - 1}
+						onclick={() => void move(i, 1)}
+						aria-label="Move {widgetNames[w.id]} down"><ArrowDown /></Button
+					>
+					<Switch
+						checked={w.visible}
+						onCheckedChange={(v) => void toggle(i, v)}
+						disabled={saver.busy}
+						aria-label="Show {widgetNames[w.id]}"
+					/>
+				</li>
+			{/each}
+		</ul>
 	</Panel>
 	{#if saver.note}<p
 			role={saver.note.ok ? 'status' : 'alert'}
