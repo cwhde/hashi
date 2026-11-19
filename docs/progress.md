@@ -56,7 +56,7 @@ PR A, status, public pages and alerts:
 - [x] AdGuard and Pulse checks get their source label and group (86); history strip counts only real checks (87); 24h/7d/30d charts show what exists (88)
 - [x] Pause/Resume sends only paused (59); saving a stale check form is refused, not silently overwriting (82)
 - [x] Script schedule preview says which time zone (85)
-- [ ] Grouped alert names the host when the checks behind one Traefik or firewall host go down together (12; grouping itself shipped in 13.4 as 144)
+- [x] Grouped alert names the host when the checks behind one Traefik or firewall host go down together (12; grouping itself shipped in 13.4 as 144)
 - [ ] Status placeholders stuck (107): one more reproduction try with a throttled network; fix only if reproduced
 - [ ] Flaky Pocket ID test (16): read the secret after create when the answer has none
 

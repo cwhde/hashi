@@ -201,6 +201,41 @@ func TestAlertsCloseTogetherAreGrouped(t *testing.T) {
 	}
 }
 
+// When a host's own check is among grouped alerts, the message leads with it: that host is the likely cause (bug 12).
+func TestGroupedAlertLeadsWithTheHost(t *testing.T) {
+	s, f, now := fixture(t)
+	ctx := t.Context()
+	p, err := s.CreateSMTP(ctx, "Mail", SMTPConfig{Host: "mail.example.com", Port: 587, TLS: SMTPStartTLS, From: "a@example.com", To: "b@example.com"}, secrets.New("pw"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := s.st.Q.PutNotificationRoute(ctx, db.PutNotificationRouteParams{ProviderID: nullStr(p.ID), MinSeverity: "down", CooldownSeconds: 600, GroupSeconds: 15}); err != nil {
+		t.Fatal(err)
+	}
+	for _, c := range []struct{ id, source string }{{"Wiki", "service"}, {"edge-a", "traefik"}, {"Mail", "service"}} {
+		if err := s.st.Q.InsertMonitorEndpoint(ctx, db.InsertMonitorEndpointParams{ID: c.id, SourceType: c.source, Name: c.id, GroupName: "G", IntervalSeconds: 60, TimeoutSeconds: 5}); err != nil {
+			t.Fatal(err)
+		}
+		if err := s.st.Q.SetMonitorEndpointResult(ctx, db.SetMonitorEndpointResultParams{State: "down", ID: c.id}); err != nil {
+			t.Fatal(err)
+		}
+		if err := s.StateChanged(ctx, s.st.Q, db.MonitorEndpoint{ID: c.id, Name: c.id, SourceType: c.source}, "up", "down", "timeout"); err != nil {
+			t.Fatal(err)
+		}
+	}
+	*now = now.Add(20 * time.Second)
+	if _, err := s.Deliver(ctx); err != nil {
+		t.Fatal(err)
+	}
+	if len(f.sent) != 1 {
+		t.Fatalf("%+v", f.sent)
+	}
+	m := f.sent[0]
+	if m.Subject != "edge-a and 2 other checks are down" || !strings.HasPrefix(m.Body, "edge-a is down") {
+		t.Fatalf("subject %q body %q", m.Subject, m.Body)
+	}
+}
+
 func TestFailedDeliveryRetriesThenStops(t *testing.T) {
 	s, f, now := fixture(t)
 	ctx := t.Context()

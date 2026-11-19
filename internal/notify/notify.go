@@ -374,13 +374,25 @@ func (s *Service) send(ctx context.Context, b []db.NotificationDelivery) error {
 	return sender.Send(ctx, m)
 }
 
-// combined is one message for several alerts: a subject that counts them and one line per check.
+// combined is one message for several alerts: a subject that counts them and one line per check. A host's own check
+// (Traefik host, firewall host, Pulse agent) goes first and is named in the subject: it is the likely cause (bug 12).
 func (s *Service) combined(ctx context.Context, b []db.NotificationDelivery) Message {
 	m := s.message(ctx, b[0])
 	m.Stats, m.State = nil, "degraded"
+	var hosts, rest []db.NotificationDelivery
+	var names []string
+	for _, d := range b {
+		e, err := s.st.R.GetMonitorEndpoint(ctx, d.EndpointID.String)
+		if err == nil && (e.SourceType == "traefik" || e.SourceType == "firewall_host" || e.SourceType == "pulse") {
+			hosts = append(hosts, d)
+			names = append(names, e.Name)
+		} else {
+			rest = append(rest, d)
+		}
+	}
 	down := 0
 	lines := make([]string, 0, len(b))
-	for _, d := range b {
+	for _, d := range append(hosts, rest...) {
 		if !strings.HasSuffix(d.Subject, " is degraded") {
 			down++
 			m.State = "down"
@@ -394,13 +406,22 @@ func (s *Service) combined(ctx context.Context, b []db.NotificationDelivery) Mes
 			m.At = at
 		}
 	}
+	verb := "are down or degraded"
 	switch down {
 	case len(b):
-		m.Subject = fmt.Sprintf("%d checks are down", len(b))
+		verb = "are down"
 	case 0:
-		m.Subject = fmt.Sprintf("%d checks are degraded", len(b))
+		verb = "are degraded"
+	}
+	switch {
+	case len(hosts) == 0:
+		m.Subject = fmt.Sprintf("%d checks %s", len(b), verb)
+	case len(rest) == 0:
+		m.Subject = strings.Join(names, ", ") + " " + verb
+	case len(rest) == 1:
+		m.Subject = strings.Join(names, ", ") + " and 1 other check " + verb
 	default:
-		m.Subject = fmt.Sprintf("%d checks are down or degraded", len(b))
+		m.Subject = fmt.Sprintf("%s and %d other checks %s", strings.Join(names, ", "), len(rest), verb)
 	}
 	m.Body = strings.Join(lines, "\n")
 	if g, err := settings.Get[settings.General](ctx, s.st.R); err == nil && g.AdminDomain != "" {
