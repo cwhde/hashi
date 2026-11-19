@@ -61,9 +61,15 @@ PR A, status, public pages and alerts:
 - [x] Flaky Pocket ID test (16): read the secret after create when the answer has none
 
 PR B, plans tell the truth:
-- [ ] Why blocking 129.73.0.0/16 cut NetBird's management path (34): read-only on prod, then resolve the waiting firewall plan with the owner
-- [ ] The approval screen says what is at stake: addresses blocked, what could stop working, that a failed check rolls back (35)
-- [ ] Service save counts only plans it created (76); TCP/UDP services say "Waiting for approval" until the plan is applied (77)
+- [x] Why blocking 129.73.0.0/16 cut NetBird's management path (34): it didn't. Read-only on prod 2026-11-19: the range
+  (a corporate block, nothing NetBird or DNS uses) is in the VPS's live `block4`, NetBird is connected to its management server (behind the VPS's own public
+  address), and Hashi's after-apply check passes (5 of 5, about 6 ms). No firewall plan waits any more: the owner approved
+  two high-risk plans that day and both passed the check. The 2026-11-13 failure has no NetBird log left; cause not
+  known, moved to Unverified
+- [x] The approval screen says what is at stake (35): plain risk reasons from the firewall, an "If you approve" box with
+  the checks Hashi runs afterwards and the 3-minute restore
+- [x] Service save counts only plans it created (76); a service whose Traefik plan, or for TCP/UDP its entry firewall
+  host's plan, is still open says "Waiting for approval" (77)
 
 Gate: the cause of the NetBird check failure is known and the waiting firewall plan is resolved with the owner; the approval
 screen says what is at stake; a real host outage sends one grouped alert.
@@ -1092,6 +1098,10 @@ Decisions made in S0:
 
 ## Unverified
 
+- 34, the high-risk firewall plan on the VPS (2026-11-13, during the S12 restore drill) failed its NetBird check and the
+  rescue timer restored the old rules at 07:31:20 UTC. Not the block of 129.73.0.0/16: that range is live in `block4`
+  since and the same check passes (2026-11-19). The host's journal has no NetBird entries for that hour. Comes back
+  with the next failed check, whose error now names the management address.
 - 107, Status list once stuck on placeholder cards for more than 4 s (13.4 walk). Not reproduced in 27 visits on prod (12 on 2026-11-19 with beta.3: 0.65–0.88 s; 15 on 2026-11-19 with beta.5: 0.38–0.81 s). Moved out of bugs.md; comes back with a reproduction.
 - 13.1, flaky CI tests (old bugs 11, 16, 33), not reproduced locally. Each now leaves evidence for the next time:
   `TestIntegrationRescueRollback` hang in `docker exec` (a test `Shell` call now stops after 2 min and names the
