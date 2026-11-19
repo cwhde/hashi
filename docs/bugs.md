@@ -66,6 +66,7 @@ All open entries are planned into the 0.13 bug round (slices 13.1 onwards in `do
 | 123 | later | reported | App display | A switch to turn all on or off, for the app dashboard and the status page. (owner) | 2026-11-19 |
 | 124 | visual | reported | Settings → Edge protection | Looks unorganised. (owner) | 2026-11-19 |
 | 125 | visual | reported | Settings → Firewall | "NetBird mode a new host starts with" is not understood. (owner) | 2026-11-19 |
+| 127 | function | found | Monitoring, Store | The database grows ~120 MB a day (prod: ~900 MB monitor rollups, ~800 MB raw samples after 19 days, 71 endpoints). With 60 s checks the 1-minute rollups (kept 90 days) repeat the raw samples (kept 30). Heading for ~6 GB; 14 nightly full copies of that fill the container disk around 2026-11-28. | 2026-11-19 |
 
 ## Details
 
