@@ -9,6 +9,9 @@ Common fields: name, slug (unique, DNS-safe), kind (`http` | `https` | `h2c` | `
 subdomain / full custom), enabled, origin, owning feature (for generated services), detected firewall host, explicit
 routing override (entry host, 03-dns.md §5.1), dashboard visible, monitoring visible, AdGuard rewrite enabled, extra middlewares (from the user
 middleware file), traffic options (§1.1a), root rule set + default fallback and WAF modes (HTTP kinds, 06-edge-security.md §4, §9), sync state + last applied hash.
+A host name belongs to one HTTP-kind service; TCP/UDP streams are routed by their port, so they may share a name with
+an HTTP service and with each other (a game server and its web map, bug 132). The shared name gets one DNS record,
+the HTTP service's when there is one.
 
 Kind semantics: `http` = upstream speaks HTTP; `https` = upstream speaks TLS (with per-service `insecureSkipVerify`
 and `serverName` options); `h2c` = upstream speaks cleartext HTTP/2. All three are served publicly on `websecure` (443)
