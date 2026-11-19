@@ -38,7 +38,6 @@ All open entries are planned into the 0.13 bug round (slices 13.1 onwards in `do
 | 88 | visual | reported | Status → check detail → charts | 24h, 7d and 30d keep saying "Charts appear after the first full minute of checks" while 1h already has points, and 24h is the default, so a new check looks empty. (Codex R-010) | 2026-11-15 |
 | 89 | later | reported | IP set → Resolved, large feeds | "Showing the first 200 of 1621 ranges." with no way to see more, although the API has a cursor and Items has "Show more". (Codex R-013) | 2026-11-15 |
 | 107 | visual | reported | Status list | Once stayed on placeholder cards for more than 4 s although its calls answered within 0.6 s; loaded on the next try. Not measured further. (13.4 walk) Tried again on prod 2026-11-19 (0.13.4-beta.3): 12 in-app visits, cards after 0.65–0.88 s each; not reproduced, so not fixed (fix needs a reproduction). | 2026-11-19 |
-| 138 | later | reported | Status list | Choose the order of the categories, hide a category, or turn categories off and show one plain list of everything (without saying which are Traefik hosts, which are services); settings follow the app's usual settings conventions. (owner) | 2026-11-19 |
 
 ## Details
 

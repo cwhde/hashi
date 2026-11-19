@@ -427,7 +427,7 @@ func (s *Server) GetPublicStatus(ctx context.Context, _ gen.GetPublicStatusReque
 	if err != nil {
 		return nil, err
 	}
-	out := gen.GetPublicStatus200JSONResponse{Title: title, Theme: look.Theme, CustomTheme: look.CustomTheme, UpdatedAt: nonZero(v.UpdatedAt), Endpoints: make([]gen.PublicEndpoint, 0, len(v.Endpoints))}
+	out := gen.GetPublicStatus200JSONResponse{Title: title, Theme: look.Theme, CustomTheme: look.CustomTheme, UpdatedAt: nonZero(v.UpdatedAt), Grouped: &v.Grouped, Endpoints: make([]gen.PublicEndpoint, 0, len(v.Endpoints))}
 	for _, e := range v.Endpoints {
 		out.Endpoints = append(out.Endpoints, gen.PublicEndpoint{PendingDns: boolIf(e.PendingDNS), Name: e.Name, Group: e.Group, State: gen.MonitorState(e.State), Strip: stripBody(e.Strip), Uptime24h: e.Uptime24})
 	}

@@ -1,6 +1,7 @@
 package monitor
 
 import (
+	"cmp"
 	"context"
 	"database/sql"
 	"errors"
@@ -12,6 +13,7 @@ import (
 	"github.com/oklog/ulid/v2"
 
 	"git.juzo.io/juzo/hashi/internal/services"
+	"git.juzo.io/juzo/hashi/internal/settings"
 	"git.juzo.io/juzo/hashi/internal/store/db"
 )
 
@@ -350,8 +352,9 @@ type PublicEndpoint struct {
 
 // PublicStatus is the status page's data.
 type PublicStatus struct {
-	Endpoints []PublicEndpoint
+	Endpoints []PublicEndpoint // in display order: by category as set, or by name when Grouped is false
 	UpdatedAt time.Time
+	Grouped   bool
 }
 
 // PublicApp holds only what the dashboard may show (07 §8).
@@ -401,17 +404,35 @@ func (s *Service) PublicStatus(ctx context.Context) (PublicStatus, error) {
 		if err != nil {
 			return PublicStatus{}, err
 		}
-		out := PublicStatus{Endpoints: []PublicEndpoint{}}
+		page, err := settings.Get[settings.StatusPage](ctx, s.st.R)
+		if err != nil {
+			return PublicStatus{}, err
+		}
+		out := PublicStatus{Endpoints: []PublicEndpoint{}, Grouped: page.Grouped}
 		for _, r := range rows {
 			if r.Endpoint.LastCheckAt.Valid {
 				if t := time.UnixMilli(r.Endpoint.LastCheckAt.Int64).UTC(); t.After(out.UpdatedAt) {
 					out.UpdatedAt = t
 				}
 			}
-			if r.Endpoint.Public == 1 {
+			if r.Endpoint.Public == 1 && !slices.Contains(page.Hidden, r.Endpoint.GroupName) {
 				out.Endpoints = append(out.Endpoints, PublicEndpoint{PendingDNS: r.Endpoint.PendingDns == 1, Name: r.Endpoint.Name, Group: r.Endpoint.GroupName, State: r.State, Strip: r.Strip, Uptime24: r.Uptime24})
 			}
 		}
+		place := func(group string) int { // set categories first, in their order; the rest after
+			if i := slices.Index(page.Order, group); i >= 0 {
+				return i
+			}
+			return len(page.Order)
+		}
+		slices.SortStableFunc(out.Endpoints, func(a, b PublicEndpoint) int {
+			if page.Grouped {
+				if c := cmp.Or(cmp.Compare(place(a.Group), place(b.Group)), strings.Compare(a.Group, b.Group)); c != 0 {
+					return c
+				}
+			}
+			return strings.Compare(strings.ToLower(a.Name), strings.ToLower(b.Name))
+		})
 		return out, nil
 	})
 }

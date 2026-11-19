@@ -4243,9 +4243,12 @@ type PublicStatus struct {
 	// CustomTheme The admin's palette (10-ui §2); the other roles are derived. Refused when text is unreadable.
 	CustomTheme *CustomTheme     `json:"custom_theme,omitempty"`
 	Endpoints   []PublicEndpoint `json:"endpoints"`
-	Theme       string           `json:"theme"`
-	Title       string           `json:"title"`
-	UpdatedAt   *time.Time       `json:"updated_at,omitempty"`
+
+	// Grouped Show the endpoints under their categories, in the order given
+	Grouped   *bool      `json:"grouped,omitempty"`
+	Theme     string     `json:"theme"`
+	Title     string     `json:"title"`
+	UpdatedAt *time.Time `json:"updated_at,omitempty"`
 }
 
 // PublishedRecord defines model for PublishedRecord.
@@ -5248,6 +5251,18 @@ type SetupSystemService struct {
 	TraefikPlan     *SyncPlan  `json:"traefik_plan,omitempty"`
 }
 
+// StatusPageSettings defines model for StatusPageSettings.
+type StatusPageSettings struct {
+	// Grouped Show categories; false shows one list sorted by name
+	Grouped bool `json:"grouped"`
+
+	// Hidden Categories left out of the public page
+	Hidden []string `json:"hidden"`
+
+	// Order Category names, first to last; others follow by name
+	Order []string `json:"order"`
+}
+
 // SyncPlan defines model for SyncPlan.
 type SyncPlan struct {
 	ApprovedAt *time.Time `json:"approved_at,omitempty"`
@@ -5888,6 +5903,9 @@ type PutPulseSettingsJSONRequestBody = PulseSettings
 
 // PutSecuritySettingsJSONRequestBody defines body for PutSecuritySettings for application/json ContentType.
 type PutSecuritySettingsJSONRequestBody = SecuritySettings
+
+// PutStatusPageSettingsJSONRequestBody defines body for PutStatusPageSettings for application/json ContentType.
+type PutStatusPageSettingsJSONRequestBody = StatusPageSettings
 
 // PutSetupBaseSettingsJSONRequestBody defines body for PutSetupBaseSettings for application/json ContentType.
 type PutSetupBaseSettingsJSONRequestBody = BaseSettings
@@ -6778,6 +6796,12 @@ type ServerInterface interface {
 
 	// (PUT /api/settings/security)
 	PutSecuritySettings(w http.ResponseWriter, r *http.Request)
+
+	// (GET /api/settings/status-page)
+	GetStatusPageSettings(w http.ResponseWriter, r *http.Request)
+
+	// (PUT /api/settings/status-page)
+	PutStatusPageSettings(w http.ResponseWriter, r *http.Request)
 	// GetSetup Setup steps and their state
 	// (GET /api/setup)
 	GetSetup(w http.ResponseWriter, r *http.Request)
@@ -10897,6 +10921,34 @@ func (siw *ServerInterfaceWrapper) PutSecuritySettings(w http.ResponseWriter, r 
 	handler.ServeHTTP(w, r)
 }
 
+// GetStatusPageSettings operation middleware
+func (siw *ServerInterfaceWrapper) GetStatusPageSettings(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetStatusPageSettings(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// PutStatusPageSettings operation middleware
+func (siw *ServerInterfaceWrapper) PutStatusPageSettings(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.PutStatusPageSettings(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // GetSetup operation middleware
 func (siw *ServerInterfaceWrapper) GetSetup(w http.ResponseWriter, r *http.Request) {
 
@@ -12215,6 +12267,8 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/api/settings/monitoring", wrapper.PutMonitoringSettings)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/settings/dashboard", wrapper.GetDashboardSettings)
 	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/api/settings/dashboard", wrapper.PutDashboardSettings)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/settings/status-page", wrapper.GetStatusPageSettings)
+	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/api/settings/status-page", wrapper.PutStatusPageSettings)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/settings/firewall-defaults", wrapper.GetFirewallDefaultsSettings)
 	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/api/settings/firewall-defaults", wrapper.PutFirewallDefaultsSettings)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/settings/pulse", wrapper.GetPulseSettings)
@@ -19133,6 +19187,83 @@ func (response PutSecuritySettingsdefaultApplicationProblemPlusJSONResponse) Vis
 	return err
 }
 
+type GetStatusPageSettingsRequestObject struct {
+}
+
+type GetStatusPageSettingsResponseObject interface {
+	VisitGetStatusPageSettingsResponse(w http.ResponseWriter) error
+}
+
+type GetStatusPageSettings200JSONResponse StatusPageSettings
+
+func (response GetStatusPageSettings200JSONResponse) VisitGetStatusPageSettingsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetStatusPageSettingsdefaultApplicationProblemPlusJSONResponse struct {
+	Body       Problem
+	StatusCode int
+}
+
+func (response GetStatusPageSettingsdefaultApplicationProblemPlusJSONResponse) VisitGetStatusPageSettingsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(response.StatusCode)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PutStatusPageSettingsRequestObject struct {
+	Body *PutStatusPageSettingsJSONRequestBody
+}
+
+type PutStatusPageSettingsResponseObject interface {
+	VisitPutStatusPageSettingsResponse(w http.ResponseWriter) error
+}
+
+type PutStatusPageSettings200JSONResponse StatusPageSettings
+
+func (response PutStatusPageSettings200JSONResponse) VisitPutStatusPageSettingsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PutStatusPageSettingsdefaultApplicationProblemPlusJSONResponse struct {
+	Body       Problem
+	StatusCode int
+}
+
+func (response PutStatusPageSettingsdefaultApplicationProblemPlusJSONResponse) VisitPutStatusPageSettingsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(response.StatusCode)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
 type GetSetupRequestObject struct {
 }
 
@@ -22128,6 +22259,12 @@ type StrictServerInterface interface {
 
 	// (PUT /api/settings/security)
 	PutSecuritySettings(ctx context.Context, request PutSecuritySettingsRequestObject) (PutSecuritySettingsResponseObject, error)
+
+	// (GET /api/settings/status-page)
+	GetStatusPageSettings(ctx context.Context, request GetStatusPageSettingsRequestObject) (GetStatusPageSettingsResponseObject, error)
+
+	// (PUT /api/settings/status-page)
+	PutStatusPageSettings(ctx context.Context, request PutStatusPageSettingsRequestObject) (PutStatusPageSettingsResponseObject, error)
 	// GetSetup Setup steps and their state
 	// (GET /api/setup)
 	GetSetup(ctx context.Context, request GetSetupRequestObject) (GetSetupResponseObject, error)
@@ -27255,6 +27392,61 @@ func (sh *strictHandler) PutSecuritySettings(w http.ResponseWriter, r *http.Requ
 		sh.options.ResponseErrorHandlerFunc(w, r, err)
 	} else if validResponse, ok := response.(PutSecuritySettingsResponseObject); ok {
 		if err := validResponse.VisitPutSecuritySettingsResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// GetStatusPageSettings operation middleware
+func (sh *strictHandler) GetStatusPageSettings(w http.ResponseWriter, r *http.Request) {
+	var request GetStatusPageSettingsRequestObject
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.GetStatusPageSettings(ctx, request.(GetStatusPageSettingsRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "GetStatusPageSettings")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(GetStatusPageSettingsResponseObject); ok {
+		if err := validResponse.VisitGetStatusPageSettingsResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// PutStatusPageSettings operation middleware
+func (sh *strictHandler) PutStatusPageSettings(w http.ResponseWriter, r *http.Request) {
+	var request PutStatusPageSettingsRequestObject
+
+	var body PutStatusPageSettingsJSONRequestBody
+	if err := runtime.BindJSONBody(r, &body); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.PutStatusPageSettings(ctx, request.(PutStatusPageSettingsRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "PutStatusPageSettings")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(PutStatusPageSettingsResponseObject); ok {
+		if err := validResponse.VisitPutStatusPageSettingsResponse(w); err != nil {
 			sh.options.ResponseErrorHandlerFunc(w, r, err)
 		}
 	} else if response != nil {

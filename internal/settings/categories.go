@@ -75,6 +75,14 @@ type Dashboard struct {
 	NewServicesVisible bool   `json:"new_services_visible"`
 }
 
+// StatusPage: the public status page's categories, the endpoints' groups (07 §7). Order lists category names first to
+// last; categories not in it follow by name. Hidden ones are left out. Grouped false shows one list sorted by name.
+type StatusPage struct {
+	Grouped bool     `json:"grouped"`
+	Order   []string `json:"order"`
+	Hidden  []string `json:"hidden"`
+}
+
 // FirewallDefaults: what a new firewall host starts with, and MSS clamping on NetBird-routed traffic (05 §8, 09 §2).
 type FirewallDefaults struct {
 	NetBirdMode string `json:"netbird_mode"`
@@ -199,6 +207,8 @@ func defaults(c Category) Category {
 		return Monitoring{IntervalSeconds: 60, TimeoutSeconds: 10, CodeMin: 200, CodeMax: 399, RetentionDays: 30}
 	case Dashboard:
 		return Dashboard{DefaultSort: SortGroup, NewServicesVisible: true}
+	case StatusPage:
+		return StatusPage{Grouped: true, Order: []string{}, Hidden: []string{}}
 	case FirewallDefaults:
 		return FirewallDefaults{NetBirdMode: "peer", MSSClamp: true}
 	case Security:
@@ -236,6 +246,7 @@ func (Security) Key() string   { return "security" }
 func (Appearance) Key() string { return "appearance" }
 func (Monitoring) Key() string { return "monitoring" }
 func (Dashboard) Key() string  { return "dashboard" }
+func (StatusPage) Key() string { return "status_page" }
 
 func (FirewallDefaults) Key() string { return "firewall_defaults" }
 func (AgentDNS) Key() string         { return "internal_agent_dns" }
@@ -515,6 +526,21 @@ func (m Monitoring) Validate() error {
 func (d Dashboard) Validate() error {
 	if d.DefaultSort != SortName && d.DefaultSort != SortGroup && d.DefaultSort != SortStatus {
 		return invalid("sort by name, group or status")
+	}
+	return nil
+}
+
+// Validate checks StatusPage.
+func (p StatusPage) Validate() error {
+	for _, l := range [][]string{p.Order, p.Hidden} {
+		if len(l) > 500 {
+			return invalid("at most 500 categories")
+		}
+		for _, n := range l {
+			if n == "" || len(n) > 200 {
+				return invalid("a category name has 1 to 200 characters")
+			}
+		}
 	}
 	return nil
 }

@@ -95,11 +95,15 @@ var consumerTests = map[string]string{
 	"engine.feed_refresh_seconds":     "internal/app/settings_consumers_test.go::TestFeedTimesSetting",
 	"engine.feed_stale_seconds":       "internal/app/settings_consumers_test.go::TestFeedTimesSetting",
 
+	"status_page.grouped": "internal/monitor/service_test.go::TestPublicStatusCategories",
+	"status_page.order":   "internal/monitor/service_test.go::TestPublicStatusCategories",
+	"status_page.hidden":  "internal/monitor/service_test.go::TestPublicStatusCategories",
+
 	"traefik_middlewares.every_service": "internal/traefik/traffic_test.go::TestEveryServiceSettingChangesRender",
 }
 
 // allCategories is every settings category; Load notifies exactly these.
-var allCategories = []Category{General{}, Security{}, Appearance{}, Monitoring{}, Dashboard{}, FirewallDefaults{}, AgentDNS{},
+var allCategories = []Category{General{}, Security{}, Appearance{}, Monitoring{}, Dashboard{}, StatusPage{}, FirewallDefaults{}, AgentDNS{},
 	Pulse{}, EdgeSSO{}, GeoIP{}, Captcha{}, Engine{}, TraefikMiddlewares{}}
 
 func TestEverySettingHasAConsumerTest(t *testing.T) {

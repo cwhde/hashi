@@ -76,7 +76,7 @@ func Get[T Category](ctx context.Context, q *db.Queries) (T, error) {
 // Load reads every category once and notifies subscribers, so consumers start with the stored values.
 func (s *Service) Load(ctx context.Context) error {
 	for _, c := range []Category{General{}, Security{}, Appearance{}, AgentDNS{}, Pulse{}, EdgeSSO{}, GeoIP{}, Engine{}, Captcha{},
-		Monitoring{}, Dashboard{}, FirewallDefaults{}, TraefikMiddlewares{}} {
+		Monitoring{}, Dashboard{}, StatusPage{}, FirewallDefaults{}, TraefikMiddlewares{}} {
 		v, err := s.getAny(ctx, c)
 		if err != nil {
 			return err
@@ -110,6 +110,8 @@ func (s *Service) getAny(ctx context.Context, c Category) (Category, error) {
 		return Get[Monitoring](ctx, s.st.Q)
 	case Dashboard:
 		return Get[Dashboard](ctx, s.st.Q)
+	case StatusPage:
+		return Get[StatusPage](ctx, s.st.Q)
 	case FirewallDefaults:
 		return Get[FirewallDefaults](ctx, s.st.Q)
 	case TraefikMiddlewares:

@@ -28,6 +28,7 @@
 	let groupBy = $state('group');
 	let sortBy = $state('name');
 	let addOpen = $state(false);
+	let order = $state<string[]>([]); // category order from Settings → Public pages (07 §7)
 
 	async function load() {
 		const r = await api.GET('/api/monitor/endpoints');
@@ -37,16 +38,19 @@
 	}
 	onMount(() => {
 		load().catch((e) => (error = problemText(e)));
+		api.GET('/api/settings/status-page').then((r) => (order = r.data?.order ?? []));
 		const t = setInterval(() => load().catch(() => {}), 20_000);
 		return () => clearInterval(t);
 	});
 
 	const groupKey = (e: Endpoint) =>
-		groupBy === 'status'
-			? e.state
-			: groupBy === 'source'
-				? (sourceText[e.source_type] ?? 'Other')
-				: e.group;
+		groupBy === 'none'
+			? ''
+			: groupBy === 'status'
+				? e.state
+				: groupBy === 'source'
+					? (sourceText[e.source_type] ?? 'Other')
+					: e.group;
 	const sorters: Record<string, (a: Endpoint, b: Endpoint) => number> = {
 		name: (a, b) => a.name.localeCompare(b.name),
 		state: (a, b) => (stateOrder[a.state] ?? 9) - (stateOrder[b.state] ?? 9),
@@ -57,7 +61,8 @@
 	const groupNames: Record<string, string> = {
 		group: 'Group by group',
 		status: 'Group by status',
-		source: 'Group by type'
+		source: 'Group by type',
+		none: 'No grouping'
 	};
 	const sortNames: Record<string, string> = {
 		name: 'Sort by name',
@@ -71,7 +76,13 @@
 		const list = endpoints
 			.filter((e) => !q || e.name.toLowerCase().includes(q) || e.group.toLowerCase().includes(q))
 			.sort(sorters[sortBy]);
-		return Object.entries(Object.groupBy(list, groupKey)).sort(([a], [b]) => a.localeCompare(b));
+		const place = (g: string) => {
+			const i = groupBy === 'group' ? order.indexOf(g) : -1;
+			return i < 0 ? order.length : i;
+		};
+		return Object.entries(Object.groupBy(list, groupKey)).sort(
+			([a], [b]) => place(a) - place(b) || a.localeCompare(b)
+		);
 	});
 </script>
 
@@ -129,9 +140,13 @@
 			{@const down = (items ?? []).filter((m) => m.state === 'down').length}
 			{@const slow = (items ?? []).filter((m) => m.state === 'degraded').length}
 			<section>
-				<h2 class="mb-2 flex items-center gap-2 text-base font-semibold capitalize">
-					{name}{#if down}<Tag tone="bad">{down} down</Tag>{/if}{#if slow}<Tag tone="warn"
-							>{slow} slow</Tag
+				<h2
+					class="mb-2 flex items-center gap-2 text-base font-semibold capitalize {name
+						? ''
+						: 'sr-only'}"
+				>
+					{name || 'All checks'}{#if down}<Tag tone="bad">{down} down</Tag>{/if}{#if slow}<Tag
+							tone="warn">{slow} slow</Tag
 						>{/if}
 				</h2>
 				<div class="grid gap-3 md:grid-cols-2 xl:grid-cols-3">

@@ -6,6 +6,7 @@ import (
 	"database/sql"
 	"errors"
 	"net/netip"
+	"slices"
 	"sync"
 	"testing"
 	"time"
@@ -476,5 +477,47 @@ func TestPublicAppsListWebServicesOnly(t *testing.T) {
 	}
 	if len(apps.Apps) != 1 || apps.Apps[0].Name != "map" || apps.HostsTotal != 1 {
 		t.Fatalf("apps %+v: only the web map belongs on the apps page", apps.Apps)
+	}
+}
+
+// The status page settings order the categories, hide some, or turn them off for one list by name (07 §7, bug 138).
+func TestPublicStatusCategories(t *testing.T) {
+	s, st, _, _ := fixture(t)
+	ctx := t.Context()
+	for _, c := range []struct{ name, group string }{{"wiki", "Apps"}, {"Edge", "Traefik hosts"}, {"alpha", "Apps"}, {"dns", "DNS"}} {
+		id, err := s.CreateUser(ctx, c.name, c.group, CheckSpec{Type: TypeTCP, Target: "127.0.0.1:1"})
+		if err != nil {
+			t.Fatal(err)
+		}
+		if err := s.Update(ctx, id, Settings{Group: c.group, IntervalSeconds: 60, TimeoutSeconds: 5, Public: true}); err != nil {
+			t.Fatal(err)
+		}
+	}
+	shown := func(p settings.StatusPage) (out []string, grouped bool) {
+		t.Helper()
+		if err := settings.Put(ctx, st.Q, p); err != nil {
+			t.Fatal(err)
+		}
+		s.statusCache = cache[PublicStatus]{}
+		v, err := s.PublicStatus(ctx)
+		if err != nil {
+			t.Fatal(err)
+		}
+		for _, e := range v.Endpoints {
+			out = append(out, e.Group+"/"+e.Name)
+		}
+		return out, v.Grouped
+	}
+	got, grouped := shown(settings.StatusPage{Grouped: true, Order: []string{"Traefik hosts", "Apps"}, Hidden: []string{}})
+	if want := []string{"Traefik hosts/Edge", "Apps/alpha", "Apps/wiki", "DNS/dns"}; !grouped || !slices.Equal(got, want) {
+		t.Fatalf("ordered: %v, want %v", got, want)
+	}
+	got, _ = shown(settings.StatusPage{Grouped: true, Order: []string{}, Hidden: []string{"Traefik hosts"}})
+	if want := []string{"Apps/alpha", "Apps/wiki", "DNS/dns"}; !slices.Equal(got, want) {
+		t.Fatalf("hidden: %v, want %v", got, want)
+	}
+	got, grouped = shown(settings.StatusPage{Grouped: false, Order: []string{"DNS"}, Hidden: []string{}})
+	if want := []string{"Apps/alpha", "DNS/dns", "Traefik hosts/Edge", "Apps/wiki"}; grouped || !slices.Equal(got, want) {
+		t.Fatalf("one list: %v, want %v", got, want)
 	}
 }

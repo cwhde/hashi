@@ -36,7 +36,14 @@
 		failedSince !== null ||
 			(!!data?.updated_at && now - new Date(data.updated_at).getTime() > STALE_MS)
 	);
-	const groups = $derived(Object.entries(Object.groupBy(data?.endpoints ?? [], (e) => e.group)));
+	// The server sends the endpoints in display order; categories off (07 §7) means one list without headings.
+	const groups = $derived(
+		data?.grouped === false
+			? data.endpoints.length
+				? [['', data.endpoints] as const]
+				: []
+			: Object.entries(Object.groupBy(data?.endpoints ?? [], (e) => e.group))
+	);
 	const down = $derived((data?.endpoints ?? []).filter((e) => e.state === 'down').length);
 </script>
 
@@ -79,9 +86,9 @@
 	{/if}
 	{#each groups as [g, list] (g)}
 		<section class="mt-6 rounded-2xl border bg-card">
-			<h2 class="border-b px-4 py-2.5 text-base font-semibold">{g}</h2>
+			{#if g}<h2 class="border-b px-4 py-2.5 text-base font-semibold">{g}</h2>{/if}
 			<ul class="divide-y">
-				{#each list ?? [] as e (e.name)}
+				{#each list ?? [] as e, i (i)}
 					<li class="grid gap-2 px-4 py-3 sm:grid-cols-[12rem_minmax(0,1fr)_7rem] sm:items-center">
 						<span class="text-md font-medium">{e.name}</span>
 						<HistoryStrip samples={stripHealth(e.strip)} />
