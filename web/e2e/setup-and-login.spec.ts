@@ -934,12 +934,12 @@ test('setup with a passkey, then sign in with it', async ({ page, request }) => 
 	expect(fits, 'the page is wider than a phone').toBe(true);
 	await page.screenshot({ path: 'test-results/s10-challenge-phone.png', fullPage: true });
 	await page.setViewportSize({ width: 1280, height: 800 });
-	await expect(page.getByText('300 in 10 s')).toBeVisible();
-	await expect(page.getByText('600/min, 1000 open per address')).toBeVisible();
+	await expect(page.getByText('300 requests in 10 s')).toBeVisible();
+	await expect(page.getByText('600 new per min, 1000 open per address')).toBeVisible();
 	await page.getByRole('button', { name: 'Edit' }).click();
-	await page.getByLabel('New connections per minute from one address').fill('700');
+	await page.getByLabel('New connections (per min)').fill('700');
 	await page.getByRole('dialog').getByRole('button', { name: 'Save', exact: true }).click();
-	await expect(page.getByText('700/min, 1000 open per address')).toBeVisible();
+	await expect(page.getByText('700 new per min, 1000 open per address')).toBeVisible();
 	// Sign-in providers are connections (10c §1.2).
 	await page.goto(`${state.baseURL}/connections`);
 	await expect(page.getByText(/^No provider yet/)).toBeVisible();
