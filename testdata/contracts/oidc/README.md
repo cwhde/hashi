@@ -13,3 +13,6 @@ Findings:
 3. ID tokens are RS256 with a `kid`. `groups` is an array of group **names**; the username is `preferred_username`.
 4. Bad code or verifier: `400 {"error":"invalid_grant",…}`. Bad client: `401 {"error":"invalid_client",…}`.
 5. Client secret authentication: `client_secret_basic` and `client_secret_post` both offered.
+6. (2026-11-19) Client secrets are a list: `POST /api/oidc/clients/{id}/secrets` answers 201 with a new `secret`
+   (`client_secret_create.json`); `GET` on the same path lists them without values. Creating a client usually answers with
+   `createdSecret`, but CI once got `credentials: {secrets: []}` and none (bug 16); `/secret` (singular) is 404.

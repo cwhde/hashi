@@ -65,10 +65,15 @@ func TestIntegrationPocketID(t *testing.T) {
 	group := admin("POST", "/api/user-groups", map[string]any{"name": "admins", "friendlyName": "Admins"})["id"].(string)
 	admin("PUT", "/api/user-groups/"+group+"/users", map[string]any{"userIds": []string{user}})
 	client := admin("POST", "/api/oidc/clients", map[string]any{"name": "hashi", "callbackURLs": []string{callback}, "logoutCallbackURLs": []string{}, "pkceEnabled": true, "skipConsent": true})
-	// Bug 16: CI once got a client without createdSecret and panicked here. Say what Pocket ID answered instead.
+	// Bug 16: Pocket ID sometimes answers the create without createdSecret. Then ask it for one, the way its own
+	// admin page does (testdata/contracts/oidc, finding 6).
 	created, _ := client["createdSecret"].(map[string]any)
 	clientID, _ := client["id"].(string)
 	clientSecret, _ := created["secret"].(string)
+	if clientID != "" && clientSecret == "" {
+		t.Logf("Pocket ID created the client without a secret; creating one: %v", client)
+		clientSecret, _ = admin("POST", "/api/oidc/clients/"+clientID+"/secrets", map[string]any{})["secret"].(string)
+	}
 	if clientID == "" || clientSecret == "" {
 		t.Fatalf("Pocket ID created a client without id or secret: %v", client)
 	}

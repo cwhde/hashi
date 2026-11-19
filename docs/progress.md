@@ -58,7 +58,7 @@ PR A, status, public pages and alerts:
 - [x] Script schedule preview says which time zone (85)
 - [x] Grouped alert names the host when the checks behind one Traefik or firewall host go down together (12; grouping itself shipped in 13.4 as 144)
 - [ ] Status placeholders stuck (107): one more reproduction try with a throttled network; fix only if reproduced
-- [ ] Flaky Pocket ID test (16): read the secret after create when the answer has none
+- [x] Flaky Pocket ID test (16): read the secret after create when the answer has none
 
 PR B, plans tell the truth:
 - [ ] Why blocking 129.73.0.0/16 cut NetBird's management path (34): read-only on prod, then resolve the waiting firewall plan with the owner
