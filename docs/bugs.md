@@ -66,7 +66,6 @@ All open entries are planned into the 0.13 bug round (slices 13.1 onwards in `do
 | 123 | later | reported | App display | A switch to turn all on or off, for the app dashboard and the status page. (owner) | 2026-11-19 |
 | 124 | visual | reported | Settings → Edge protection | Looks unorganised. (owner) | 2026-11-19 |
 | 125 | visual | reported | Settings → Firewall | "NetBird mode a new host starts with" is not understood. (owner) | 2026-11-19 |
-| 127 | function | found | Monitoring, Store | The database grows ~120 MB a day (prod: ~900 MB monitor rollups, ~800 MB raw samples after 19 days, 71 endpoints). With 60 s checks the 1-minute rollups (kept 90 days) repeat the raw samples (kept 30). Heading for ~6 GB; 14 nightly full copies of that fill the container disk around 2026-11-28. | 2026-11-19 |
 | 128 | visual | reported | Overview → Needs attention | Lists every item (16 on prod), so the first row grows very tall and Changes waiting and Service health beside it are mostly empty. Show the worst few and "and N more". (13.4 walk) | 2026-11-19 |
 | 129 | visual | reported | Overview → Recent activity | Shows raw event names (`ip_set.deleted`, `auth.reauth`) and `session:<id>` instead of plain words and who did it. (13.4 walk) | 2026-11-19 |
 | 130 | visual | reported | Settings → Appearance → Custom theme | With Warm Linen in use the editor offers "Use Graphite again" and starts from Graphite's colours. (13.4 walk) | 2026-11-19 |

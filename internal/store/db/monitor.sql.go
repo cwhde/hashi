@@ -10,6 +10,19 @@ import (
 	"database/sql"
 )
 
+const checkSampleBatchEnd = `-- name: CheckSampleBatchEnd :one
+
+SELECT at FROM monitor_samples WHERE check_id != '' AND at < ? ORDER BY at LIMIT 1 OFFSET 4999
+`
+
+// Per-check samples only feed the rollups and the last error, so they go sooner than rounds (bug 127).
+func (q *Queries) CheckSampleBatchEnd(ctx context.Context, at int64) (int64, error) {
+	row := q.db.QueryRowContext(ctx, checkSampleBatchEnd, at)
+	var at_2 int64
+	err := row.Scan(&at_2)
+	return at_2, err
+}
+
 const clearMonitorPendingDNS = `-- name: ClearMonitorPendingDNS :exec
 UPDATE monitor_endpoints SET pending_dns = 0 WHERE id = ? AND pending_dns = 1
 `
@@ -53,6 +66,18 @@ DELETE FROM notification_providers WHERE id = ?
 func (q *Queries) DeleteNotificationProvider(ctx context.Context, id string) error {
 	_, err := q.db.ExecContext(ctx, deleteNotificationProvider, id)
 	return err
+}
+
+const deleteOldCheckSamples = `-- name: DeleteOldCheckSamples :execrows
+DELETE FROM monitor_samples WHERE check_id != '' AND at < ?
+`
+
+func (q *Queries) DeleteOldCheckSamples(ctx context.Context, at int64) (int64, error) {
+	result, err := q.db.ExecContext(ctx, deleteOldCheckSamples, at)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
 }
 
 const deleteOldJobRuns = `-- name: DeleteOldJobRuns :execrows

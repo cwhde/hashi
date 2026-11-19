@@ -15,10 +15,14 @@ var resolutions = []struct {
 	Seconds int64
 	Keep    time.Duration
 }{
-	{60, 90 * 24 * time.Hour},
-	{300, 180 * 24 * time.Hour},
+	// 1- and 5-minute buckets only feed the 1 h and 24 h charts (Ranges); kept for months they filled the disk (bug 127).
+	{60, 2 * 24 * time.Hour},
+	{300, 2 * 24 * time.Hour},
 	{3600, 2 * 365 * 24 * time.Hour},
 }
+
+// checkSampleKeep is how long per-check samples stay; rounds (check "") follow the Monitoring setting (bug 127).
+const checkSampleKeep = 2 * 24 * time.Hour
 
 // Rollups computes rollups from samples for the closed buckets in [from, closed): a bucket counts as closed only when
 // its whole span lies before closed, so its numbers never change afterwards (07 §4). Pure, for tests.
@@ -114,6 +118,22 @@ func (s *Service) retain(ctx context.Context) (int64, error) {
 			return removed, err
 		}
 		n, err := s.st.Q.DeleteOldMonitorSamples(ctx, end)
+		if err != nil {
+			return removed, err
+		}
+		removed += n
+		if end == cutoff || n == 0 {
+			break
+		}
+	}
+	for cutoff := now.Add(-checkSampleKeep).UnixMilli(); ; {
+		end, err := s.st.R.CheckSampleBatchEnd(ctx, cutoff)
+		if errors.Is(err, sql.ErrNoRows) {
+			end = cutoff
+		} else if err != nil {
+			return removed, err
+		}
+		n, err := s.st.Q.DeleteOldCheckSamples(ctx, end)
 		if err != nil {
 			return removed, err
 		}

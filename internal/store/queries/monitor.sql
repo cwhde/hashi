@@ -74,6 +74,14 @@ SELECT at FROM monitor_samples WHERE at < ? ORDER BY at LIMIT 1 OFFSET 4999;
 -- name: DeleteOldMonitorSamples :execrows
 DELETE FROM monitor_samples WHERE at < ?;
 
+-- Per-check samples only feed the rollups and the last error, so they go sooner than rounds (bug 127).
+
+-- name: CheckSampleBatchEnd :one
+SELECT at FROM monitor_samples WHERE check_id != '' AND at < ? ORDER BY at LIMIT 1 OFFSET 4999;
+
+-- name: DeleteOldCheckSamples :execrows
+DELETE FROM monitor_samples WHERE check_id != '' AND at < ?;
+
 -- name: RollupBatchEnd :one
 SELECT bucket FROM monitor_rollups WHERE resolution = ? AND bucket < ? ORDER BY bucket LIMIT 1 OFFSET 4999;
 

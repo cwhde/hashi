@@ -87,7 +87,7 @@
 				/>
 			</div>
 			<div class="space-y-1.5">
-				<Label for="mr">Keep every result for (days)</Label><Input
+				<Label for="mr">Keep the up/down history for (days)</Label><Input
 					id="mr"
 					type="number"
 					min="1"

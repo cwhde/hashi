@@ -189,6 +189,57 @@ func TestRetentionBatches(t *testing.T) {
 	}
 }
 
+// Bug 127: the 1- and 5-minute rollups only feed the 1 h and 24 h charts, and per-check samples only feed the rollups
+// and the last error, yet both were kept for months and filled the disk. Rounds and hourly rollups keep their retention.
+func TestRetentionKeepsDetailShort(t *testing.T) {
+	s, st, _, _ := fixture(t)
+	ctx := t.Context()
+	now := s.now()
+	if err := st.Q.InsertMonitorEndpoint(ctx, db.InsertMonitorEndpointParams{ID: "e", SourceType: SourceUser, Name: "e", GroupName: "g", IntervalSeconds: 60, TimeoutSeconds: 5}); err != nil {
+		t.Fatal(err)
+	}
+	old := now.Add(-3 * 24 * time.Hour).UnixMilli()
+	recent := now.Add(-time.Hour).UnixMilli()
+	for _, x := range []db.InsertMonitorSampleParams{
+		{EndpointID: "e", CheckID: "", At: old, Verdict: StateUp, Ok: 1},
+		{EndpointID: "e", CheckID: "c", At: old, Verdict: StateUp, Ok: 1},
+		{EndpointID: "e", CheckID: "c", At: recent, Verdict: StateUp, Ok: 1},
+	} {
+		if err := st.Q.InsertMonitorSample(ctx, x); err != nil {
+			t.Fatal(err)
+		}
+	}
+	for _, res := range []int64{60, 300, 3600} {
+		for _, at := range []int64{old, recent} {
+			if err := st.Q.UpsertMonitorRollup(ctx, db.UpsertMonitorRollupParams{EndpointID: "e", Resolution: res, Bucket: at, Count: 1, OkCount: 1}); err != nil {
+				t.Fatal(err)
+			}
+		}
+	}
+	if _, err := s.retain(ctx); err != nil {
+		t.Fatal(err)
+	}
+	count := func(q string, args ...any) int {
+		t.Helper()
+		var n int
+		if err := st.Reader.QueryRowContext(ctx, q, args...).Scan(&n); err != nil {
+			t.Fatal(err)
+		}
+		return n
+	}
+	if n := count("SELECT COUNT(*) FROM monitor_samples WHERE check_id = ''"); n != 1 {
+		t.Errorf("rounds kept %d, want 1 (30-day retention)", n)
+	}
+	if n := count("SELECT COUNT(*) FROM monitor_samples WHERE check_id = 'c'"); n != 1 {
+		t.Errorf("per-check samples kept %d, want only the recent one", n)
+	}
+	for res, want := range map[int64]int{60: 1, 300: 1, 3600: 2} {
+		if n := count("SELECT COUNT(*) FROM monitor_rollups WHERE resolution = ?", res); n != want {
+			t.Errorf("%d s rollups kept %d, want %d", res, n, want)
+		}
+	}
+}
+
 // AdGuard and Pulse are watched too (07 §1): a revoked or never-seen agent is no outage, a silent one is.
 func TestAdGuardAndPulseSources(t *testing.T) {
 	s, st, _, _ := fixture(t)
