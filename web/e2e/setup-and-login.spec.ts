@@ -580,6 +580,9 @@ test('setup with a passkey, then sign in with it', async ({ page, request }) => 
 	await page.getByRole('button', { name: 'Add check' }).last().click();
 	await expect(page).toHaveURL(/\/status\/[0-9A-Z]+$/);
 	await expect(page.getByRole('heading', { name: 'E2E port' })).toBeVisible();
+	// A new check opens on 1h, the range that charts first, and says when its chart starts (bug 88).
+	await expect(page.getByRole('radio', { name: '1h' })).toHaveAttribute('aria-checked', 'true');
+	await expect(page.getByText('The 1h chart starts after the first full minute of checks.')).toBeVisible();
 	await page.getByRole('switch', { name: 'Show on the public status page' }).click();
 	await page.getByRole('button', { name: 'Save', exact: true }).click();
 	await expect(page.getByRole('status')).toContainText('Saved.');

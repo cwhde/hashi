@@ -1,5 +1,5 @@
 import { expect, test } from 'vitest';
-import { publicSummary } from './monitor.ts';
+import { publicSummary, stripSummary } from './monitor.ts';
 
 // Bugs 80 and 145: say what is wrong and stop; claim nothing when nothing is listed; slow checks count.
 test('public summary', () => {
@@ -11,4 +11,15 @@ test('public summary', () => {
 	);
 	expect(publicSummary(['degraded', 'up'])).toEqual({ text: '1 service is slow.', tone: 'warn' });
 	expect(publicSummary(['down', 'down', 'degraded'])?.text).toBe('2 services are down, 1 slow.');
+});
+
+// Bug 87: the padding before the first checks is not counted.
+test('strip summary', () => {
+	expect(stripSummary(Array(60).fill('unknown'))).toBe('No checks yet');
+	expect(stripSummary([...Array(58).fill('unknown'), 'up', 'down'])).toBe(
+		'2 checks: 1 down, 0 degraded'
+	);
+	expect(stripSummary([...Array(59).fill('unknown'), 'degraded'])).toBe(
+		'1 check: 0 down, 1 degraded'
+	);
 });

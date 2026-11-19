@@ -58,3 +58,12 @@ export function publicSummary(
 	if (slow) return { text: `${n(slow, 'is slow', 'are slow')}.`, tone: 'warn' };
 	return { text: 'All services are working.', tone: 'ok' };
 }
+
+/** What the history strip says to a screen reader: only real results, not the grey padding (bug 87). */
+export function stripSummary(samples: Health[]): string {
+	const real = samples.filter((s) => s !== 'unknown');
+	if (real.length === 0) return 'No checks yet';
+	const down = real.filter((s) => s === 'down').length;
+	const slow = real.filter((s) => s === 'degraded').length;
+	return `${real.length} ${real.length === 1 ? 'check' : 'checks'}: ${down} down, ${slow} degraded`;
+}

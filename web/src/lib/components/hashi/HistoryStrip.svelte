@@ -2,6 +2,7 @@
 	import type { Health } from '#lib/design/mock.ts';
 	import { cn } from '#lib/utils.ts';
 	import { health } from './status';
+	import { stripSummary } from '#lib/monitor.ts';
 
 	// Gatus-style history: one bar per sample, oldest left. Labels sit at both ends (10a §5.5).
 	let {
@@ -12,11 +13,7 @@
 		class: className = ''
 	}: { samples: Health[]; from?: string; to?: string; labels?: boolean; class?: string } = $props();
 
-	const summary = $derived.by(() => {
-		const bad = samples.filter((s) => s === 'down').length;
-		const slow = samples.filter((s) => s === 'degraded').length;
-		return `${samples.length} checks: ${bad} down, ${slow} degraded`;
-	});
+	const summary = $derived(stripSummary(samples));
 </script>
 
 <div class={cn('min-w-0', className)}>

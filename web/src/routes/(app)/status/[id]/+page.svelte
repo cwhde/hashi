@@ -26,6 +26,9 @@
 	let providers = $state<Schemas['NotificationProvider'][]>([]);
 	let s = $state<Schemas['MonitorEndpointSettings'] | null>(null);
 	let range = $state<'1h' | '24h' | '7d' | '30d'>('24h');
+	let rangeChosen = false; // a new check opens on 1h while 24h has nothing to chart yet (bug 88)
+	// Each range charts closed buckets of its own size, so each starts at its own time (07 §5).
+	const startsAfter = { '1h': 'minute', '24h': '5 minutes', '7d': 'hour', '30d': 'hour' } as const;
 	let error = $state('');
 	let confirming = $state(false);
 	let notice = $state('');
@@ -36,6 +39,11 @@
 			params: { path: { id }, query: { range } }
 		});
 		if (r.error || !r.data) throw r.error;
+		if (!rangeChosen && range === '24h' && r.data.series.length === 0) {
+			rangeChosen = true;
+			range = '1h';
+			return;
+		}
 		d = r.data;
 		if (!s || s.paused !== r.data.endpoint.paused) {
 			const e = r.data.endpoint;
@@ -161,7 +169,11 @@
 		<ToggleGroup.Root
 			type="single"
 			value={range}
-			onValueChange={(v) => v && (range = v as typeof range)}
+			onValueChange={(v) => {
+				if (!v) return;
+				rangeChosen = true;
+				range = v as typeof range;
+			}}
 			variant="outline"
 			size="sm"
 		>
@@ -171,7 +183,7 @@
 	</div>
 	{#if series.length === 0}
 		<p class="mb-4 text-center text-md text-muted-foreground">
-			No chart before the first full minute of checks.
+			The {range} chart starts after the first full {startsAfter[range]} of checks.
 		</p>
 	{:else}
 		<div class="mb-4 grid gap-4 lg:grid-cols-3">
