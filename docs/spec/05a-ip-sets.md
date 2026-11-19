@@ -120,7 +120,9 @@ is deleted or emptied because a resolution failed (invariant 21).
 
 - **Inside a set:** search by address (shows items that contain it, including through nested sets), by prefix
   (overlapping items) and by note text. Paginated; feed and dynamic sets can be large.
-- **Address lookup** (`/ip-sets/address?ip=`, also from ⌘K): every set that contains the address with the path through
+  Single-address items show their GeoIP country and AS name.
+- **Address lookup** (`/ip-sets/address?ip=`, also from ⌘K): the GeoIP country, AS number and name and the AS
+  database's network, every set that contains the address with the path through
   nesting (`trusted-devices → phone (pulse, public)`), the folded firewall verdict per firewall host with the deciding
   prefix and set (05 §4), dynamic state (challenge with failure count, ban with expiry), ban and challenge counters with
   edit/reset (06 §5.1), a "try a request"
