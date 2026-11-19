@@ -66,6 +66,7 @@ All open entries are planned into the 0.13 bug round (slices 13.1 onwards in `do
 | 125 | visual | reported | Settings → Firewall | "NetBird mode a new host starts with" is not understood. (owner) | 2026-11-19 |
 | 133 | function | reported | DNS → SRV record | Check that an SRV record (`_minecraft._tcp.mc2`) can be added next to the service's own record. (owner) | 2026-11-19 |
 | 134 | function | reported | Root domain service rules | Search Console reports crawl problems on the root domain's site. The owner only wants the admin page behind SSO; the rules look odd. Make the site indexable again. (owner) | 2026-11-19 |
+| 136 | later | reported | Sign-in page | Clean up the login page: a better design, and remove unnecessary text again. (owner) | 2026-11-19 |
 
 ## Details
 
