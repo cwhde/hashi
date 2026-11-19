@@ -246,9 +246,15 @@
 			<div class="min-w-0 flex-1">
 				<h1 class="flex flex-wrap items-center gap-2 text-title leading-tight font-semibold">
 					<span class="font-mono tracking-[-0.02em]">{s.slug}</span>
-					{#if !s.editable}<Tag><Lock class="size-3" />{kindLabel[s.kind].toLowerCase()}</Tag>{/if}
+					{#if !s.editable}<span title={lockReason[s.kind]} class="inline-flex"
+							><Tag><Lock class="size-3" />{kindLabel[s.kind].toLowerCase()}</Tag></span
+						>{/if}
 				</h1>
-				<p class="text-md text-muted-foreground">{s.description}</p>
+				{#if (s.kind === 'user' || s.kind === 'feed') && s.description}<p
+						class="text-md text-muted-foreground"
+					>
+						{s.description}
+					</p>{/if}
 			</div>
 			{#if s.editable}
 				<div class="flex gap-2">
@@ -257,9 +263,6 @@
 				</div>
 			{/if}
 		</div>
-		{#if !s.editable}<p class="mt-2 text-sm text-muted-foreground">
-				{lockReason[s.kind]}
-			</p>{/if}
 		<dl class="mt-4 grid grid-cols-2 gap-x-6 gap-y-3 text-md sm:grid-cols-4">
 			<div>
 				<dt class="text-xs text-muted-foreground">Kind</dt>
