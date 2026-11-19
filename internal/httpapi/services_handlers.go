@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"strings"
+	"time"
 
 	"git.juzo.io/juzo/hashi/internal/audit"
 	"git.juzo.io/juzo/hashi/internal/httpapi/gen"
@@ -11,6 +12,7 @@ import (
 	"git.juzo.io/juzo/hashi/internal/services"
 	"git.juzo.io/juzo/hashi/internal/settings"
 	"git.juzo.io/juzo/hashi/internal/store/db"
+	hsync "git.juzo.io/juzo/hashi/internal/sync"
 	"git.juzo.io/juzo/hashi/internal/traefik"
 	"git.juzo.io/juzo/hashi/internal/usermw"
 )
@@ -177,7 +179,14 @@ func serviceFromInput(in gen.ServiceInput) services.Service {
 // syncServices runs after every service change: each ready Traefik host is planned (every host receives every
 // enabled service, 04 §7; low-risk plans apply right away) and, when a served name is not covered by the certificate
 // yet, the certificate job runs now instead of at its next hour. The job distributes the new certificate afterwards.
+// madeBy says whether a plan belongs in a save's answer: a plan that was already waiting before the save is not this
+// save's doing and is not counted again (bug 76).
+func madeBy(p *hsync.Plan, saveStarted time.Time) bool {
+	return p.Status != hsync.StatusPending || !p.CreatedAt.Before(saveStarted)
+}
+
 func (s *Server) syncServices(ctx context.Context) ([]gen.SyncPlan, bool, error) {
+	started := time.Now().Truncate(time.Millisecond)
 	conns, err := s.Store.R.ListTraefikConnections(ctx)
 	if err != nil {
 		return nil, false, err
@@ -194,7 +203,7 @@ func (s *Server) syncServices(ctx context.Context) ([]gen.SyncPlan, bool, error)
 		if err != nil {
 			return nil, false, traefikError(err)
 		}
-		if p != nil {
+		if p != nil && madeBy(p, started) {
 			plans = append(plans, s.planBody(ctx, p))
 		}
 	}
@@ -205,7 +214,9 @@ func (s *Server) syncServices(ctx context.Context) ([]gen.SyncPlan, bool, error)
 			s.Log.Warn("firewall plans after a service change", "err", err)
 		}
 		for _, p := range fw {
-			plans = append(plans, s.planBody(ctx, p))
+			if madeBy(p, started) {
+				plans = append(plans, s.planBody(ctx, p))
+			}
 		}
 	}
 	// Service records follow the service's name, targets and routing override (03 §5.2).
