@@ -368,8 +368,6 @@ type PublicApp struct {
 // PublicApps is the dashboard's data.
 type PublicApps struct {
 	Apps                      []PublicApp
-	HostsOnline, HostsTotal   int
-	FirewallUp, FirewallTotal int
 	UpdatedAt                 time.Time
 }
 
@@ -454,12 +452,6 @@ func (s *Service) PublicApps(ctx context.Context) (PublicApps, error) {
 					out.UpdatedAt = t
 				}
 			}
-			if e.SourceType == SourceFirewall {
-				out.FirewallTotal++
-				if e.State == StateUp || e.State == StateDegraded {
-					out.FirewallUp++
-				}
-			}
 		}
 		add := func(name, url, source string, group string) {
 			app := PublicApp{Name: name, Group: group, URL: url, State: StateUnknown}
@@ -467,10 +459,6 @@ func (s *Service) PublicApps(ctx context.Context) (PublicApps, error) {
 				app.State, app.Group = shownState(e), e.GroupName
 			}
 			out.Apps = append(out.Apps, app)
-			out.HostsTotal++
-			if app.State == StateUp || app.State == StateDegraded {
-				out.HostsOnline++
-			}
 		}
 		svcs, err := services.List(ctx, s.st.R)
 		if err != nil {

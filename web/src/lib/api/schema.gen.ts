@@ -4226,10 +4226,6 @@ export interface components {
             /** Format: date-time */
             updated_at?: string;
             apps: components["schemas"]["PublicApp"][];
-            hosts_online: number;
-            hosts_total: number;
-            firewall_online: number;
-            firewall_total: number;
         };
         Problem: {
             /** @description Stable URI per error kind, e.g. `/problems/reauth-required` */

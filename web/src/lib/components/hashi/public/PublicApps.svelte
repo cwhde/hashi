@@ -12,7 +12,6 @@
 	// Public port: only names, links and state, no admin controls (07 §8).
 	let data = $state<Schemas['PublicApps'] | null>(null);
 	let failed = $state(false);
-	let searching = $state(false);
 	let query = $state('');
 	let sort = $state('group');
 	let sortChosen = false; // the visitor's choice wins over the default from the Dashboard settings
@@ -54,31 +53,27 @@
 <svelte:head><title>Apps · {data?.title ?? ''}</title></svelte:head>
 <div class="mx-auto max-w-6xl px-4 py-10">
 	<header class="mb-8 flex flex-wrap items-end gap-3">
-		<div class="min-w-48 flex-1">
-			<h1 class="text-title font-semibold">{data?.title ?? ''}</h1>
-			{#if data}
-				<p class="text-md text-muted-foreground">
-					{data.hosts_online} / {data.hosts_total} hosts online · {data.firewall_online} / {data.firewall_total}
-					Linux firewall hosts available
-				</p>
-			{/if}
+		<!-- Up/down counts are the status page's job, not the launcher's (bug 147). -->
+		<h1 class="min-w-48 flex-1 text-title font-semibold">{data?.title ?? ''}</h1>
+		<!-- Always the plain field: the button that turned into a field looked broken in Firefox until clicked (bug 146). -->
+		<!-- Search and sort stay together: one row under the title on a phone (bug 147). -->
+		<div class="flex w-full gap-3 sm:w-auto">
+			<div class="relative min-w-0 flex-1 sm:w-48 sm:flex-none">
+				<Search
+					class="pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-muted-foreground"
+				/>
+				<Input bind:value={query} placeholder="Search" aria-label="Search" class="pl-8" />
+			</div>
+			<Select.Root type="single" bind:value={sort} onValueChange={() => (sortChosen = true)}>
+				<Select.Trigger class="w-36 shrink-0" aria-label="Sort"
+					>Sort: {sortNames[sort]}</Select.Trigger
+				>
+				<Select.Content>
+					{#each Object.entries(sortNames) as [v, l] (v)}<Select.Item value={v}>{l}</Select.Item
+						>{/each}
+				</Select.Content>
+			</Select.Root>
 		</div>
-		{#if searching}
-			<Input bind:value={query} autofocus placeholder="Search" aria-label="Search" class="w-48" />
-		{:else}
-			<button
-				onclick={() => (searching = true)}
-				class="flex h-9 items-center gap-2 rounded-[10px] border bg-card px-3 text-md text-muted-foreground"
-				><Search class="size-4" />Search</button
-			>
-		{/if}
-		<Select.Root type="single" bind:value={sort} onValueChange={() => (sortChosen = true)}>
-			<Select.Trigger class="w-36" aria-label="Sort">Sort: {sortNames[sort]}</Select.Trigger>
-			<Select.Content>
-				{#each Object.entries(sortNames) as [v, l] (v)}<Select.Item value={v}>{l}</Select.Item
-					>{/each}
-			</Select.Content>
-		</Select.Root>
 	</header>
 	{#if failed}
 		<p role="alert" class="mb-4 text-md text-warn-text">

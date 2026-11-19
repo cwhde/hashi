@@ -18,7 +18,7 @@ func TestPublicSchemasExposeOnlySelectedFields(t *testing.T) {
 		{gen.PublicStatus{}, []string{"custom_theme", "endpoints", "grouped", "theme", "title", "updated_at"}},
 		{gen.PublicEndpoint{}, []string{"group", "name", "pending_dns", "state", "strip", "uptime_24h"}},
 		{gen.MonitorStripSample{}, []string{"at", "verdict"}},
-		{gen.PublicApps{}, []string{"apps", "custom_theme", "default_sort", "firewall_online", "firewall_total", "hosts_online", "hosts_total", "theme", "title", "updated_at"}},
+		{gen.PublicApps{}, []string{"apps", "custom_theme", "default_sort", "theme", "title", "updated_at"}},
 		{gen.PublicApp{}, []string{"group", "name", "state", "url"}},
 		{gen.CustomTheme{}, []string{"accent", "border", "canvas", "charts", "muted", "roundness", "surface", "text"}},
 	} {

@@ -447,8 +447,8 @@ func (s *Server) GetPublicApps(ctx context.Context, _ gen.GetPublicAppsRequestOb
 	if err != nil {
 		return nil, err
 	}
-	out := gen.GetPublicApps200JSONResponse{Title: title, Theme: look.Theme, CustomTheme: look.CustomTheme, DefaultSort: gen.PublicAppsDefaultSort(d.DefaultSort), UpdatedAt: nonZero(v.UpdatedAt), HostsOnline: v.HostsOnline, HostsTotal: v.HostsTotal,
-		FirewallOnline: v.FirewallUp, FirewallTotal: v.FirewallTotal, Apps: make([]gen.PublicApp, 0, len(v.Apps))}
+	out := gen.GetPublicApps200JSONResponse{Title: title, Theme: look.Theme, CustomTheme: look.CustomTheme, DefaultSort: gen.PublicAppsDefaultSort(d.DefaultSort), UpdatedAt: nonZero(v.UpdatedAt),
+		Apps: make([]gen.PublicApp, 0, len(v.Apps))}
 	for _, a := range v.Apps {
 		out.Apps = append(out.Apps, gen.PublicApp{Name: a.Name, Group: a.Group, Url: a.URL, State: gen.MonitorState(a.State)})
 	}

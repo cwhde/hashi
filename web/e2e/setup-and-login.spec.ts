@@ -595,7 +595,8 @@ test('setup with a passkey, then sign in with it', async ({ page, request }) => 
 	await expect(visitor.getByRole('heading', { name: /status/ })).toBeVisible();
 	await expect(visitor.getByText('E2E port')).toBeVisible();
 	await visitor.goto(state.appsURL);
-	await expect(visitor.getByText(/hosts online/)).toBeVisible();
+	await expect(visitor.getByRole('textbox', { name: 'Search' })).toBeVisible();
+	await expect(visitor.getByText(/hosts online/)).toHaveCount(0); // counts are the status page's job (bug 147)
 	await visitor.close();
 	// Notifications: no provider yet; the page explains it. Sent alerts are history, so they live under Activity (bug 39).
 	await page.goto(`${state.baseURL}/activity`);

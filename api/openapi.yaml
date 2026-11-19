@@ -4165,7 +4165,7 @@ components:
     PublicApps:
       type: object
       additionalProperties: false
-      required: [title, theme, default_sort, apps, hosts_online, hosts_total, firewall_online, firewall_total]
+      required: [title, theme, default_sort, apps]
       properties:
         title: { type: string }
         theme: { type: string }
@@ -4173,10 +4173,6 @@ components:
         default_sort: { type: string, enum: [name, group, status], description: "The order the page starts with (Dashboard settings)" }
         updated_at: { type: string, format: date-time }
         apps: { type: array, items: { $ref: "#/components/schemas/PublicApp" } }
-        hosts_online: { type: integer }
-        hosts_total: { type: integer }
-        firewall_online: { type: integer }
-        firewall_total: { type: integer }
     Problem:
       type: object
       required: [type, title, status]

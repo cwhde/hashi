@@ -52,7 +52,7 @@ release. Not done on prod: adding a Traefik or firewall host from Connections (n
 PR A, status, public pages and alerts:
 - [x] Missing spaces between words, swept app-wide with a check that finds adjacent text tags (148)
 - [x] Public status banner: "N services are down." only, counts degraded honestly, nothing claimed when nothing is public; "Updated" from public checks only, spacing fixed (145, 80)
-- [ ] Public apps page: no up/down counts in the header (147, makes 79 moot); spacing; Search button drawn right before first focus in Firefox (146)
+- [x] Public apps page: no up/down counts in the header (147, makes 79 moot); spacing; Search button drawn right before first focus in Firefox (146)
 - [ ] AdGuard and Pulse checks get their source label and group (86); history strip counts only real checks (87); 24h/7d/30d charts show what exists (88)
 - [ ] Pause/Resume sends only paused (59); saving a stale check form is refused, not silently overwriting (82)
 - [ ] Script schedule preview says which time zone (85)

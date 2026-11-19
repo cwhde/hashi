@@ -475,7 +475,7 @@ func TestPublicAppsListWebServicesOnly(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(apps.Apps) != 1 || apps.Apps[0].Name != "map" || apps.HostsTotal != 1 {
+	if len(apps.Apps) != 1 || apps.Apps[0].Name != "map" {
 		t.Fatalf("apps %+v: only the web map belongs on the apps page", apps.Apps)
 	}
 }

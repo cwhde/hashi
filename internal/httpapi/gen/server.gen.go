@@ -4197,14 +4197,10 @@ type PublicApps struct {
 	CustomTheme *CustomTheme `json:"custom_theme,omitempty"`
 
 	// DefaultSort The order the page starts with (Dashboard settings)
-	DefaultSort    PublicAppsDefaultSort `json:"default_sort"`
-	FirewallOnline int                   `json:"firewall_online"`
-	FirewallTotal  int                   `json:"firewall_total"`
-	HostsOnline    int                   `json:"hosts_online"`
-	HostsTotal     int                   `json:"hosts_total"`
-	Theme          string                `json:"theme"`
-	Title          string                `json:"title"`
-	UpdatedAt      *time.Time            `json:"updated_at,omitempty"`
+	DefaultSort PublicAppsDefaultSort `json:"default_sort"`
+	Theme       string                `json:"theme"`
+	Title       string                `json:"title"`
+	UpdatedAt   *time.Time            `json:"updated_at,omitempty"`
 }
 
 // PublicAppsDefaultSort The order the page starts with (Dashboard settings)
