@@ -1084,6 +1084,10 @@ Decisions made in S0:
 
 ## Log
 
+- 2026-11-19 · deploy `v0.13.4-beta.1` (`69d876d`, the owner's OK) · smoke ok (readyz, version, SPA, both public
+  pages). PRs #71 (settings in their place) and #72 (text and disclosure) merged, both green; release run 1242 green;
+  main CI run 1241 for the version bump cancelled. Also ships 2383c29 (Connections remove asks first) and eb9bf22
+  (unpinning the main address picks again). 13.4's gate still needs the owner's walk through every page.
 - 2026-11-18 · deploy `v0.13.3-beta.1` (`7c0c4b3`, the owner's OK) · smoke ok (readyz, version, SPA, both public
   pages); migration 00027 ran (readyz ok). Release run 1234 green; main CI run 1233 for the version bump cancelled (its
   tree passed CI in #70). On prod, `/connections` signed out redirects to `/login?next=%2Fconnections` (bug 97).
