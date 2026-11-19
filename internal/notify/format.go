@@ -167,7 +167,7 @@ var mailTemplate = template.Must(template.New("mail").Funcs(template.FuncMap{"pe
 <tr><td style="background:{{.P.Surface}};border:1px solid {{.P.Border}};border-radius:12px;padding:24px;">
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
 <tr><td style="color:{{.P.Text}};font-size:20px;line-height:28px;font-weight:600;"><span style="color:{{.Color}};">&#9679;</span> {{.M.Subject}}</td></tr>
-{{if .M.Body}}<tr><td style="padding-top:8px;color:{{.P.Text}};font-size:15px;line-height:22px;">{{.M.Body}}</td></tr>{{end}}
+{{if .M.Body}}<tr><td style="padding-top:8px;color:{{.P.Text}};font-size:15px;line-height:22px;white-space:pre-line;">{{.M.Body}}</td></tr>{{end}}
 {{if .When}}<tr><td style="padding-top:4px;color:{{.P.Muted}};font-size:13px;line-height:20px;">{{.When}}</td></tr>{{end}}
 </table>
 {{if .M.Stats}}<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin-top:20px;border-top:1px solid {{.P.Border}};"><tr>

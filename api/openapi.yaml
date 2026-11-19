@@ -4084,6 +4084,12 @@ components:
         min_severity: { type: string, enum: [degraded, down] }
         cooldown_seconds: { type: integer, format: int64 }
         recovery: { type: boolean }
+        group_seconds:
+          type: integer
+          format: int64
+          minimum: 0
+          maximum: 120
+          description: Alerts arriving within this many seconds of each other go as one message; 0 sends each at once
     NotificationDelivery:
       type: object
       required: [id, provider, kind, subject, status, attempts, created_at]

@@ -110,7 +110,7 @@ DELETE FROM notification_providers WHERE id = ?;
 SELECT * FROM notification_route WHERE id = 1;
 
 -- name: PutNotificationRoute :exec
-UPDATE notification_route SET provider_id = ?, min_severity = ?, cooldown_seconds = ?, recovery = ?, updated_at = ? WHERE id = 1;
+UPDATE notification_route SET provider_id = ?, min_severity = ?, cooldown_seconds = ?, recovery = ?, group_seconds = ?, updated_at = ? WHERE id = 1;
 
 -- name: InsertNotificationDelivery :exec
 INSERT INTO notification_deliveries (id, provider_id, endpoint_id, kind, subject, body, next_attempt_at, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?);
@@ -132,6 +132,17 @@ SELECT COUNT(*) FROM notification_deliveries WHERE endpoint_id = ? AND kind = 'a
 
 -- name: DeletePendingAlerts :execrows
 DELETE FROM notification_deliveries WHERE endpoint_id = ? AND kind = 'alert' AND status = 'pending';
+
+-- Grouping (07 section 6): the alerts already waiting for this provider move to the new end of the window, but none
+-- further than max_wait after it was created.
+-- name: OldestGroupedAlert :one
+SELECT CAST(COALESCE(MIN(created_at), 0) AS INTEGER) FROM notification_deliveries
+WHERE provider_id = sqlc.arg(provider_id) AND kind = 'alert' AND status = 'pending' AND attempts = 0;
+
+-- name: DelayGroupedAlerts :exec
+UPDATE notification_deliveries SET next_attempt_at = sqlc.arg(until)
+WHERE provider_id = sqlc.arg(provider_id) AND kind = 'alert' AND status = 'pending' AND attempts = 0
+    AND next_attempt_at < sqlc.arg(until);
 
 -- name: DeleteNotificationDelivery :exec
 DELETE FROM notification_deliveries WHERE id = ?;

@@ -8,6 +8,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"git.juzo.io/juzo/hashi/internal/settings"
 	"io"
 	"mime"
@@ -135,6 +136,68 @@ func TestRoutingCooldownAndRecovery(t *testing.T) {
 	}
 	if len(f.sent) != 4 {
 		t.Fatalf("a blip inside the cooldown sent %+v", f.sent)
+	}
+}
+
+// Alerts close together leave as one message: each new one restarts the wait, the first waits at most MaxGroupWait,
+// and a check that recovers during the wait drops out (07 §6, bug 144).
+func TestAlertsCloseTogetherAreGrouped(t *testing.T) {
+	s, f, now := fixture(t)
+	ctx := t.Context()
+	p, err := s.CreateSMTP(ctx, "Mail", SMTPConfig{Host: "mail.example.com", Port: 587, TLS: SMTPStartTLS, From: "a@example.com", To: "b@example.com"}, secrets.New("pw"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := s.st.Q.PutNotificationRoute(ctx, db.PutNotificationRouteParams{ProviderID: nullStr(p.ID), MinSeverity: "down", CooldownSeconds: 600, GroupSeconds: 15}); err != nil {
+		t.Fatal(err)
+	}
+	down := func(id string) {
+		t.Helper()
+		if err := s.st.Q.InsertMonitorEndpoint(ctx, db.InsertMonitorEndpointParams{ID: id, SourceType: "user", Name: id, GroupName: "G", IntervalSeconds: 60, TimeoutSeconds: 5}); err != nil {
+			t.Fatal(err)
+		}
+		if err := s.st.Q.SetMonitorEndpointResult(ctx, db.SetMonitorEndpointResultParams{State: "down", ID: id}); err != nil {
+			t.Fatal(err)
+		}
+		if err := s.StateChanged(ctx, s.st.Q, db.MonitorEndpoint{ID: id, Name: id}, "up", "down", "timeout"); err != nil {
+			t.Fatal(err)
+		}
+	}
+	tick := func(d time.Duration) {
+		t.Helper()
+		*now = now.Add(d)
+		if _, err := s.Deliver(ctx); err != nil {
+			t.Fatal(err)
+		}
+	}
+	down("Wiki")
+	tick(10 * time.Second)
+	down("Mail") // restarts the wait
+	tick(10 * time.Second)
+	if len(f.sent) != 0 {
+		t.Fatalf("sent during the wait: %+v", f.sent)
+	}
+	down("Git")
+	if err := s.st.Q.SetMonitorEndpointResult(ctx, db.SetMonitorEndpointResultParams{State: "up", ID: "Mail"}); err != nil {
+		t.Fatal(err)
+	}
+	tick(16 * time.Second)
+	if len(f.sent) != 1 {
+		t.Fatalf("want one message, got %+v", f.sent)
+	}
+	m := f.sent[0]
+	if m.Subject != "2 checks are down" || m.State != "down" || !strings.Contains(m.Body, "Wiki is down") || !strings.Contains(m.Body, "Git is down") || strings.Contains(m.Body, "Mail") {
+		t.Fatalf("combined %+v", m)
+	}
+
+	// A steady stream: every alert restarts the wait, but the first leaves after two minutes with all so far.
+	f.sent = nil
+	for i := range 12 {
+		down(fmt.Sprint("svc", i))
+		tick(10 * time.Second)
+	}
+	if len(f.sent) != 1 || f.sent[0].Subject != "12 checks are down" {
+		t.Fatalf("capped wait: %+v", f.sent)
 	}
 }
 

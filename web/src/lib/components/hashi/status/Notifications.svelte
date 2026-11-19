@@ -19,6 +19,7 @@
 	let route = $state<Schemas['NotificationRoute']>({
 		min_severity: 'down',
 		cooldown_seconds: 600,
+		group_seconds: 15,
 		recovery: true
 	});
 	let error = $state('');
@@ -200,23 +201,45 @@
 					</Select.Content>
 				</Select.Root>
 			</div>
-			<div class="grid grid-cols-2 gap-3">
-				<div class="space-y-1.5">
-					<Label for="route-severity">Alert when</Label>
-					<Select.Root type="single" bind:value={route.min_severity}>
-						<Select.Trigger id="route-severity" class="w-full"
-							>{route.min_severity === 'down' ? 'Down' : 'Degraded or down'}</Select.Trigger
-						>
-						<Select.Content>
-							<Select.Item value="down">Down</Select.Item>
-							<Select.Item value="degraded">Degraded or down</Select.Item>
-						</Select.Content>
-					</Select.Root>
-				</div>
-				<div class="space-y-1.5">
-					<Label for="route-cooldown">Cooldown (seconds)</Label>
-					<Input id="route-cooldown" type="number" min="0" bind:value={route.cooldown_seconds} />
-				</div>
+			<div class="space-y-1.5">
+				<Label for="route-severity">Alert when</Label>
+				<Select.Root type="single" bind:value={route.min_severity}>
+					<Select.Trigger id="route-severity" class="w-full"
+						>{route.min_severity === 'down' ? 'Down' : 'Degraded or down'}</Select.Trigger
+					>
+					<Select.Content>
+						<Select.Item value="down">Down</Select.Item>
+						<Select.Item value="degraded">Degraded or down</Select.Item>
+					</Select.Content>
+				</Select.Root>
+			</div>
+			<div class="space-y-1.5">
+				<Label for="route-cooldown">Time between alerts for one check</Label>
+				<span class="flex items-center gap-2">
+					<Input
+						id="route-cooldown"
+						type="number"
+						min="0"
+						class="w-20"
+						bind:value={
+							() => Math.round(route.cooldown_seconds / 60),
+							(v) => (route.cooldown_seconds = Math.max(0, Math.round(Number(v) || 0)) * 60)
+						}
+					/><span class="text-muted-foreground">minutes</span>
+				</span>
+			</div>
+			<div class="space-y-1.5">
+				<Label for="route-group">Group alerts within</Label>
+				<span class="flex items-center gap-2">
+					<Input
+						id="route-group"
+						type="number"
+						min="0"
+						max="120"
+						class="w-20"
+						bind:value={route.group_seconds}
+					/><span class="text-muted-foreground">seconds</span>
+				</span>
 			</div>
 			<label class="flex items-center justify-between gap-3">
 				<span>Send recovery messages</span><Switch

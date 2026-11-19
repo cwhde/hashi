@@ -32,6 +32,22 @@ func (q *Queries) ClearMonitorPendingDNS(ctx context.Context, id string) error {
 	return err
 }
 
+const delayGroupedAlerts = `-- name: DelayGroupedAlerts :exec
+UPDATE notification_deliveries SET next_attempt_at = ?1
+WHERE provider_id = ?2 AND kind = 'alert' AND status = 'pending' AND attempts = 0
+    AND next_attempt_at < ?1
+`
+
+type DelayGroupedAlertsParams struct {
+	Until      int64
+	ProviderID string
+}
+
+func (q *Queries) DelayGroupedAlerts(ctx context.Context, arg DelayGroupedAlertsParams) error {
+	_, err := q.db.ExecContext(ctx, delayGroupedAlerts, arg.Until, arg.ProviderID)
+	return err
+}
+
 const deleteMonitorChecks = `-- name: DeleteMonitorChecks :exec
 DELETE FROM monitor_checks WHERE endpoint_id = ?
 `
@@ -255,7 +271,7 @@ func (q *Queries) GetNotificationProvider(ctx context.Context, id string) (Notif
 }
 
 const getNotificationRoute = `-- name: GetNotificationRoute :one
-SELECT id, provider_id, min_severity, cooldown_seconds, recovery, updated_at FROM notification_route WHERE id = 1
+SELECT id, provider_id, min_severity, cooldown_seconds, recovery, updated_at, group_seconds FROM notification_route WHERE id = 1
 `
 
 func (q *Queries) GetNotificationRoute(ctx context.Context) (NotificationRoute, error) {
@@ -268,6 +284,7 @@ func (q *Queries) GetNotificationRoute(ctx context.Context) (NotificationRoute, 
 		&i.CooldownSeconds,
 		&i.Recovery,
 		&i.UpdatedAt,
+		&i.GroupSeconds,
 	)
 	return i, err
 }
@@ -937,6 +954,20 @@ func (q *Queries) MarkMonitorPendingDNS(ctx context.Context, arg MarkMonitorPend
 	return err
 }
 
+const oldestGroupedAlert = `-- name: OldestGroupedAlert :one
+SELECT CAST(COALESCE(MIN(created_at), 0) AS INTEGER) FROM notification_deliveries
+WHERE provider_id = ?1 AND kind = 'alert' AND status = 'pending' AND attempts = 0
+`
+
+// Grouping (07 section 6): the alerts already waiting for this provider move to the new end of the window, but none
+// further than max_wait after it was created.
+func (q *Queries) OldestGroupedAlert(ctx context.Context, providerID string) (int64, error) {
+	row := q.db.QueryRowContext(ctx, oldestGroupedAlert, providerID)
+	var column_1 int64
+	err := row.Scan(&column_1)
+	return column_1, err
+}
+
 const pendingAlerts = `-- name: PendingAlerts :one
 SELECT COUNT(*) FROM notification_deliveries WHERE endpoint_id = ? AND kind = 'alert' AND status = 'pending'
 `
@@ -949,7 +980,7 @@ func (q *Queries) PendingAlerts(ctx context.Context, endpointID sql.NullString) 
 }
 
 const putNotificationRoute = `-- name: PutNotificationRoute :exec
-UPDATE notification_route SET provider_id = ?, min_severity = ?, cooldown_seconds = ?, recovery = ?, updated_at = ? WHERE id = 1
+UPDATE notification_route SET provider_id = ?, min_severity = ?, cooldown_seconds = ?, recovery = ?, group_seconds = ?, updated_at = ? WHERE id = 1
 `
 
 type PutNotificationRouteParams struct {
@@ -957,6 +988,7 @@ type PutNotificationRouteParams struct {
 	MinSeverity     string
 	CooldownSeconds int64
 	Recovery        int64
+	GroupSeconds    int64
 	UpdatedAt       int64
 }
 
@@ -966,6 +998,7 @@ func (q *Queries) PutNotificationRoute(ctx context.Context, arg PutNotificationR
 		arg.MinSeverity,
 		arg.CooldownSeconds,
 		arg.Recovery,
+		arg.GroupSeconds,
 		arg.UpdatedAt,
 	)
 	return err

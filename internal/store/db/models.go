@@ -535,6 +535,7 @@ type NotificationRoute struct {
 	CooldownSeconds int64
 	Recovery        int64
 	UpdatedAt       int64
+	GroupSeconds    int64
 }
 
 type OidcProvider struct {

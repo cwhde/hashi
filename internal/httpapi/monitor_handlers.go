@@ -340,16 +340,27 @@ func (s *Server) GetNotificationRoute(ctx context.Context, _ gen.GetNotification
 	if err != nil {
 		return nil, err
 	}
-	return gen.GetNotificationRoute200JSONResponse{ProviderId: emptyNil(r.ProviderID.String), MinSeverity: gen.NotificationRouteMinSeverity(r.MinSeverity), CooldownSeconds: r.CooldownSeconds, Recovery: r.Recovery == 1}, nil
+	return gen.GetNotificationRoute200JSONResponse{ProviderId: emptyNil(r.ProviderID.String), MinSeverity: gen.NotificationRouteMinSeverity(r.MinSeverity), CooldownSeconds: r.CooldownSeconds, Recovery: r.Recovery == 1, GroupSeconds: &r.GroupSeconds}, nil
 }
 
 func (s *Server) PutNotificationRoute(ctx context.Context, req gen.PutNotificationRouteRequestObject) (gen.PutNotificationRouteResponseObject, error) {
 	ri := info(ctx)
 	b := req.Body
 	if b.CooldownSeconds < 0 {
-		return nil, invalid("The cooldown cannot be negative.")
+		return nil, invalid("Time between alerts cannot be negative.")
 	}
-	p := db.PutNotificationRouteParams{MinSeverity: string(b.MinSeverity), CooldownSeconds: b.CooldownSeconds, UpdatedAt: time.Now().UnixMilli()}
+	cur, err := s.Store.R.GetNotificationRoute(ctx)
+	if err != nil {
+		return nil, err
+	}
+	p := db.PutNotificationRouteParams{MinSeverity: string(b.MinSeverity), CooldownSeconds: b.CooldownSeconds, GroupSeconds: cur.GroupSeconds,
+		UpdatedAt: time.Now().UnixMilli()}
+	if b.GroupSeconds != nil {
+		if *b.GroupSeconds < 0 || *b.GroupSeconds > 120 {
+			return nil, invalid("Group alerts within 0 to 120 seconds.")
+		}
+		p.GroupSeconds = *b.GroupSeconds
+	}
 	if b.Recovery {
 		p.Recovery = 1
 	}

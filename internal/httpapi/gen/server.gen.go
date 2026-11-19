@@ -4129,10 +4129,13 @@ type NotificationProviderUpdate struct {
 
 // NotificationRoute defines model for NotificationRoute.
 type NotificationRoute struct {
-	CooldownSeconds int64                        `json:"cooldown_seconds"`
-	MinSeverity     NotificationRouteMinSeverity `json:"min_severity"`
-	ProviderId      *string                      `json:"provider_id,omitempty"`
-	Recovery        bool                         `json:"recovery"`
+	CooldownSeconds int64 `json:"cooldown_seconds"`
+
+	// GroupSeconds Alerts arriving within this many seconds of each other go as one message; 0 sends each at once
+	GroupSeconds *int64                       `json:"group_seconds,omitempty"`
+	MinSeverity  NotificationRouteMinSeverity `json:"min_severity"`
+	ProviderId   *string                      `json:"provider_id,omitempty"`
+	Recovery     bool                         `json:"recovery"`
 }
 
 // NotificationRouteMinSeverity defines model for NotificationRoute.MinSeverity.

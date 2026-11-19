@@ -28,6 +28,9 @@ const (
 // MaxAttempts bounds retries; backoff doubles from a minute.
 const MaxAttempts = 6
 
+// MaxGroupWait caps how long grouping holds the first alert back, however many follow (07 §6).
+const MaxGroupWait = 2 * time.Minute
+
 // Errors the API maps.
 var (
 	ErrNotFound = errors.New("notification provider not found")
@@ -253,6 +256,20 @@ func (s *Service) StateChanged(ctx context.Context, q *db.Queries, e db.MonitorE
 		if last > 0 && now-last < r.CooldownSeconds*1000 {
 			at = last + r.CooldownSeconds*1000
 		}
+		if r.GroupSeconds > 0 { // wait a moment for others; each new alert restarts the wait, up to MaxGroupWait
+			until := now + r.GroupSeconds*1000
+			oldest, err := q.OldestGroupedAlert(ctx, provider.String)
+			if err != nil {
+				return err
+			}
+			if oldest > 0 {
+				until = min(until, max(oldest+MaxGroupWait.Milliseconds(), now))
+			}
+			if err := q.DelayGroupedAlerts(ctx, db.DelayGroupedAlertsParams{Until: until, ProviderID: provider.String}); err != nil {
+				return err
+			}
+			at = max(at, until)
+		}
 		return insert("alert", e.Name+" is "+to, at, plainReason(message))
 	case alarm(from):
 		cancelled, err := q.DeletePendingAlerts(ctx, id)
@@ -275,7 +292,9 @@ func (s *Service) Deliver(ctx context.Context) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	sent, failed := 0, 0
+	// Alerts due for the same provider leave as one message, so a host going down with twenty services is one alert.
+	var batches [][]db.NotificationDelivery
+	alerts := map[string]int{} // provider → its batch
 	for _, d := range due {
 		if d.Kind == "alert" && d.EndpointID.Valid && d.Attempts == 0 {
 			e, err := s.st.R.GetMonitorEndpoint(ctx, d.EndpointID.String)
@@ -289,30 +308,46 @@ func (s *Service) Deliver(ctx context.Context) (string, error) {
 				continue
 			}
 		}
-		sendErr := s.sendOne(ctx, d)
-		attempts := d.Attempts + 1
-		p := db.FinishNotificationDeliveryParams{Status: "delivered", Attempts: attempts, NextAttemptAt: d.NextAttemptAt, ID: d.ID}
-		if sendErr != nil {
-			failed++
-			p.LastError = sendErr.Error()
-			p.Status = "pending"
-			p.NextAttemptAt = now.Add(time.Minute << min(d.Attempts, 10)).UnixMilli()
-			if attempts >= MaxAttempts {
-				p.Status = "failed"
-			}
-		} else {
-			sent++
-			p.DeliveredAt = sql.NullInt64{Int64: s.now().UnixMilli(), Valid: true}
+		if d.Kind != "alert" {
+			batches = append(batches, []db.NotificationDelivery{d})
+			continue
 		}
-		if err := s.st.Q.FinishNotificationDelivery(ctx, p); err != nil {
-			return "", err
+		if i, ok := alerts[d.ProviderID]; ok {
+			batches[i] = append(batches[i], d)
+			continue
+		}
+		alerts[d.ProviderID] = len(batches)
+		batches = append(batches, []db.NotificationDelivery{d})
+	}
+	sent, failed := 0, 0
+	for _, b := range batches {
+		sendErr := s.send(ctx, b)
+		for _, d := range b {
+			attempts := d.Attempts + 1
+			p := db.FinishNotificationDeliveryParams{Status: "delivered", Attempts: attempts, NextAttemptAt: d.NextAttemptAt, ID: d.ID}
+			if sendErr != nil {
+				failed++
+				p.LastError = sendErr.Error()
+				p.Status = "pending"
+				p.NextAttemptAt = now.Add(time.Minute << min(d.Attempts, 10)).UnixMilli()
+				if attempts >= MaxAttempts {
+					p.Status = "failed"
+				}
+			} else {
+				sent++
+				p.DeliveredAt = sql.NullInt64{Int64: s.now().UnixMilli(), Valid: true}
+			}
+			if err := s.st.Q.FinishNotificationDelivery(ctx, p); err != nil {
+				return "", err
+			}
 		}
 	}
 	return fmt.Sprintf("%d sent, %d failed", sent, failed), nil
 }
 
-func (s *Service) sendOne(ctx context.Context, d db.NotificationDelivery) error {
-	p, err := s.st.R.GetNotificationProvider(ctx, d.ProviderID)
+// send delivers one delivery, or several alerts for the same provider as one message.
+func (s *Service) send(ctx context.Context, b []db.NotificationDelivery) error {
+	p, err := s.st.R.GetNotificationProvider(ctx, b[0].ProviderID)
 	if err != nil {
 		return err
 	}
@@ -332,7 +367,46 @@ func (s *Service) sendOne(ctx context.Context, d db.NotificationDelivery) error 
 	}
 	ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
 	defer cancel()
-	return sender.Send(ctx, s.message(ctx, d))
+	m := s.message(ctx, b[0])
+	if len(b) > 1 {
+		m = s.combined(ctx, b)
+	}
+	return sender.Send(ctx, m)
+}
+
+// combined is one message for several alerts: a subject that counts them and one line per check.
+func (s *Service) combined(ctx context.Context, b []db.NotificationDelivery) Message {
+	m := s.message(ctx, b[0])
+	m.Stats, m.State = nil, "degraded"
+	down := 0
+	lines := make([]string, 0, len(b))
+	for _, d := range b {
+		if !strings.HasSuffix(d.Subject, " is degraded") {
+			down++
+			m.State = "down"
+		}
+		line := d.Subject
+		if d.Body != "" {
+			line += ": " + d.Body
+		}
+		lines = append(lines, line)
+		if at := time.UnixMilli(d.CreatedAt); at.Before(m.At) {
+			m.At = at
+		}
+	}
+	switch down {
+	case len(b):
+		m.Subject = fmt.Sprintf("%d checks are down", len(b))
+	case 0:
+		m.Subject = fmt.Sprintf("%d checks are degraded", len(b))
+	default:
+		m.Subject = fmt.Sprintf("%d checks are down or degraded", len(b))
+	}
+	m.Body = strings.Join(lines, "\n")
+	if g, err := settings.Get[settings.General](ctx, s.st.R); err == nil && g.AdminDomain != "" {
+		m.Link = "https://" + g.AdminDomain + "/status"
+	}
+	return m
 }
 
 // message dresses a delivery. Everything added is optional: a failed lookup leaves it out and never blocks an alert.

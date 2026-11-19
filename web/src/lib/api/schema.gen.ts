@@ -4146,6 +4146,11 @@ export interface components {
             /** Format: int64 */
             cooldown_seconds: number;
             recovery: boolean;
+            /**
+             * Format: int64
+             * @description Alerts arriving within this many seconds of each other go as one message; 0 sends each at once
+             */
+            group_seconds?: number;
         };
         NotificationDelivery: {
             id: string;
