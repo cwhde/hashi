@@ -1492,3 +1492,4 @@ Decisions made in S0:
   would push `:old`, which production runs. The repo sits in iCloud-synced `~/Documents`; iCloud once renamed a
   build dir to `dist 2` mid-build, which got committed by mistake and reverted.
 - 2026-10-27 — Restart. V2 attempt removed from history (backup bundle kept off-repo). New spec in `docs/spec/`.
+- 2026-11-19 · deploy `v0.13.4-beta.5` (`ce2a833`, the owner's OK) · smoke ok (readyz, version, SPA, both public pages). Checked in Chrome on prod: apps page draws all 54 cards with no console error after a fresh reload and in every sort order (139); status page draws 75 checks in 6 categories; Overview security card fills its height (142); Settings → Public pages shows the Status page panel with the six real categories (138); alert settings read "10 minutes" and "15 seconds" on one line each (143, 144). CI: integration job flaked on Pocket ID (bug 16), green on rerun.
