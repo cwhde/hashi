@@ -273,7 +273,7 @@
 							class="text-bad-text"
 							onclick={() => (confirming = true)}>Delete</Button
 						>{/if}
-					<Button size="sm" disabled={busy} onclick={() => save()}>Save</Button>
+					<Button size="sm" disabled={busy || !draft.dirty} onclick={() => save()}>Save</Button>
 				</div>
 			{/if}
 		</Panel>

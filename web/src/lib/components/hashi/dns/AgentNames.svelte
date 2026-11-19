@@ -29,10 +29,7 @@
 </script>
 
 {#if error}<p role="alert" class="mb-3 text-md text-bad-text">{error}</p>{/if}
-<Panel
-	title={settings?.domain ?? 'Internal agent names'}
-	description="DNS only, not reverse proxy: stable internal names for Pulse agents"
->
+<Panel title={settings?.domain ?? 'Internal agent names'}>
 	{#snippet actions()}<Button size="sm" variant="outline" href="/settings?category=dns"
 			>Settings</Button
 		>{/snippet}

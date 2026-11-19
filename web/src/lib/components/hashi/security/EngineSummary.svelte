@@ -1,4 +1,5 @@
 <script lang="ts">
+	import HelpTip from '#lib/components/hashi/HelpTip.svelte';
 	import { onMount } from 'svelte';
 	import Panel from '#lib/components/hashi/Panel.svelte';
 	import { Button } from '#lib/components/ui/button/index.ts';
@@ -87,8 +88,14 @@
 </script>
 
 {#if e}
-	<div class="grid gap-4 lg:grid-cols-2">
-		<Panel title="Abuse engine" description="Applies to every service">
+	<div class="grid items-start gap-4 lg:grid-cols-2">
+		<Panel title="Abuse engine">
+			{#snippet help()}<HelpTip topic="the abuse engine"
+					><p>
+						Addresses in the firewall's allow list and signed-in users never trigger the request
+						limit.
+					</p></HelpTip
+				>{/snippet}
 			{#snippet actions()}<Button size="sm" variant="outline" onclick={() => (form = { ...e! })}
 					><Pencil />Edit</Button
 				>{/snippet}
@@ -118,9 +125,6 @@
 				<dt>Blocklists refresh every</dt>
 				<dd class="tnum">{span(e.feed_refresh_seconds)}</dd>
 			</dl>
-			<p class="mt-3 text-sm text-muted-foreground">
-				Addresses in the firewall allow and signed-in users never trigger the request limit.
-			</p>
 		</Panel>
 		<Panel
 			title="Ban length"

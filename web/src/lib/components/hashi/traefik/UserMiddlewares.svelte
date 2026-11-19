@@ -144,14 +144,14 @@
 			<CircleAlert class="mt-0.5 size-4 shrink-0" />{saveError}
 		</p>
 	{/if}
-	<Panel
-		title="30-user-middlewares.yml"
-		description="Switch them on per service or route on the service pages"
-		flush
-	>
+	<Panel title="30-user-middlewares.yml" flush>
 		{#snippet help()}<HelpTip topic="your middlewares"
 				><p>They run after Hashi's sign-in and access checks, never before.</p>
-				<p>The Hashi admin service never gets them.</p></HelpTip
+				<p>The Hashi admin service never gets them.</p>
+				<p>
+					Start with <Mono>http:</Mono>, then <Mono>middlewares:</Mono>, then a name and one Traefik
+					middleware type, for example <Mono>ipAllowList</Mono>.
+				</p></HelpTip
 			>{/snippet}
 		{#snippet actions()}<Button
 				size="sm"
@@ -193,10 +193,7 @@
 						: `Found ${found.length} middleware${found.length === 1 ? '' : 's'}`}
 				</div>
 				{#if found.length === 0}
-					<p class="mt-2 text-sm text-muted-foreground">
-						Start with <Mono>http:</Mono>, then <Mono>middlewares:</Mono>, then a name and one
-						Traefik middleware type, for example <Mono>ipAllowList</Mono> or <Mono>buffering</Mono>.
-					</p>
+					<p class="mt-2 text-sm text-muted-foreground">No middlewares in the file yet.</p>
 				{:else}
 					<ul class="mt-2 space-y-3 text-md" aria-label="Middlewares in the file">
 						{#each found as m (m.name)}

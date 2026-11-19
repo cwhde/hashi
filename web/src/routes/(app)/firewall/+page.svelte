@@ -54,10 +54,7 @@
 
 <svelte:head><title>Firewall hosts · Hashi</title></svelte:head>
 
-<PageHeader
-	title="Firewall hosts"
-	description="Machines with a public IP that forward traffic to Traefik."
->
+<PageHeader title="Firewall hosts">
 	{#snippet actions()}<Button href="/connections?add=firewall"><Plus />Add firewall host</Button
 		>{/snippet}
 </PageHeader>
@@ -72,44 +69,55 @@
 		{note} <a class="underline" href="/changes">Open changes</a>
 	</p>{/if}
 
-<Panel title="Global policy" description="On every managed host" class="mb-4">
+<Panel title="Global policy" class="mb-4">
 	{#snippet help()}<HelpTip topic="overlapping addresses"
 			><p>Where allow and block overlap, the longer prefix wins; on a tie, block.</p></HelpTip
 		>{/snippet}
-	<div class="grid gap-4 md:grid-cols-2">
-		{#each [{ key: 'allow', label: 'Always allow', help: 'Never dropped and never banned by the abuse engine.' }, { key: 'block', label: 'Block', help: 'Dropped before anything else.' }] as side (side.key)}
+	<div class="grid gap-6 md:grid-cols-2">
+		{#each [{ key: 'allow', label: 'Always allow' }, { key: 'block', label: 'Block' }] as side (side.key)}
 			{@const k = side.key as 'allow' | 'block'}
-			<div>
-				<div class="mb-2 text-md font-medium">{side.label}</div>
-				<ul class="space-y-1.5 text-md" aria-label={side.label}>
-					{#each bind[k] as id (id)}
-						<li class="flex items-center gap-2">
-							{#if setOf(id)}<SetBadge set={setOf(id)!} />{:else}<Mono>{id}</Mono>{/if}
-							<Button
-								variant="ghost"
-								size="icon-xs"
-								aria-label="Remove"
-								onclick={() => put({ ...bind, [k]: bind[k].filter((x) => x !== id) })}><X /></Button
-							>
-						</li>
-					{/each}
-					{#if k === 'allow'}<li class="text-muted-foreground">hashi-hosts (always)</li>{/if}
-				</ul>
-				<div class="mt-2 flex gap-2">
+			<div class="min-w-0 space-y-2">
+				<div class="text-md font-medium">{side.label}</div>
+				<div class="flex gap-2">
 					<div class="min-w-0 flex-1">
 						<IpSetPicker bind:value={pick[k]} {sets} exclude={bind[k]} id="pick-{k}" />
 					</div>
 					<Button
-						size="sm"
 						variant="outline"
 						disabled={!pick[k]}
 						onclick={async () => {
 							await put({ ...bind, [k]: [...bind[k], pick[k]] });
 							pick[k] = '';
-						}}>Add</Button
+						}}><Plus />Add</Button
 					>
 				</div>
-				<p class="mt-2 text-sm text-muted-foreground">{side.help}</p>
+				<ul class="divide-y rounded-xl border text-md" aria-label={side.label}>
+					{#each bind[k] as id (id)}
+						<li class="flex min-h-10 items-center gap-2 px-3 py-1.5">
+							<span class="min-w-0 flex-1"
+								>{#if setOf(id)}<SetBadge set={setOf(id)!} />{:else if sets.length}<Mono>{id}</Mono
+									>{:else}<span class="inline-block h-4 w-28 animate-pulse rounded bg-surface-2"
+									></span>{/if}</span
+							>
+							<Button
+								variant="ghost"
+								size="icon-xs"
+								aria-label="Remove {setOf(id)?.slug ?? 'set'}"
+								onclick={() => put({ ...bind, [k]: bind[k].filter((x) => x !== id) })}><X /></Button
+							>
+						</li>
+					{/each}
+					{#if k === 'allow'}<li
+							class="flex min-h-10 items-center px-3 py-1.5 text-muted-foreground"
+						>
+							hashi-hosts (always)
+						</li>{/if}
+					{#if k === 'block' && !bind[k].length}<li
+							class="flex min-h-10 items-center px-3 py-1.5 text-muted-foreground"
+						>
+							Nothing blocked
+						</li>{/if}
+				</ul>
 			</div>
 		{/each}
 	</div>

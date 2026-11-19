@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { Plus } from '@lucide/svelte';
 	// Settings → Services and Traefik (09 §2, 10c §1.2): which of your middlewares every user HTTP service gets. The
 	// names come from the file on the Traefik page; saving sends that file back unchanged.
 	import { onMount } from 'svelte';
@@ -52,9 +53,9 @@
 <Panel title="Middlewares on every service" flush>
 	{#if error}<p role="alert" class="px-4 py-3 text-md text-bad-text">{error}</p>
 	{:else if file && file.middlewares.length === 0}
-		<div class="flex items-center gap-3 px-4 py-3 text-md text-muted-foreground">
-			None defined yet.<Button size="sm" variant="outline" href="/traefik?tab=middlewares"
-				>Write one</Button
+		<div class="px-4 py-3">
+			<Button size="sm" variant="outline" href="/traefik?tab=middlewares"
+				><Plus />Add middleware</Button
 			>
 		</div>
 	{:else if file}

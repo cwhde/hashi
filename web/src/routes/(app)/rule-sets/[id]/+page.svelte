@@ -140,7 +140,7 @@
 	{/each}
 
 	<div class="grid gap-4 xl:grid-cols-[minmax(0,1fr)_20rem]">
-		<Panel flush title="Rules" description="Checked top to bottom">
+		<Panel flush title="Rules">
 			{#if entries.length === 0}<p class="px-4 py-3 text-md text-muted-foreground">
 					No rules yet.
 				</p>{/if}

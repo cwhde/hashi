@@ -222,7 +222,7 @@
 				<p class="text-warn-text">No alerts are sent until you choose a provider here.</p>
 			{/if}
 			<div class="flex justify-end">
-				<Button size="sm" onclick={saveRoute} disabled={busy}>Save route</Button>
+				<Button size="sm" onclick={saveRoute} disabled={busy || !draft.dirty}>Save route</Button>
 			</div>
 		</div>
 	</Panel>

@@ -6,6 +6,7 @@
 	import { Label } from '#lib/components/ui/label/index.ts';
 	import * as Sheet from '#lib/components/ui/sheet/index.ts';
 	import Mono from '#lib/components/hashi/Mono.svelte';
+	import SshTarget from '#lib/components/hashi/SshTarget.svelte';
 	import { api, problemText, type Schemas } from '#lib/api/client.ts';
 	import { withReauth } from '#lib/auth/reauth.ts';
 
@@ -21,6 +22,7 @@
 	let identity = $state('');
 	let error = $state('');
 	let busy = $state(false);
+	let target = $state<SshTarget>();
 	$effect(() => {
 		if (!open) return;
 		f = conn
@@ -48,6 +50,7 @@
 		error = '';
 		busy = true;
 		try {
+			if (target?.dirty() && !(await target.commit())) return;
 			const body: Schemas['TraefikConnectionInput'] = {
 				name: f.name.trim(),
 				host: f.host.trim(),
@@ -113,6 +116,12 @@
 			<div class="space-y-1.5">
 				<Label for="th-user">User</Label><Input id="th-user" bind:value={f.user} />
 			</div>
+			{#if conn}{#key conn.id}<SshTarget
+						bind:this={target}
+						kind="traefik"
+						id={conn.id}
+						value={conn.ssh_target_set_id}
+					/>{/key}{/if}
 			{#if moved}
 				{#if identity}<div class="space-y-1">
 						<p>Put Hashi's key in this user's authorized keys:</p>

@@ -147,7 +147,7 @@
 	</div>
 
 	<div class="grid gap-4 lg:grid-cols-2">
-		<Panel title="Member of" description="Sets that contain this address, and through what">
+		<Panel title="Member of">
 			{#if memberOf.length}
 				<ul class="space-y-2.5 text-md">
 					{#each memberOf as m (m.set.id)}

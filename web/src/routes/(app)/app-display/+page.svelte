@@ -70,10 +70,7 @@
 	>
 {/snippet}
 
-<PageHeader
-	title="App display"
-	description="What visitors see on the public app dashboard and status page."
-/>
+<PageHeader title="App display" />
 {#if error}<p role="alert" class="mb-3 text-md text-bad-text">{error}</p>{/if}
 {#snippet reached(links: Schemas['PublicPageLink'][] | undefined)}
 	{#if links}
@@ -125,11 +122,7 @@
 			{/each}
 		</ul>
 	</Panel>
-	<Panel
-		title="Status page"
-		description="Names, groups, state and history only; never hosts, IPs or errors"
-		flush
-	>
+	<Panel title="Status page" flush>
 		{#snippet actions()}{#if look}{@render pageState(look.public_status_enabled)}{/if}{/snippet}
 		{@render reached(pages?.status)}
 		{#if !loaded}<div class="space-y-2 p-4">

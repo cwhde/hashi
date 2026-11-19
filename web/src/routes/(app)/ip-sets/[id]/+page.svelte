@@ -397,11 +397,7 @@
 		</Tabs.Content>
 
 		<Tabs.Content value="resolved">
-			<Panel
-				flush
-				title="What this set means right now"
-				description="Merged ranges after resolving hosts, DNS names and nested sets"
-			>
+			<Panel flush title="What this set means right now">
 				{#if resolved?.prefixes.length}
 					<ul class="divide-y text-md">
 						{#each resolved.prefixes as p (p)}
@@ -418,12 +414,7 @@
 				{/if}
 			</Panel>
 			{#if resolved?.address_set && resolved.addresses.length}
-				<Panel
-					flush
-					class="mt-4"
-					title="Addresses for targets"
-					description="In item order: the first is used first when this set is a connection target"
-				>
+				<Panel flush class="mt-4" title="Addresses for targets">
 					<ul class="divide-y text-md">
 						{#each resolved.addresses as a, i (a)}
 							<li class="flex items-center gap-3 px-4 py-2">
@@ -436,7 +427,7 @@
 		</Tabs.Content>
 
 		<Tabs.Content value="used">
-			<Panel flush title="Used by" description="A set cannot be deleted while anything uses it">
+			<Panel flush title="Used by">
 				{#if consumers.length}
 					<ul class="divide-y text-md">
 						{#each consumers as u (u.type + u.id)}
@@ -469,7 +460,7 @@
 		</Tabs.Content>
 
 		<Tabs.Content value="history">
-			<Panel flush title="History" description="From the audit log">
+			<Panel flush title="History">
 				{#if history.length}
 					<ul class="divide-y text-md">
 						{#each history as h (h.id)}

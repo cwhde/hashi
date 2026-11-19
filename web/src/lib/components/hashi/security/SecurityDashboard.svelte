@@ -161,10 +161,7 @@
 			</Panel>
 		</div>
 		<div class="grid gap-4 lg:grid-cols-2">
-			<Panel
-				title="Challenges"
-				description="What happened to addresses that were asked to solve one"
-			>
+			<Panel title="Challenges">
 				<ul class="space-y-2 text-md">
 					{#each funnel as s (s.k)}
 						<li class="grid grid-cols-[8.5rem_1fr_3.5rem] items-center gap-2">
@@ -178,7 +175,7 @@
 					{/each}
 				</ul>
 			</Panel>
-			<Panel title="Kernel meters" description="Addresses banned by a firewall host's meters">
+			<Panel title="Kernel meters">
 				<ul class="divide-y text-md">
 					{#each d.meters as m (m.host_id)}
 						<li class="flex justify-between gap-2 py-2">
