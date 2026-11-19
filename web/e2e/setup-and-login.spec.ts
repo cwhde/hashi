@@ -304,6 +304,18 @@ test('setup with a passkey, then sign in with it', async ({ page, request }) => 
 		'true'
 	);
 	await marked.getByRole('radio', { name: 'Leave' }).click();
+	// "Import all shown" sets every importable row the filter shows; nothing is sent until Save decisions.
+	const importFilter = page.getByRole('tabpanel').getByLabel('Filter records');
+	await importFilter.fill('svc29');
+	await page.getByRole('button', { name: 'Import all shown (1)' }).click();
+	const svc29 = page.getByRole('radiogroup', { name: 'Decision for svc29 CNAME' });
+	await expect(svc29.getByRole('radio', { name: 'Import' })).toHaveAttribute(
+		'aria-checked',
+		'true'
+	);
+	await expect(page.getByRole('button', { name: 'Import all shown (0)' })).toBeDisabled();
+	await svc29.getByRole('radio', { name: 'Leave' }).click();
+	await importFilter.fill('');
 	await page.getByRole('tab', { name: 'Import' }).click();
 	await expect(page).toHaveURL(/\?tab=import$/);
 	const svc2 = page.getByRole('radiogroup', { name: 'Decision for svc2 CNAME' });

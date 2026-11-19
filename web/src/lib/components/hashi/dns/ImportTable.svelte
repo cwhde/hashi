@@ -3,6 +3,7 @@
 	import Tag from '#lib/components/hashi/Tag.svelte';
 	import { Input } from '#lib/components/ui/input/index.ts';
 	import { Switch } from '#lib/components/ui/switch/index.ts';
+	import { Button } from '#lib/components/ui/button/index.ts';
 	import { Search } from '@lucide/svelte';
 	import {
 		leaveOnlyReason,
@@ -39,6 +40,16 @@
 			return hay.includes(needle);
 		})
 	);
+	// Taking over a whole zone (bug 116) is one click, not seventy: every row shown that can be imported is set to
+	// Import; the filter narrows it to a group first. Nothing goes out until Save decisions.
+	const importable = $derived(
+		shown.filter(
+			(r) => offeredDecisions(r).includes('import') && decisions[rrsetKey(r.rrset)] !== 'import'
+		)
+	);
+	function importAll() {
+		for (const r of importable) decisions[rrsetKey(r.rrset)] = 'import';
+	}
 	const counts = $derived(
 		Object.values(decisions).reduce(
 			(acc, d) => ((acc[d] = (acc[d] ?? 0) + 1), acc),
@@ -60,6 +71,9 @@
 		<p class="tnum ml-auto text-sm text-muted-foreground" aria-live="polite">
 			{rows.length} records · {counts.import ?? 0} to import · {counts.prune ?? 0} to remove
 		</p>
+		<Button variant="outline" size="sm" onclick={importAll} disabled={importable.length === 0}
+			>Import all shown ({importable.length})</Button
+		>
 	</div>
 	<ul class="divide-y" aria-label="Import decisions">
 		{#each shown as row (rrsetKey(row.rrset))}
