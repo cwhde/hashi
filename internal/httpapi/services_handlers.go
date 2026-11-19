@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"git.juzo.io/juzo/hashi/internal/audit"
+	"git.juzo.io/juzo/hashi/internal/firewall"
 	"git.juzo.io/juzo/hashi/internal/httpapi/gen"
 	"git.juzo.io/juzo/hashi/internal/rules"
 	"git.juzo.io/juzo/hashi/internal/services"
@@ -260,9 +261,15 @@ func (s *Server) ListServices(ctx context.Context, _ gen.ListServicesRequestObje
 	if err != nil {
 		return nil, err
 	}
+	waiting, err := s.waiting(ctx)
+	if err != nil {
+		return nil, err
+	}
 	out := gen.ServiceList{Services: make([]gen.Service, 0, len(all))}
 	for _, sv := range all {
-		out.Services = append(out.Services, serviceBody(sv))
+		b := serviceBody(sv)
+		b.Waiting = waiting(sv)
+		out.Services = append(out.Services, b)
 	}
 	return gen.ListServices200JSONResponse(out), nil
 }
@@ -272,7 +279,51 @@ func (s *Server) GetService(ctx context.Context, req gen.GetServiceRequestObject
 	if err != nil {
 		return nil, serviceError(err)
 	}
-	return gen.GetService200JSONResponse(serviceBody(sv)), nil
+	b, err := s.serviceNow(ctx, sv)
+	if err != nil {
+		return nil, err
+	}
+	return gen.GetService200JSONResponse(b), nil
+}
+
+// serviceNow is one service's body with its waiting flag.
+func (s *Server) serviceNow(ctx context.Context, sv services.Service) (gen.Service, error) {
+	waiting, err := s.waiting(ctx)
+	if err != nil {
+		return gen.Service{}, err
+	}
+	b := serviceBody(sv)
+	b.Waiting = waiting(sv)
+	return b, nil
+}
+
+// waiting reports, per service, whether an open plan still holds it back from its hosts: any Traefik host's plan
+// (every Traefik host renders every service), and for TCP/UDP also the entry firewall host's plan, which opens the
+// public port (bug 77). An off or invalid service is never waiting: there is nothing to publish.
+func (s *Server) waiting(ctx context.Context) (func(services.Service) bool, error) {
+	open, err := s.Sync.Open(ctx)
+	if err != nil {
+		return nil, err
+	}
+	return waitingFor(open), nil
+}
+
+func waitingFor(open []*hsync.Plan) func(services.Service) bool {
+	traefikOpen, firewallOpen := false, map[string]bool{}
+	for _, p := range open {
+		switch p.Subsystem {
+		case traefik.Subsystem:
+			traefikOpen = true
+		case firewall.Subsystem:
+			firewallOpen[p.Target] = true
+		}
+	}
+	return func(sv services.Service) bool {
+		if !sv.Enabled || sv.InvalidReason != "" {
+			return false
+		}
+		return traefikOpen || (sv.Stream() && firewallOpen[sv.EntryHostID])
+	}
 }
 
 // checkStream refuses a stream port that belongs to something on a firewall host (05 §8).
@@ -311,7 +362,11 @@ func (s *Server) CreateService(ctx context.Context, req gen.CreateServiceRequest
 	if err != nil {
 		return nil, err
 	}
-	return gen.CreateService200JSONResponse{Service: serviceBody(sv), Plans: plans, CertificatePending: pending}, nil
+	b, err := s.serviceNow(ctx, sv)
+	if err != nil {
+		return nil, err
+	}
+	return gen.CreateService200JSONResponse{Service: b, Plans: plans, CertificatePending: pending}, nil
 }
 
 func (s *Server) UpdateService(ctx context.Context, req gen.UpdateServiceRequestObject) (gen.UpdateServiceResponseObject, error) {
@@ -332,7 +387,11 @@ func (s *Server) UpdateService(ctx context.Context, req gen.UpdateServiceRequest
 	if err != nil {
 		return nil, err
 	}
-	return gen.UpdateService200JSONResponse{Service: serviceBody(sv), Plans: plans, CertificatePending: pending}, nil
+	b, err := s.serviceNow(ctx, sv)
+	if err != nil {
+		return nil, err
+	}
+	return gen.UpdateService200JSONResponse{Service: b, Plans: plans, CertificatePending: pending}, nil
 }
 
 func (s *Server) DeleteService(ctx context.Context, req gen.DeleteServiceRequestObject) (gen.DeleteServiceResponseObject, error) {
@@ -356,7 +415,11 @@ func (s *Server) setEnabled(ctx context.Context, id string, on bool) (gen.Servic
 		}
 		return services.Get(ctx, q, id)
 	})
-	return gen.ServiceSaveResult{Service: serviceBody(sv), Plans: plans, CertificatePending: pending}, err
+	if err != nil {
+		return gen.ServiceSaveResult{}, err
+	}
+	b, err := s.serviceNow(ctx, sv)
+	return gen.ServiceSaveResult{Service: b, Plans: plans, CertificatePending: pending}, err
 }
 
 func (s *Server) EnableService(ctx context.Context, req gen.EnableServiceRequestObject) (gen.EnableServiceResponseObject, error) {

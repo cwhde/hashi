@@ -4922,6 +4922,9 @@ type Service struct {
 	// Traffic What an HTTP service's upstream receives (04 §1.1a). Absent or zero fields keep Traefik's behaviour.
 	Traffic   ServiceTraffic `json:"traffic"`
 	UpdatedAt time.Time      `json:"updated_at"`
+
+	// Waiting A plan that would carry this service to its hosts is still open (the Traefik hosts' plans, and for TCP/UDP the entry firewall host's plan): the service is saved but not live yet (bug 77)
+	Waiting bool `json:"waiting"`
 }
 
 // ServiceDomainMode none: a tcp/udp service without a public name

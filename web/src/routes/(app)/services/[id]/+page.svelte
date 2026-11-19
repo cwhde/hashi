@@ -282,6 +282,10 @@
 				<dt class="text-xs text-muted-foreground">State</dt>
 				<dd>
 					{#if svc.invalid_reason}<span class="text-bad-text">Not published</span
+						>{:else if svc.waiting}<a
+							href="/changes"
+							class="text-warn-text underline-offset-4 hover:underline"
+							>Saved, waiting for approval</a
 						>{:else if svc.enabled}Published on every Traefik host{:else}Off{/if}
 				</dd>
 			</div>

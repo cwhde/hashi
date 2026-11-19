@@ -4848,6 +4848,8 @@ export interface components {
             adguard_rewrite: boolean;
             /** @description Why the service is left out of the rendered files; empty when valid */
             invalid_reason: string;
+            /** @description A plan that would carry this service to its hosts is still open (the Traefik hosts' plans, and for TCP/UDP the entry firewall host's plan): the service is saved but not live yet (bug 77) */
+            waiting: boolean;
             /** Format: date-time */
             created_at: string;
             /** Format: date-time */

@@ -281,6 +281,10 @@
 							<Table.Cell class="text-md">
 								{#if s.invalid_reason}<span class="text-bad-text" title={s.invalid_reason}
 										>Not published: invalid</span
+									>{:else if s.waiting}<a
+										href="/changes"
+										class="text-warn-text underline-offset-4 hover:underline"
+										>Waiting for approval</a
 									>{:else if s.enabled}Published{:else}<span class="text-muted-foreground">Off</span
 									>{/if}
 							</Table.Cell>
