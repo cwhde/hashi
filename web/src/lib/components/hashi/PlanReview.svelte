@@ -17,7 +17,8 @@
 		items,
 		compact = false,
 		badge,
-		footer
+		footer,
+		stakes = []
 	}: {
 		title: string;
 		trigger: string;
@@ -28,6 +29,8 @@
 		badge?: Snippet;
 		/** Replaces the footer with the live page's own actions. */
 		footer?: Snippet;
+		/** What approving does, in plain lines (bug 35); shown above the actions. */
+		stakes?: string[];
 	} = $props();
 
 	const verbs: Record<PlanItem['action'], string> = {
@@ -125,6 +128,15 @@
 			</li>
 		{/each}
 	</ol>
+
+	{#if stakes.length}
+		<section class="border-t bg-warn/[0.04] px-4 py-3" aria-label="If you approve">
+			<h4 class="mb-1.5 text-md font-medium">If you approve</h4>
+			<ul class="list-disc space-y-1 pl-5 text-md">
+				{#each stakes as line, i (i)}<li>{line}</li>{/each}
+			</ul>
+		</section>
+	{/if}
 
 	{#if footer}
 		<footer

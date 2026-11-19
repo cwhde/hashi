@@ -72,3 +72,27 @@ export function outcomeText(p: Plan): string {
 			return p.status;
 	}
 }
+
+/**
+ * What approving a high-risk plan does, in plain lines (bug 35): the reasons the plan is high risk, and for the firewall
+ * what Hashi checks afterwards and that the host puts its old rules back by itself when a check fails (05 §7).
+ * Empty for a low-risk plan.
+ */
+export function stakes(p: Plan): string[] {
+	if (p.risk !== 'high') return [];
+	const reasons = [
+		...new Set(
+			p.items
+				.filter((i) => i.risk === 'high')
+				.flatMap((i) => (i.note ?? '').split('; '))
+				.map((n) => n.trim())
+				.filter(Boolean)
+		)
+	].map((n) => n.charAt(0).toUpperCase() + n.slice(1) + '.');
+	if (p.subsystem !== 'firewall') return reasons;
+	return [
+		...reasons,
+		`Afterwards Hashi logs in to ${p.target_name} over a new SSH connection and checks that NetBird still reaches its management server.`,
+		'If either check fails, the host puts its previous rules back by itself after 3 minutes.'
+	];
+}

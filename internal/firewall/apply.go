@@ -179,10 +179,10 @@ func Observe(ctx context.Context, h Host, d Desired) (Diff, error) {
 
 	high := func(why string) { diff.Risk, diff.Reasons = hsync.High, append(diff.Reasons, why) }
 	if diff.First {
-		high("first apply: Hashi's table is created under the rescue timer")
+		high("Hashi's firewall rules go onto this host for the first time")
 	}
 	if diff.InstallNft != "" {
-		high("nftables is installed")
+		high("the nftables package is installed")
 	}
 	for _, f := range diff.Files {
 		switch f.Path {
@@ -197,7 +197,7 @@ func Observe(ctx context.Context, h Host, d Desired) (Diff, error) {
 		}
 	}
 	if diff.TableMissing && !diff.First {
-		high("the kernel has no Hashi table: it is loaded again")
+		high("Hashi's rules are missing from the kernel and are loaded again")
 	}
 	if !d.Takeover.Empty() {
 		var err error
@@ -205,7 +205,7 @@ func Observe(ctx context.Context, h Host, d Desired) (Diff, error) {
 			return diff, fmt.Errorf("read the old firewall script's objects: %w", err)
 		}
 		if !diff.Takeover.Empty() {
-			high("the old firewall script is removed")
+			high("the old firewall script and its rules are removed")
 		}
 	}
 	return diff, nil
@@ -567,15 +567,15 @@ func TableRisk(old, new []byte, g Guard) []string {
 	o, err1 := listed(old)
 	n, err2 := listed(new)
 	if err1 != nil || err2 != nil {
-		return []string{"the previous table cannot be read"}
+		return []string{"the rules on the host can't be read, so this change can't be checked line by line"}
 	}
 	var why []string
 	if structure(old) != structure(new) {
-		why = append(why, "chains or sets change")
+		why = append(why, "the structure of the rules changes (chains or address lists)")
 	}
 	for _, p := range []string{"pub_tcp", "pub_udp", "metered_udp"} {
 		if !slices.Equal(o.ports[p], n.ports[p]) {
-			why = append(why, "published ports change")
+			why = append(why, "public ports open or close")
 			break
 		}
 	}
@@ -586,7 +586,7 @@ func TableRisk(old, new []byte, g Guard) []string {
 			}
 			name := set + suffix(a.Is4())
 			if o.sets[name].Contains(a) && !n.sets[name].Contains(a) {
-				why = append(why, fmt.Sprintf("%s no longer contains %s", name, a))
+				why = append(why, fmt.Sprintf("%s loses its access (%s), and it is your current address or the host's rescue address", a, name))
 			}
 		}
 	}
@@ -612,7 +612,7 @@ func TableRisk(old, new []byte, g Guard) []string {
 			}
 		}
 		if wide != "" {
-			why = append(why, fmt.Sprintf("%s newly blocks %s", name, wide))
+			why = append(why, fmt.Sprintf("%s is newly blocked (%s): nothing there can reach this host or the services behind it, and this host gets no answers from it either", wide, name))
 		}
 	}
 	return why

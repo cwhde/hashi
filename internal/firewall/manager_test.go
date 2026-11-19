@@ -240,7 +240,7 @@ func TestBindingsFoldAndLockOutGuard(t *testing.T) {
 	_ = e.m.PutHostAccess(ctx, "admin", "", h.ID, nil)
 	plans, _ = e.m.PlanAll(ctx, e.eng, "admin")
 	if len(plans) != 1 || plans[0].Risk != hsync.High || plans[0].Status != hsync.StatusPending ||
-		!strings.Contains(plans[0].Items[0].Note, "host_access4 no longer contains 10.32.0.6") {
+		!strings.Contains(plans[0].Items[0].Note, "10.32.0.6 loses its access (host_access4)") {
 		t.Fatalf("removing the rescue address: %+v", plans)
 	}
 }

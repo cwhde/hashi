@@ -167,13 +167,13 @@ func TestTableRisk(t *testing.T) {
 	}{
 		"same":                  {func(*Spec) {}, ""},
 		"other allow added":     {func(s *Spec) { s.Folded = Fold(pfx("198.51.100.7/32", "192.0.2.9/32"), pfx("203.0.113.0/24")) }, ""},
-		"admin allow removed":   {func(s *Spec) { s.Folded = Fold(nil, pfx("203.0.113.0/24")) }, "allow4 no longer contains 198.51.100.7"},
-		"rescue access removed": {func(s *Spec) { s.HostAccess = nil }, "host_access4 no longer contains 198.51.100.3"},
+		"admin allow removed":   {func(s *Spec) { s.Folded = Fold(nil, pfx("203.0.113.0/24")) }, "198.51.100.7 loses its access (allow4)"},
+		"rescue access removed": {func(s *Spec) { s.HostAccess = nil }, "198.51.100.3 loses its access (host_access4)"},
 		"small block":           {func(s *Spec) { s.Folded = Fold(pfx("198.51.100.7/32"), pfx("203.0.113.0/24", "192.0.2.0/24")) }, ""},
-		"block a /16":           {func(s *Spec) { s.Folded = Fold(pfx("198.51.100.7/32"), pfx("203.0.113.0/24", "10.99.0.0/16")) }, "block4 newly blocks 10.99.0.0/16"},
-		"port opened":           {func(s *Spec) { s.Ports = append(s.Ports, Port{Proto: "tcp", Port: 25565, TargetPort: 25565}) }, "published ports change"},
-		"meters on":             {func(s *Spec) { s.Meters.Enabled = true }, "chains or sets change"},
-		"inbound drop on":       {func(s *Spec) { s.DropOtherInbound = true }, "chains or sets change"},
+		"block a /16":           {func(s *Spec) { s.Folded = Fold(pfx("198.51.100.7/32"), pfx("203.0.113.0/24", "10.99.0.0/16")) }, "10.99.0.0/16 is newly blocked (block4)"},
+		"port opened":           {func(s *Spec) { s.Ports = append(s.Ports, Port{Proto: "tcp", Port: 25565, TargetPort: 25565}) }, "public ports open or close"},
+		"meters on":             {func(s *Spec) { s.Meters.Enabled = true }, "the structure of the rules changes"},
+		"inbound drop on":       {func(s *Spec) { s.DropOtherInbound = true }, "the structure of the rules changes"},
 	}
 	for name, c := range cases {
 		got := strings.Join(TableRisk(old, render(c.mut), g), "; ")

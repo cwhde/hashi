@@ -10,7 +10,7 @@
 	import { api, problemText } from '#lib/api/client.ts';
 	import { withReauth } from '#lib/auth/reauth.ts';
 	import { pendingPlans } from '#lib/sync-pending.svelte.ts';
-	import { fmtTime, outcomeText, reviewItems, triggerText, type Plan } from '#lib/sync.ts';
+	import { fmtTime, outcomeText, reviewItems, stakes, triggerText, type Plan } from '#lib/sync.ts';
 
 	// 01-platform.md §5, 10b §3: every waiting plan with exact before/after; high risk needs the passkey.
 	let open = $state<Plan[]>([]);
@@ -92,7 +92,13 @@
 			</Panel>
 		{/if}
 		{#each open as p (p.id)}
-			<PlanReview title={p.title} trigger={triggerText(p)} risk={p.risk} items={reviewItems(p)}>
+			<PlanReview
+				title={p.title}
+				trigger={triggerText(p)}
+				risk={p.risk}
+				items={reviewItems(p)}
+				stakes={p.status === 'pending' ? stakes(p) : []}
+			>
 				{#snippet footer()}
 					<p class="mr-auto text-sm text-muted-foreground">
 						{#if p.status === 'pending'}Approving asks for your passkey.{:else if p.status === 'applying'}Applying
