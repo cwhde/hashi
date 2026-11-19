@@ -20,10 +20,11 @@ first, structure before text, search after the settings regroup.
 | 13.5 | Plans, status and alerts tell the truth | 12, 34, 35, 59, 76, 77, 79, 80, 82, 85, 86, 87, 88; from 13.4: 107, 145, 146, 147, 148; 16 (flaky CI test, recurring) | Cause of the NetBird check failure known and the waiting firewall plan resolved with the owner; the approval screen says what is at stake; a real host outage sends one grouped alert |
 | 13.6 | Security and IP sets | 18, 26, 81, 89 | Measured thresholds with 3× headroom; WAF exclusions by name; Counters and address links correct |
 | 13.7 | Global search | 4 | Search finds every kind of object, every setting and every tab from any page, keyboard only |
-| 13.8 | Public page assets | 30, 149 | Overview built from its mock with working widget settings; public page icons and logos replaceable |
+| 13.8 | Public page assets | 30, 149 (if the selfh.st index is unclear, see how Pocket ID integrates it) | Overview built from its mock with working widget settings; public page icons and logos replaceable |
 | 13.9 | Pulse on OpenWrt | 21 | Agent installed, started, self-updated and reporting its address on the owner's own OpenWrt router |
 
-Next: 13.5. After 13.9: a last bug sweep, then `v1.0.0`.
+Next: 13.5. After 13.9: a last bug sweep, then `v1.0.0`. With 1.0, a better README (the owner, 2026-11-19): what Hashi
+is, screenshots, how to install and run it, what it needs.
 
 **13.2 done** (2026-11-17, `v0.13.2-beta.1`, PR #69). Gate: the end-to-end run on the release commit walks all 16
 top-level pages at 390 and 1440 px in all four themes with no page wider than the screen, checks every title
