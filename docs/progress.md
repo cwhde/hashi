@@ -64,8 +64,12 @@ release. Not done on prod: adding a Traefik or firewall host from Connections (n
   burst 128, 256 open (saved 2026-11-19; defaults 600, 120, 1000), and the kernel runs exactly those. Since 2026-11-03
   the meters banned Google's crawler 123 times, a hosting range 90 times, an AWS range 10 times and the home address
   once. Googlebot sends at most 10 requests per minute per address, so its connection rate is not visible in the
-  access log. Next: count new TCP connections per source on the VPS for 10 minutes (a passive capture of connection
-  starts, counts only), with the owner's OK, then set the meters with 3× headroom.
+  access log. Counted on the VPS 2026-11-20 for 10 minutes with the owner's OK (passive capture of connection starts,
+  plus 20 connection-table samples), per single address, the key the meters use: peak new connections per minute,
+  owner's phone 41, home 28, everything else at most 14, Google's crawler 10; peak open connections, LAN 28, home 18,
+  the phone 5, everything else at most 7. So 120/min and 256 open did not trip on these clients in this window; the
+  crawler's 123 bans come from bursts this window did not catch (unexplained). The phone's ban during the count was L7
+  (the old 300 limit, then bug 153), not L4.
 
 Gate: measured thresholds with 3× headroom; WAF exclusions by name; Counters and address links correct.
 
