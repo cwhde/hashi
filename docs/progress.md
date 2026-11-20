@@ -50,7 +50,7 @@ release. Not done on prod: adding a Traefik or firewall host from Connections (n
 
 **13.6 done** (2026-11-20, `v0.13.6-beta.1`, signed in with the owner's passkey). Gate on prod: request limit 1600 in
 10 s and the error trigger 40 in 10 s stored after migration 32 (an address was challenged for error answers within the
-hour); 150 new connections per minute in the VPS kernel; the WAF tab of a real service lists its 10 exclusions by name
+hour); 150 new connections per minute in the VPS kernel; the WAF tab of a real service lists its exclusions by name
 and group, the picker offers all 282 rules; Counters with a search that is not an address shows the error, no rows.
 
 ### 13.6 checklist (one PR)
