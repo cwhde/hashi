@@ -6,7 +6,6 @@ import (
 	"net/url"
 	"slices"
 	"strings"
-	"sync"
 	"time"
 
 	"git.juzo.io/juzo/hashi/internal/httpapi/gen"
@@ -20,9 +19,6 @@ import (
 // whose title starts with the query come first. Each group lists at most searchMax results and counts the rest.
 
 const searchMax = 8
-
-// searchRemoteWait bounds the one search that asks another system: the AdGuard instances' rewrites.
-const searchRemoteWait = 2 * time.Second
 
 type searchHit struct {
 	title, detail, href string
@@ -141,23 +137,8 @@ func (s *Server) Search(ctx context.Context, req gen.SearchRequestObject) (gen.S
 			out.Groups = append(out.Groups, *g)
 		}
 	}
-	// The rewrites are read from the AdGuard instances while the rest is searched here.
-	rewrites := make(chan []searchHit, 1)
-	go func() { rewrites <- s.searchRewrites(ctx) }()
-
-	steps := []func(context.Context, searchQuery) (*gen.SearchGroup, error){
-		s.searchServices, s.searchDNS,
-	}
-	for _, step := range steps {
-		g, err := step(ctx, q)
-		if err != nil {
-			return nil, err
-		}
-		add(g)
-	}
-	add(q.group(gen.SearchGroupKindRewrite, "AdGuard rewrites", <-rewrites, false))
 	for _, step := range []func(context.Context, searchQuery) (*gen.SearchGroup, error){
-		s.searchIPSets, s.searchIPSetItems, s.searchRuleSets, s.searchFirewallHosts, s.searchTraefikHosts,
+		s.searchServices, s.searchDNS, s.searchRewrites, s.searchIPSets, s.searchIPSetItems, s.searchRuleSets, s.searchFirewallHosts, s.searchTraefikHosts,
 		s.searchAgents, s.searchConnections, s.searchScripts, s.searchChecks, s.searchPlans, s.searchActivity,
 	} {
 		g, err := step(ctx, q)
@@ -219,42 +200,6 @@ func (s *Server) searchDNS(ctx context.Context, q searchQuery) (*gen.SearchGroup
 		}
 	}
 	return q.group(gen.SearchGroupKindDnsRecord, "DNS records", hits, false), nil
-}
-
-// searchRewrites reads every AdGuard instance's rewrites, each within searchRemoteWait; an instance that doesn't answer
-// is left out, so a slow server never holds up the search.
-func (s *Server) searchRewrites(ctx context.Context) []searchHit {
-	if s.AdGuard == nil {
-		return nil
-	}
-	conns, err := s.Store.R.ListAdGuardConnections(ctx)
-	if err != nil {
-		return nil
-	}
-	var (
-		mu   sync.Mutex
-		hits []searchHit
-		wg   sync.WaitGroup
-	)
-	for _, c := range conns {
-		wg.Go(func() {
-			cctx, cancel := context.WithTimeout(ctx, searchRemoteWait)
-			defer cancel()
-			v, err := s.AdGuard.Rewrites(cctx, c.ID)
-			if err != nil {
-				return
-			}
-			mu.Lock()
-			defer mu.Unlock()
-			for _, r := range v.Rewrites {
-				hits = append(hits, searchHit{title: r.Domain, detail: r.Answer + " · " + c.Name,
-					href: "/dns?tab=adguard&instance=" + url.QueryEscape(c.ID) + "&find=" + url.QueryEscape(r.Domain)})
-			}
-		})
-	}
-	wg.Wait()
-	slices.SortFunc(hits, func(a, b searchHit) int { return strings.Compare(a.title+a.detail, b.title+b.detail) })
-	return hits
 }
 
 func (s *Server) searchIPSets(ctx context.Context, q searchQuery) (*gen.SearchGroup, error) {

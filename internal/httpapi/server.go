@@ -79,6 +79,9 @@ type Server struct {
 	IP            *clientip.Resolver
 	Logs          *logring.Ring
 	Log           *slog.Logger
+
+	// rewrites is the search's copy of the AdGuard rewrites (search_rewrites.go).
+	rewrites rewriteCache
 }
 
 var _ gen.StrictServerInterface = (*Server)(nil)
