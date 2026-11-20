@@ -1212,17 +1212,6 @@ Decisions made in S0:
 
 (Problems that survived two fix attempts: hypothesis, evidence, question for the human.)
 
-- 2026-11-20 · **fra1 AdGuard 1.0.0 rewrite list never reaches Hashi — cause found, fix waits for the owner's OK.**
-  Not an AdGuard or Hashi bug: the PVE host's LXC bridge has MTU 1280 (set in its network config), CT 105/106 use 1280
-  inside, but the AdGuard container (CT 100) and CT 107 still use 1500. Frames over 1280 bytes from those containers are
-  dropped at the bridge without an error. 1.0.0 sends more response headers, so the rewrite list reply grew to a 1246-byte
-  TCP segment (over the 1228 the bridge path carries); AdGuard retransmits it until Hashi gives up after 15 s. The
-  status reply (617 bytes) still fits, which is why the connection test passed. Evidence: `ss -tanpi` in CT 100 during a
-  read shows Send-Q 1246 and bytes_sent growing while bytes_acked stays put; tcpdump on the bridge never sees that segment;
-  a goroutine dump (pprof on briefly, owner's OK, reverted) shows no stuck handler. The API itself is unchanged (openapi
-  diff 0.107.79 → 1.0.0 and a throwaway 1.0.0 container match `testdata/contracts/adguard/`). Restarting AdGuard did
-  not help. Fix: set `mtu=1280` on net0 of CT 100 and CT 107 (`pct set`), owner's OK needed.
-
 ## Unverified
 
 - 34, the high-risk firewall plan on the VPS (2026-11-13, during the S12 restore drill) failed its NetBird check and the
@@ -1285,6 +1274,7 @@ Decisions made in S0:
 
 ## Log
 
+- 2026-11-20 · ops, not a release · fra1 AdGuard updated to 1.0.0 by the owner; Hashi's rewrite read then timed out. The API is unchanged (openapi diff 0.107.79 → 1.0.0, throwaway 1.0.0 container matches the contracts). Cause: the PVE host's LXC bridge has MTU 1280, CT 100 and CT 107 used 1500, and 1.0.0's larger rewrite list reply (1246-byte segment) was dropped at the bridge. With the owner's OK: `mtu=1280` on net0 of CT 100 and 107 (config and live). Hashi then read fra1's 14 rewrites in 0.5 s; DNS answered throughout apart from two AdGuard restarts of a few seconds.
 - 2026-11-20 · deploy `v0.13.8-beta.1` (`61a6ef4`, the owner's OK) · smoke ok (readyz, version, SPA, both public pages), schema 32 → 33 (`app_icons`). Public page icon, logos and background (30); app icons (149): 39 of 54 dashboard apps have an icon found by Hashi a minute after start, the rest show their letter (sonarr, radarr and prowlarr among them; pick from the library). Charts (155, 156) and 13.7's search fix ship with it. CI ran twice for this release (bump pushed separately); the second run was cancelled.
 - 2026-11-20 · deploy `v0.13.7-beta.1` (`c5188e0`, the owner's OK) · smoke ok (readyz, version, SPA, both public pages). Global search (4); searches answered in about 2.3 s because of a slow AdGuard instance (154), fixed after the deploy.
 - 2026-11-20 · deploy `v0.13.6-beta.1` (`059003e`, the owner's OK) · smoke ok (readyz, version, SPA, both public pages), schema 31 → 32 (request limit 300 → 1600, `l7_errors` source). Then, with the owner's yes and passkey: new connections per minute 120 → 150 in Settings; the firewall plan applied by itself. In it: 18, 26, 81, 89.
