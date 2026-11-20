@@ -53,14 +53,19 @@ release. Not done on prod: adding a Traefik or firewall host from Connections (n
 - [x] IP set → Resolved: "Show more" pages through every range (89)
 - [x] WAF exclusions by name (18): the server reads every CRS request rule's own `msg` from the rule files Coraza runs
   (282 rules, 14 groups); Service → WAF lists exclusions by name and adds them with a search by name or number
-- [ ] Thresholds measured (26). Read-only on prod 2026-11-20, the edge's Traefik access log (19 Nov and the week before),
-  Hashi's own forward-auth lines left out, peak per client address in any sliding 10 s window:
+- [x] L7 thresholds measured (26). Read-only on prod 2026-11-20, the edge's Traefik access log (19 Nov and the week
+  before), Hashi's own forward-auth lines left out, peak per client address in any sliding 10 s window:
   - requests: home 118–740 (exempt), the owner's phone on a mobile network 530 (map tiles and photos, not exempt),
-    cloud scanners 70–480. Today's 300 in 10 s challenges the owner's phone and lets most scanners through.
-  - 4xx answers: owner's phone 4, home 8; scanners 50–281.
-  - L4 meters not measured yet (the access log has no connections).
-  Proposal for the owner: L7 rate 1600 in 10 s (3× over 530) for floods, plus a new 4xx trigger, 40 in 10 s (10× over
-  the owner's 4) that catches the scanners. Decision pending.
+    cloud scanners 70–480. The old 300 in 10 s would challenge the owner's phone and missed most scanners.
+  - 4xx answers: owner's phone 4, home 8; scanners 50–281, many on names no route matches.
+  The owner chose (2026-11-20): request limit 1600 in 10 s (3× 530), and a new error trigger, 40 4xx answers in 10 s
+  (10× the owner's 4), fed from the access log including unmatched names. Migration 00032 moves a stored 300 to 1600.
+- [ ] L4 meters (26). Read-only on prod 2026-11-20: the stored meter settings are 120 new TCP connections per minute,
+  burst 128, 256 open (saved 2026-11-19; defaults 600, 120, 1000), and the kernel runs exactly those. Since 2026-11-03
+  the meters banned Google's crawler 123 times, a hosting range 90 times, an AWS range 10 times and the home address
+  once. Googlebot sends at most 10 requests per minute per address, so its connection rate is not visible in the
+  access log. Next: count new TCP connections per source on the VPS for 10 minutes (a passive capture of connection
+  starts, counts only), with the owner's OK, then set the meters with 3× headroom.
 
 Gate: measured thresholds with 3× headroom; WAF exclusions by name; Counters and address links correct.
 
