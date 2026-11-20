@@ -5592,6 +5592,22 @@ type Version struct {
 // WAFMode headers_only checks addresses, headers, cookies and query strings; bodies are not checked until the plugin is fixed (06 §9)
 type WAFMode string
 
+// WAFRule defines model for WAFRule.
+type WAFRule struct {
+	// Group What the rule file guards against, e.g. SQL injection
+	Group string `json:"group"`
+	Id    int    `json:"id"`
+
+	// Name The rule's own msg from the CRS file
+	Name     string `json:"name"`
+	Paranoia int    `json:"paranoia"`
+}
+
+// WAFRuleList defines model for WAFRuleList.
+type WAFRuleList struct {
+	Rules []WAFRule `json:"rules"`
+}
+
 // ListAuditEventsParams defines parameters for ListAuditEvents.
 type ListAuditEventsParams struct {
 	Cursor *string `form:"cursor,omitempty" json:"cursor,omitempty"`
@@ -6996,6 +7012,9 @@ type ServerInterface interface {
 	// GetVersion Build version of the running binary
 	// (GET /api/version)
 	GetVersion(w http.ResponseWriter, r *http.Request)
+	// ListWAFRules The CRS request rules exclusions can switch off, named by their own message (06 §9, bug 18)
+	// (GET /api/waf/rules)
+	ListWAFRules(w http.ResponseWriter, r *http.Request)
 	// GetHealthz Process is alive
 	// (GET /healthz)
 	GetHealthz(w http.ResponseWriter, r *http.Request)
@@ -12004,6 +12023,20 @@ func (siw *ServerInterfaceWrapper) GetVersion(w http.ResponseWriter, r *http.Req
 	handler.ServeHTTP(w, r)
 }
 
+// ListWAFRules operation middleware
+func (siw *ServerInterfaceWrapper) ListWAFRules(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListWAFRules(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // GetHealthz operation middleware
 func (siw *ServerInterfaceWrapper) GetHealthz(w http.ResponseWriter, r *http.Request) {
 
@@ -12316,6 +12349,7 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/services/{id}/enable", wrapper.EnableService)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/services/{id}/disable", wrapper.DisableService)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/services/{id}/effective", wrapper.GetServiceEffective)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/waf/rules", wrapper.ListWAFRules)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/services/{id}/waf", wrapper.GetServiceWAF)
 	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/api/services/{id}/waf", wrapper.SetServiceWAF)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/traefik/plan", wrapper.PlanTraefik)
@@ -21678,6 +21712,44 @@ func (response GetVersion200JSONResponse) VisitGetVersionResponse(w http.Respons
 	return err
 }
 
+type ListWAFRulesRequestObject struct {
+}
+
+type ListWAFRulesResponseObject interface {
+	VisitListWAFRulesResponse(w http.ResponseWriter) error
+}
+
+type ListWAFRules200JSONResponse WAFRuleList
+
+func (response ListWAFRules200JSONResponse) VisitListWAFRulesResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ListWAFRulesdefaultApplicationProblemPlusJSONResponse struct {
+	Body       Problem
+	StatusCode int
+}
+
+func (response ListWAFRulesdefaultApplicationProblemPlusJSONResponse) VisitListWAFRulesResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(response.StatusCode)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
 type GetHealthzRequestObject struct {
 }
 
@@ -22459,6 +22531,9 @@ type StrictServerInterface interface {
 	// GetVersion Build version of the running binary
 	// (GET /api/version)
 	GetVersion(ctx context.Context, request GetVersionRequestObject) (GetVersionResponseObject, error)
+	// ListWAFRules The CRS request rules exclusions can switch off, named by their own message (06 §9, bug 18)
+	// (GET /api/waf/rules)
+	ListWAFRules(ctx context.Context, request ListWAFRulesRequestObject) (ListWAFRulesResponseObject, error)
 	// GetHealthz Process is alive
 	// (GET /healthz)
 	GetHealthz(ctx context.Context, request GetHealthzRequestObject) (GetHealthzResponseObject, error)
@@ -29177,6 +29252,30 @@ func (sh *strictHandler) GetVersion(w http.ResponseWriter, r *http.Request) {
 		sh.options.ResponseErrorHandlerFunc(w, r, err)
 	} else if validResponse, ok := response.(GetVersionResponseObject); ok {
 		if err := validResponse.VisitGetVersionResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// ListWAFRules operation middleware
+func (sh *strictHandler) ListWAFRules(w http.ResponseWriter, r *http.Request) {
+	var request ListWAFRulesRequestObject
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.ListWAFRules(ctx, request.(ListWAFRulesRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "ListWAFRules")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(ListWAFRulesResponseObject); ok {
+		if err := validResponse.VisitListWAFRulesResponse(w); err != nil {
 			sh.options.ResponseErrorHandlerFunc(w, r, err)
 		}
 	} else if response != nil {

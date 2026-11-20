@@ -7,7 +7,8 @@
 	import { Button } from '#lib/components/ui/button/index.ts';
 	import { Input } from '#lib/components/ui/input/index.ts';
 	import * as Select from '#lib/components/ui/select/index.ts';
-	import { Plus, Trash2 } from '@lucide/svelte';
+	import { Plus, Trash2, X } from '@lucide/svelte';
+	import WafRulePicker from './WafRulePicker.svelte';
 	import { api, problemText, type Schemas } from '#lib/api/client.ts';
 	import { Draft } from '#lib/unsaved.svelte.ts';
 
@@ -26,20 +27,17 @@
 	};
 	let view = $state<Schemas['ServiceWAFView'] | null>(null);
 	let mode = $state(''); // '' = the default
-	let exclusions = $state('');
+	let exclusions = $state<number[]>([]);
+	let rules = $state<Schemas['WAFRule'][]>([]);
+	const ruleById = $derived(new Map(rules.map((r) => [r.id, r])));
 	let paths = $state<Path[]>([]);
 	let error = $state('');
 	export const draft = new Draft(() => [mode, exclusions, paths]);
 
-	const ids = (s: string) =>
-		s
-			.split(/[\s,]+/)
-			.filter(Boolean)
-			.map(Number);
 	function take(v: Schemas['ServiceWAFView']) {
 		view = v;
 		mode = v.mode ?? '';
-		exclusions = (v.exclusions ?? []).join(', ');
+		exclusions = [...(v.exclusions ?? [])];
 		paths = (v.paths ?? []).map((p) => ({
 			id: p.id,
 			match: p.match,
@@ -50,7 +48,11 @@
 		draft.mark();
 	}
 	onMount(async () => {
-		const r = await api.GET('/api/services/{id}/waf', { params: { path: { id: serviceId } } });
+		const [r, list] = await Promise.all([
+			api.GET('/api/services/{id}/waf', { params: { path: { id: serviceId } } }),
+			api.GET('/api/waf/rules')
+		]);
+		rules = list.data?.rules ?? []; // without names the numbers still show and save
 		if (r.error || !r.data) error = problemText(r.error);
 		else take(r.data);
 	});
@@ -63,7 +65,7 @@
 	export async function save(): Promise<Schemas['SyncPlan'][]> {
 		const body: Schemas['ServiceWAF'] = {
 			mode: (mode || undefined) as Schemas['WAFMode'] | undefined,
-			exclusions: ids(exclusions),
+			exclusions,
 			paths: paths.map((p) => ({
 				...p,
 				mode: (p.mode || undefined) as Schemas['WAFMode'] | undefined
@@ -148,13 +150,42 @@
 				{/each}
 			</ul>
 		</Panel>
-		<Panel title="Exclusions">
-			<Input
-				bind:value={exclusions}
-				placeholder="e.g. 942100, 920350"
-				class="font-mono"
-				aria-label="Rule IDs"
-			/>
+		<Panel flush title="Exclusions">
+			{#snippet help()}<HelpTip topic="WAF exclusions"
+					><p>A rule switched off here no longer counts against requests to this service.</p>
+					<p>
+						Use it for a rule that misfires on this app; the other rules keep checking.
+					</p></HelpTip
+				>{/snippet}
+			{#snippet actions()}<WafRulePicker
+					{rules}
+					chosen={exclusions}
+					onpick={(id) => (exclusions = [...exclusions, id].sort((a, b) => a - b))}
+				/>{/snippet}
+			{#if exclusions.length}
+				<ul class="divide-y text-md">
+					{#each exclusions as id (id)}
+						{@const rule = ruleById.get(id)}
+						<li class="flex items-center gap-3 px-4 py-2.5">
+							<span class="min-w-0 flex-1">
+								<span class="block">{rule?.name ?? `Rule ${id}`}</span>
+								<span class="block text-xs text-muted-foreground"
+									>{id}{#if rule}{' '}· {rule.group}{:else if rules.length}{' '}· not a rule in this
+										WAF version{/if}</span
+								>
+							</span>
+							<Button
+								size="icon-sm"
+								variant="ghost"
+								aria-label="Remove {rule?.name ?? `rule ${id}`}"
+								onclick={() => (exclusions = exclusions.filter((x) => x !== id))}><X /></Button
+							>
+						</li>
+					{/each}
+				</ul>
+			{:else}
+				<p class="px-4 py-6 text-md text-muted-foreground">Every rule checks this service.</p>
+			{/if}
 		</Panel>
 	</div>
 {:else if error}

@@ -148,6 +148,7 @@ var Requirements = map[string]Requirement{
 	"ListSessions":                {Scopes: []string{"admin.read"}, Session: false, Reauth: false},
 	"ListSyncPlans":               {Scopes: []string{"admin.read"}, Session: false, Reauth: false},
 	"ListTraefikConnections":      {Scopes: []string{"admin.read"}, Session: false, Reauth: false},
+	"ListWAFRules":                {Scopes: []string{"services.manage"}, Session: false, Reauth: false},
 	"Logout":                      {Scopes: []string{}, Session: true, Reauth: false},
 	"LookupAddress":               {Scopes: []string{"admin.read"}, Session: false, Reauth: false},
 	"PasskeyLoginOptions":         {Scopes: []string{}, Session: false, Reauth: false},

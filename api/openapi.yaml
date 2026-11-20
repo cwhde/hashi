@@ -2158,6 +2158,17 @@ paths:
           description: Rendered YAML
           content: { application/json: { schema: { $ref: "#/components/schemas/ServiceEffective" } } }
         default: { $ref: "#/components/responses/Problem" }
+  /api/waf/rules:
+    get:
+      operationId: listWAFRules
+      summary: The CRS request rules exclusions can switch off, named by their own message (06 §9, bug 18)
+      tags: [services]
+      x-hashi-scopes: [services.manage]
+      responses:
+        "200":
+          description: Every CRS request rule with a message, by number
+          content: { application/json: { schema: { $ref: "#/components/schemas/WAFRuleList" } } }
+        default: { $ref: "#/components/responses/Problem" }
   /api/services/{id}/waf:
     get:
       operationId: getServiceWAF
@@ -4794,6 +4805,19 @@ components:
         mode: { $ref: "#/components/schemas/WAFMode", description: "Absent: waf_default_mode" }
         exclusions: { type: array, items: { type: integer } }
         paths: { type: array, items: { $ref: "#/components/schemas/ServiceWAFPath" } }
+    WAFRule:
+      type: object
+      required: [id, name, group, paranoia]
+      properties:
+        id: { type: integer }
+        name: { type: string, description: "The rule's own msg from the CRS file" }
+        group: { type: string, description: "What the rule file guards against, e.g. SQL injection" }
+        paranoia: { type: integer, minimum: 1, maximum: 4 }
+    WAFRuleList:
+      type: object
+      required: [rules]
+      properties:
+        rules: { type: array, items: { $ref: "#/components/schemas/WAFRule" } }
     ServiceWAFView:
       allOf:
         - $ref: "#/components/schemas/ServiceWAF"

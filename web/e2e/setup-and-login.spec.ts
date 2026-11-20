@@ -472,6 +472,31 @@ test('setup with a passkey, then sign in with it', async ({ page, request }) => 
 	await page.getByRole('button', { name: 'Add item' }).last().click();
 	await expect(page.getByRole('alert')).toContainText('home → office → home');
 	await page.getByRole('button', { name: 'Cancel' }).click();
+	// Bug 89: a set that resolves to more than one page of ranges can show all of them.
+	await page.getByRole('link', { name: 'IP sets' }).first().click();
+	await page.getByRole('button', { name: 'Add set' }).click();
+	await page.getByLabel('Name', { exact: true }).fill('big');
+	await page.getByLabel('Address (IPv4 or IPv6)').fill('10.0.0.0');
+	await page.getByRole('button', { name: 'Create set' }).click();
+	await expect(page.getByRole('heading', { name: 'big' })).toBeVisible();
+	const bigID = page.url().split('/').pop()!;
+	const csrf = (await (await page.request.get(`${state.baseURL}/api/auth/session`)).json())
+		.csrf_token;
+	for (let i = 1; i <= 201; i++) {
+		const r = await page.request.post(`${state.baseURL}/api/ip-sets/${bigID}/elements`, {
+			headers: { 'X-Hashi-CSRF': csrf },
+			data: { item: { type: 'cidr', prefix: `10.${i}.0.0/24` } }
+		});
+		expect(r.status()).toBe(200);
+	}
+	await page.reload();
+	await page.getByRole('tab', { name: 'Resolved' }).click();
+	const resolvedTab = page.getByRole('tabpanel', { name: 'Resolved' });
+	await expect(resolvedTab.getByText('Showing 200 of 202 ranges')).toBeVisible();
+	await expect(resolvedTab.getByText('10.201.0.0/24')).toHaveCount(0);
+	await resolvedTab.getByRole('button', { name: 'Show more' }).click();
+	await expect(resolvedTab.getByText('10.201.0.0/24')).toBeVisible();
+	await expect(resolvedTab.getByRole('button', { name: 'Show more' })).toHaveCount(0);
 	await page.goto(`${state.baseURL}/ip-sets/address?ip=192.0.2.44`);
 	await expect(page.getByRole('heading', { name: '192.0.2.44' })).toBeVisible();
 	await expect(page.getByText('office › home › 192.0.2.44 (ip)')).toBeVisible();
@@ -743,6 +768,17 @@ test('setup with a passkey, then sign in with it', async ({ page, request }) => 
 	);
 	await page.getByRole('button', { name: 'Add path' }).click();
 	await page.getByLabel('Path', { exact: true }).fill('/upload');
+	// Bug 18: an exclusion is picked by the rule's own name, found by searching words from it or its number. Two CRS
+	// rules share this name; the number under each tells them apart.
+	await expect(page.getByText('Every rule checks this service.')).toBeVisible();
+	await page.getByRole('button', { name: 'Add rule' }).click();
+	await page.getByLabel('Search rules').fill('SQL Injection Attack Detected via libinjection');
+	await page
+		.getByRole('option', { name: /SQL Injection Attack Detected via libinjection 942100$/ })
+		.click();
+	await page.getByRole('button', { name: 'Add rule' }).click();
+	await page.getByLabel('Search rules').fill('920440');
+	await page.getByRole('option', { name: /URL file extension is restricted by policy/ }).click();
 	await expect(page.getByRole('button', { name: 'Save WAF' })).toHaveCount(0);
 	await page.getByRole('button', { name: 'Save and publish' }).click();
 	await expect(page.getByRole('status')).toContainText('Saved');
@@ -750,6 +786,8 @@ test('setup with a passkey, then sign in with it', async ({ page, request }) => 
 	await page.reload();
 	await page.getByRole('tab', { name: 'WAF' }).click();
 	await expect(page.getByLabel('Path', { exact: true })).toHaveValue('/upload');
+	await expect(page.getByText('942100 · SQL injection')).toBeVisible();
+	await expect(page.getByText('920440 · Protocol enforcement')).toBeVisible();
 	await page.setViewportSize({ width: 390, height: 844 });
 	await page.screenshot({ path: 'test-results/s10-waf-phone.png', fullPage: true });
 	await page.setViewportSize({ width: 1280, height: 800 });
@@ -857,6 +895,15 @@ test('setup with a passkey, then sign in with it', async ({ page, request }) => 
 	await expect(page.getByText('1 banned address')).toBeVisible();
 	await page.goto(`${state.baseURL}/security`);
 	await page.getByRole('tab', { name: 'Counters' }).click();
+	await expect(page.getByRole('row', { name: /198\.51\.100\.77/ })).toContainText('banned');
+	// Bug 81: a search the server refuses clears the rows and the selection, so a reset can't act on an earlier search.
+	await page.getByLabel('Select 198.51.100.77').check();
+	await expect(page.getByRole('button', { name: 'Reset counters of 1' })).toBeVisible();
+	await page.getByLabel('Search counters').fill('not-an-address');
+	await expect(page.getByText('q must be an address or a CIDR')).toBeVisible();
+	await expect(page.getByRole('row', { name: /198\.51\.100\.77/ })).toHaveCount(0);
+	await expect(page.getByRole('button', { name: /Reset counters of/ })).toHaveCount(0);
+	await page.getByLabel('Search counters').fill('');
 	await expect(page.getByRole('row', { name: /198\.51\.100\.77/ })).toContainText('banned');
 	// Bug 93: a concept is explained behind its help icon, not in a paragraph on the page (10c §4.7).
 	await expect(page.getByText('Solving a CAPTCHA resets neither.')).toHaveCount(0);

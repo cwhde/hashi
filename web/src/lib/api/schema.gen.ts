@@ -2209,6 +2209,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/waf/rules": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** The CRS request rules exclusions can switch off, named by their own message (06 §9, bug 18) */
+        get: operations["listWAFRules"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/services/{id}/waf": {
         parameters: {
             query?: never;
@@ -4892,6 +4909,17 @@ export interface components {
             mode?: components["schemas"]["WAFMode"];
             exclusions?: number[];
             paths?: components["schemas"]["ServiceWAFPath"][];
+        };
+        WAFRule: {
+            id: number;
+            /** @description The rule's own msg from the CRS file */
+            name: string;
+            /** @description What the rule file guards against, e.g. SQL injection */
+            group: string;
+            paranoia: number;
+        };
+        WAFRuleList: {
+            rules: components["schemas"]["WAFRule"][];
         };
         ServiceWAFView: components["schemas"]["ServiceWAF"] & {
             /** @description waf_default_mode from the engine settings */
@@ -9538,6 +9566,27 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ServiceEffective"];
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    listWAFRules: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Every CRS request rule with a message, by number */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WAFRuleList"];
                 };
             };
             default: components["responses"]["Problem"];

@@ -7,6 +7,7 @@ import (
 	"git.juzo.io/juzo/hashi/internal/services"
 	"git.juzo.io/juzo/hashi/internal/settings"
 	"git.juzo.io/juzo/hashi/internal/store/db"
+	"git.juzo.io/juzo/hashi/internal/waf"
 )
 
 func wafFromBody(b gen.ServiceWAF) services.WAF {
@@ -91,4 +92,14 @@ func (s *Server) SetServiceWAF(ctx context.Context, req gen.SetServiceWAFRequest
 		return nil, err
 	}
 	return gen.SetServiceWAF200JSONResponse{Waf: wafView(sv, def), Plans: plans, CertificatePending: pending}, nil
+}
+
+// ListWAFRules names the CRS rules for the exclusions picker (bug 18).
+func (s *Server) ListWAFRules(_ context.Context, _ gen.ListWAFRulesRequestObject) (gen.ListWAFRulesResponseObject, error) {
+	all := waf.Rules()
+	out := gen.WAFRuleList{Rules: make([]gen.WAFRule, 0, len(all))}
+	for _, r := range all {
+		out.Rules = append(out.Rules, gen.WAFRule{Id: r.ID, Name: r.Name, Group: r.Group, Paranoia: r.Paranoia})
+	}
+	return gen.ListWAFRules200JSONResponse(out), nil
 }
