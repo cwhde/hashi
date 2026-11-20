@@ -23,7 +23,7 @@ first, structure before text, search after the settings regroup.
 | 13.8 | Public page assets | 30, 149 (if the selfh.st index is unclear, see how Pocket ID integrates it) | Overview built from its mock with working widget settings; public page icons and logos replaceable |
 | 13.9 | Pulse on OpenWrt | 21 | Agent installed, started, self-updated and reporting its address on the owner's own OpenWrt router |
 
-Next: 13.5. After 13.9: a last bug sweep, then `v1.0.0`. With 1.0, a better README (the owner, 2026-11-19): what Hashi
+Next: 13.6 (13.5's gate waits for a real host outage). After 13.9: a last bug sweep, then `v1.0.0`. With 1.0, a better README (the owner, 2026-11-19): what Hashi
 is, screenshots, how to install and run it, what it needs.
 
 **13.2 done** (2026-11-17, `v0.13.2-beta.1`, PR #69). Gate: the end-to-end run on the release commit walks all 16
@@ -46,6 +46,23 @@ another reported address moved the service's upstream and the agent's internal A
 and the service deleted (its hidden set went with it). Found: "Let the agent choose" kept the pinned address as long
 as the agent still reported it (the beat keeps the current address); fixed with a reproducing test, ships with the next
 release. Not done on prod: adding a Traefik or firewall host from Connections (no spare machine; covered by e2e).
+
+### 13.6 checklist (one PR)
+
+- [x] Counters: a refused search clears the rows and the selection (81)
+- [x] IP set → Resolved: "Show more" pages through every range (89)
+- [x] WAF exclusions by name (18): the server reads every CRS request rule's own `msg` from the rule files Coraza runs
+  (282 rules, 14 groups); Service → WAF lists exclusions by name and adds them with a search by name or number
+- [ ] Thresholds measured (26). Read-only on prod 2026-11-20, the edge's Traefik access log (19 Nov and the week before),
+  Hashi's own forward-auth lines left out, peak per client address in any sliding 10 s window:
+  - requests: home 118–740 (exempt), the owner's phone on a mobile network 530 (map tiles and photos, not exempt),
+    cloud scanners 70–480. Today's 300 in 10 s challenges the owner's phone and lets most scanners through.
+  - 4xx answers: owner's phone 4, home 8; scanners 50–281.
+  - L4 meters not measured yet (the access log has no connections).
+  Proposal for the owner: L7 rate 1600 in 10 s (3× over 530) for floods, plus a new 4xx trigger, 40 in 10 s (10× over
+  the owner's 4) that catches the scanners. Decision pending.
+
+Gate: measured thresholds with 3× headroom; WAF exclusions by name; Counters and address links correct.
 
 ### 13.5 checklist (two PRs: A status and alerts, B plans tell the truth)
 
