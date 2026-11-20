@@ -86,13 +86,19 @@ The WAF runs inside forward auth, so every refused request is counted for the ad
 
 **Rate:** forward auth counts every request per address in a sliding window.
 
-**Trigger:** when an address exceeds `waf.violation_threshold` (N matches within Δt) **or** `l7.rate_limit_threshold`
-(R requests within Δt), Hashi adds it to `dynamic-challenge` with `expires_at = now + T_exp` and failure count `f = 0`, and increments the
+**Errors:** Hashi counts, per address, the edge's 4xx answers from the access log in a sliding window: answers of the
+services and answers to names no route matches (scanners probe unknown names). Hashi's own forward-auth lines are not
+counted. A heavy normal client and a scanner send similar numbers of requests; only the scanner collects errors
+(measured 2026-11-20: the owner's phone 530 requests and 4 errors in 10 s, scanners 70–480 requests and 50–281 errors).
+
+**Trigger:** when an address exceeds `waf.violation_threshold` (N matches within Δt), `l7.rate_limit_threshold`
+(R requests within Δt) **or** `l7.error_threshold` (E errors within Δt), Hashi adds it to `dynamic-challenge` with `expires_at = now + T_exp` and failure count `f = 0`, and increments the
 address's challenge counter (§5.1).
 
 **Exempt from the trigger:**
 - addresses in the folded `allow` ranges — never added to any dynamic set (invariant 20);
-- requests carrying a valid edge SSO session — not counted towards the rate trigger. Their WAF matches still count.
+- requests carrying a valid edge SSO session — not counted towards the rate trigger. Their WAF matches and errors still
+  count (the access log does not know the session; a signed-in client collects few errors).
 
 IPv6 addresses are tracked, challenged and banned per /64.
 
@@ -369,7 +375,8 @@ All in Settings → Security (09-scripts-settings.md §2).
 | --- | --- | --- |
 | `waf.default_mode` | `headers_only` | baseline WAF mode |
 | `waf.violation_threshold` | 5 within 60 s | WAF matches per address → challenge |
-| `l7.rate_limit_threshold` | 300 within 10 s | requests per address → challenge (exempt: allowed addresses, SSO sessions) |
+| `l7.rate_limit_threshold` | 1600 within 10 s | requests per address → challenge (exempt: allowed addresses, SSO sessions); 3× the busiest normal client measured 2026-11-20 (530) |
+| `l7.error_threshold` | 40 within 10 s | 4xx answers per address → challenge (exempt: allowed addresses); 10× the owner's peak measured 2026-11-20 (4) |
 | `challenge.expiry` (`T_exp`) | 30 m (0 = never) | fixed lifetime of a challenge entry |
 | `challenge.max_failed` (`F_max`) | 15 | unsolved requests while challenged → ban |
 | `captcha.clearance_ttl` | 24 h | `pass_captcha` cookie lifetime |
