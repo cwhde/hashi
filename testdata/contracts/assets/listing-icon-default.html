@@ -1,0 +1,155 @@
+<!-- captured_at: 2026-11-20; same host, folder icon/default/ -->
+<style>
+    /* general styling tweaks */
+    body {
+        font-family: system-ui, sans-serif;
+    }
+
+    .breadcrumb {
+        margin: 0.5rem 0 1rem 0;
+        font-size: 0.9rem;
+    }
+
+    .breadcrumb a {
+        color: #0066cc;
+        text-decoration: none;
+    }
+
+    .breadcrumb a:hover {
+        text-decoration: underline;
+    }
+
+    img.thumb-preview {
+        display: block;
+        margin-top: 4px;
+        max-height: 80px;
+        max-width: 120px;
+        object-fit: contain;
+        border: 1px solid #000;
+        /* black border */
+    }
+</style>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+  // try to find the autoindex table
+  const table =
+    document.querySelector('table#indexlist') ||
+    document.querySelector('table');
+
+  if (!table) return;
+
+  /* ---------- breadcrumb / current path ---------- */
+
+  const path = window.location.pathname;
+  const parts = path.split('/').filter(Boolean);
+
+  let breadcrumbHtml = '<a href="/">/</a>';
+  let accumulated = '';
+
+  parts.forEach(function (part, i) {
+    accumulated += '/' + part;
+    if (i < parts.length - 1) {
+      breadcrumbHtml +=
+        ' / <a href="' +
+        accumulated +
+        '/">' +
+        decodeURIComponent(part) +
+        '</a>';
+    } else {
+      // current directory
+      breadcrumbHtml +=
+        ' / <strong>' + decodeURIComponent(part) + '</strong>';
+    }
+  });
+
+  const breadcrumb = document.createElement('div');
+  breadcrumb.className = 'breadcrumb';
+  breadcrumb.innerHTML = breadcrumbHtml;
+
+  // insert breadcrumb just before the table
+  if (table.parentNode) {
+    table.parentNode.insertBefore(breadcrumb, table);
+  }
+
+  /* ---------- image previews (only in Name column) ---------- */
+
+  // find the header row and the index of the "Name" column
+  const headerRow =
+    table.querySelector('tr.indexhead') || table.rows[0];
+
+  if (!headerRow) return;
+
+  let nameColIndex = -1;
+  Array.prototype.forEach.call(headerRow.cells, function (cell, idx) {
+    const text = cell.textContent.trim().toLowerCase();
+    if (text === 'name') {
+      nameColIndex = idx;
+    }
+  });
+
+  if (nameColIndex === -1) return;
+
+  // loop over data rows (skip header/break rows)
+  Array.prototype.forEach.call(table.rows, function (row, rowIndex) {
+    if (
+      rowIndex === 0 ||
+      row.classList.contains('indexhead') ||
+      row.classList.contains('breakrow')
+    ) {
+      return;
+    }
+
+    const nameCell = row.cells[nameColIndex];
+    if (!nameCell) return;
+
+    const link = nameCell.querySelector('a[href]');
+    if (!link) return;
+
+    const href = link.getAttribute('href');
+    if (!href) return;
+
+    // extensions that should get previews (added .ico)
+    if (!/\.(jpg|jpeg|png|gif|webp|avif|ico)$/i.test(href)) return;
+
+    const img = document.createElement('img');
+    img.src = href;
+    img.loading = 'lazy';
+    img.className = 'thumb-preview';
+
+    nameCell.appendChild(img);
+  });
+});
+</script>  <table>
+   <tr><th valign="top"><img src="/icons/blank.gif" alt="[ICO]"></th><th><a href="?C=N;O=D">Name</a></th><th><a href="?C=M;O=A">Last modified</a></th><th><a href="?C=S;O=A">Size</a></th><th><a href="?C=D;O=A">Description</a></th></tr>
+   <tr><th colspan="5"><hr></th></tr>
+<tr><td valign="top"><a href="/icon/"><img src="/icons/back.gif" alt="[PARENTDIR]"></a></td><td><a href="/icon/">Parent Directory</a></td><td>&nbsp;</td><td align="right">  - </td><td>&nbsp;</td></tr>
+<tr><td valign="top"><a href="favicon.ico"><img src="/icons/image2.gif" alt="[IMG]"></a></td><td><a href="favicon.ico">favicon.ico</a></td><td align="right">2025-12-04 19:54  </td><td align="right"> 17K</td><td>&nbsp;</td></tr>
+<tr><td valign="top"><a href="icon-8.ico"><img src="/icons/image2.gif" alt="[IMG]"></a></td><td><a href="icon-8.ico">icon-8.ico</a></td><td align="right">2025-12-04 19:54  </td><td align="right">350 </td><td>&nbsp;</td></tr>
+<tr><td valign="top"><a href="icon-8.png"><img src="/icons/image2.gif" alt="[IMG]"></a></td><td><a href="icon-8.png">icon-8.png</a></td><td align="right">2025-12-05 13:25  </td><td align="right">328 </td><td>&nbsp;</td></tr>
+<tr><td valign="top"><a href="icon-8.webp"><img src="/icons/image2.gif" alt="[IMG]"></a></td><td><a href="icon-8.webp">icon-8.webp</a></td><td align="right">2025-12-04 19:54  </td><td align="right">186 </td><td>&nbsp;</td></tr>
+<tr><td valign="top"><a href="icon-16.ico"><img src="/icons/image2.gif" alt="[IMG]"></a></td><td><a href="icon-16.ico">icon-16.ico</a></td><td align="right">2025-12-04 19:54  </td><td align="right">1.1K</td><td>&nbsp;</td></tr>
+<tr><td valign="top"><a href="icon-16.png"><img src="/icons/image2.gif" alt="[IMG]"></a></td><td><a href="icon-16.png">icon-16.png</a></td><td align="right">2025-12-05 13:25  </td><td align="right">608 </td><td>&nbsp;</td></tr>
+<tr><td valign="top"><a href="icon-16.webp"><img src="/icons/image2.gif" alt="[IMG]"></a></td><td><a href="icon-16.webp">icon-16.webp</a></td><td align="right">2025-12-04 19:54  </td><td align="right">388 </td><td>&nbsp;</td></tr>
+<tr><td valign="top"><a href="icon-32.ico"><img src="/icons/image2.gif" alt="[IMG]"></a></td><td><a href="icon-32.ico">icon-32.ico</a></td><td align="right">2025-12-04 19:54  </td><td align="right">4.2K</td><td>&nbsp;</td></tr>
+<tr><td valign="top"><a href="icon-32.png"><img src="/icons/image2.gif" alt="[IMG]"></a></td><td><a href="icon-32.png">icon-32.png</a></td><td align="right">2025-12-05 13:25  </td><td align="right">1.1K</td><td>&nbsp;</td></tr>
+<tr><td valign="top"><a href="icon-32.webp"><img src="/icons/image2.gif" alt="[IMG]"></a></td><td><a href="icon-32.webp">icon-32.webp</a></td><td align="right">2025-12-04 19:54  </td><td align="right">830 </td><td>&nbsp;</td></tr>
+<tr><td valign="top"><a href="icon-64.ico"><img src="/icons/image2.gif" alt="[IMG]"></a></td><td><a href="icon-64.ico">icon-64.ico</a></td><td align="right">2025-12-04 19:54  </td><td align="right"> 17K</td><td>&nbsp;</td></tr>
+<tr><td valign="top"><a href="icon-64.png"><img src="/icons/image2.gif" alt="[IMG]"></a></td><td><a href="icon-64.png">icon-64.png</a></td><td align="right">2025-12-05 13:25  </td><td align="right">3.1K</td><td>&nbsp;</td></tr>
+<tr><td valign="top"><a href="icon-64.webp"><img src="/icons/image2.gif" alt="[IMG]"></a></td><td><a href="icon-64.webp">icon-64.webp</a></td><td align="right">2025-12-04 19:54  </td><td align="right">1.8K</td><td>&nbsp;</td></tr>
+<tr><td valign="top"><a href="icon-128.ico"><img src="/icons/image2.gif" alt="[IMG]"></a></td><td><a href="icon-128.ico">icon-128.ico</a></td><td align="right">2025-12-04 19:54  </td><td align="right"> 66K</td><td>&nbsp;</td></tr>
+<tr><td valign="top"><a href="icon-128.png"><img src="/icons/image2.gif" alt="[IMG]"></a></td><td><a href="icon-128.png">icon-128.png</a></td><td align="right">2025-12-05 13:25  </td><td align="right">8.5K</td><td>&nbsp;</td></tr>
+<tr><td valign="top"><a href="icon-128.webp"><img src="/icons/image2.gif" alt="[IMG]"></a></td><td><a href="icon-128.webp">icon-128.webp</a></td><td align="right">2025-12-04 19:54  </td><td align="right">4.1K</td><td>&nbsp;</td></tr>
+<tr><td valign="top"><a href="icon-256.ico"><img src="/icons/image2.gif" alt="[IMG]"></a></td><td><a href="icon-256.ico">icon-256.ico</a></td><td align="right">2025-12-04 19:54  </td><td align="right"> 17K</td><td>&nbsp;</td></tr>
+<tr><td valign="top"><a href="icon-256.png"><img src="/icons/image2.gif" alt="[IMG]"></a></td><td><a href="icon-256.png">icon-256.png</a></td><td align="right">2025-12-05 13:25  </td><td align="right"> 25K</td><td>&nbsp;</td></tr>
+<tr><td valign="top"><a href="icon-256.webp"><img src="/icons/image2.gif" alt="[IMG]"></a></td><td><a href="icon-256.webp">icon-256.webp</a></td><td align="right">2025-12-04 19:54  </td><td align="right"> 11K</td><td>&nbsp;</td></tr>
+<tr><td valign="top"><a href="icon-512.ico"><img src="/icons/image2.gif" alt="[IMG]"></a></td><td><a href="icon-512.ico">icon-512.ico</a></td><td align="right">2025-12-04 19:54  </td><td align="right"> 49K</td><td>&nbsp;</td></tr>
+<tr><td valign="top"><a href="icon-512.png"><img src="/icons/image2.gif" alt="[IMG]"></a></td><td><a href="icon-512.png">icon-512.png</a></td><td align="right">2025-12-05 13:25  </td><td align="right"> 77K</td><td>&nbsp;</td></tr>
+<tr><td valign="top"><a href="icon-512.webp"><img src="/icons/image2.gif" alt="[IMG]"></a></td><td><a href="icon-512.webp">icon-512.webp</a></td><td align="right">2025-12-04 19:54  </td><td align="right"> 27K</td><td>&nbsp;</td></tr>
+<tr><td valign="top"><a href="icon-1024.png"><img src="/icons/image2.gif" alt="[IMG]"></a></td><td><a href="icon-1024.png">icon-1024.png</a></td><td align="right">2025-12-05 13:25  </td><td align="right">246K</td><td>&nbsp;</td></tr>
+<tr><td valign="top"><a href="icon-1024.webp"><img src="/icons/image2.gif" alt="[IMG]"></a></td><td><a href="icon-1024.webp">icon-1024.webp</a></td><td align="right">2025-12-04 19:54  </td><td align="right"> 71K</td><td>&nbsp;</td></tr>
+<tr><td valign="top"><a href="icon.png"><img src="/icons/image2.gif" alt="[IMG]"></a></td><td><a href="icon.png">icon.png</a></td><td align="right">2025-12-05 13:25  </td><td align="right">648K</td><td>&nbsp;</td></tr>
+<tr><td valign="top"><a href="icon.webp"><img src="/icons/image2.gif" alt="[IMG]"></a></td><td><a href="icon.webp">icon.webp</a></td><td align="right">2025-12-04 19:54  </td><td align="right">150K</td><td>&nbsp;</td></tr>
+   <tr><th colspan="5"><hr></th></tr>
+</table>
+</body></html>

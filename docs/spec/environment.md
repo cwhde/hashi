@@ -36,6 +36,9 @@ host-A firewall script. Their current configuration is reference material only, 
 | nftables dynamic sets (host link) | bans, staging drain | 2026-11-02 on the Debian dev target: `testdata/contracts/nft/dynamic_sets.txt` |
 | Blocklist feeds (Feodo, Spamhaus DROP/DROPv6, DShield, FireHOL Level 1) | feed IP sets | 2026-11-02, one GET each: `testdata/contracts/feeds/` |
 | Gitea (`git.juzo.io`) | repo, act_runner CI, container registry | — |
+| Asset source (any web server with a folder listing; the owner's is Apache 2 autoindex) | public page icon, logos, background (07 §9) | 2026-11-20 read-only: `testdata/contracts/assets/` |
+| selfh.st icons via jsDelivr | app icon picker (07 §9.1) | 2026-11-20 read-only: `testdata/contracts/selfhst/` (index subset, file paths) |
+| Dashboard apps' own pages | automatic app icons (07 §9.1) | 2026-11-20 read-only, 54 apps: `testdata/contracts/appicons/` |
 
 ## Constraints discovered
 

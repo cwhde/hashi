@@ -1,0 +1,119 @@
+<head>
+		<meta charset="utf-8" />
+		<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
+		<meta http-equiv="Pragma" content="no-cache" />
+		<meta http-equiv="Expires" content="0" />
+		<link rel="icon" href="/api/app-images/favicon" />
+		<link rel="apple-touch-icon" sizes="152x152" href="/api/app-images/pwa/icon-152x152.png" />
+		<link rel="apple-touch-icon" href="/api/app-images/pwa/icon-192x192.png" />
+		<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover" />
+		<link rel="manifest" href="/app.webmanifest" />
+		<meta name="theme-color" content="oklch(1 0 0)" media="(prefers-color-scheme: light)" />
+		<meta name="theme-color" content="oklch(0.141 0.005 285.823)" media="(prefers-color-scheme: dark)" />
+		<script>
+			try {
+				const root = document.documentElement;
+				const mode = localStorage.getItem('mode-watcher-mode') || 'system';
+				const dark = mode === 'dark' || (mode !== 'light' && matchMedia('(prefers-color-scheme: dark)').matches);
+				root.classList.toggle('dark', dark);
+				root.style.colorScheme = dark ? 'dark' : 'light';
+				const a = JSON.parse(localStorage.getItem('arcane-appearance') || '{}');
+				if (a.attr) root.setAttribute('data-app-theme', a.attr);
+				if (a.cls) root.classList.add(...a.cls.split(' '));
+				if (a.css) root.style.cssText += ';' + a.css;
+			} catch (e) {}
+		</script>
+		<link href="/_app/immutable/entry/start.KZW5CP0p.js" rel="modulepreload">
+		<link href="/_app/immutable/entry/payload.DSmR2FwN.js" rel="modulepreload">
+		<link href="/_app/immutable/chunks/CRzLMJPS.js" rel="modulepreload">
+		<link href="/_app/immutable/chunks/D2bq4ec_.js" rel="modulepreload">
+		<link href="/_app/immutable/chunks/br3lE0tL.js" rel="modulepreload">
+		<link href="/_app/immutable/chunks/CSkGYr0-.js" rel="modulepreload">
+		<link href="/_app/immutable/chunks/yJEVmVe5.js" rel="modulepreload">
+		<link href="/_app/immutable/chunks/xihTtKlq.js" rel="modulepreload">
+		<link href="/_app/immutable/chunks/CxXC3U1d.js" rel="modulepreload">
+		<link href="/_app/immutable/chunks/BkISL2Dg.js" rel="modulepreload">
+		<link href="/_app/immutable/entry/app.C9ZDlA8z.js" rel="modulepreload">
+		<link href="/_app/immutable/chunks/BJjXmjoW.js" rel="modulepreload">
+		<link href="/_app/immutable/chunks/DPZa1VU7.js" rel="modulepreload">
+		<link href="/_app/immutable/chunks/CqlkLH-F.js" rel="modulepreload">
+		<link href="/_app/immutable/chunks/aVRzky84.js" rel="modulepreload">
+		<link href="/_app/immutable/chunks/wnIdD1hh.js" rel="modulepreload">
+		<link href="/_app/immutable/nodes/0.Dnbv3RbG.js" rel="modulepreload">
+		<link href="/_app/immutable/chunks/BWaJ3C7D.js" rel="modulepreload">
+		<link href="/_app/immutable/chunks/D6cnIFrK.js" rel="modulepreload">
+		<link href="/_app/immutable/chunks/Zg1g6RGk.js" rel="modulepreload">
+		<link href="/_app/immutable/chunks/Es9b343a.js" rel="modulepreload">
+		<link href="/_app/immutable/chunks/N9ePCiv0.js" rel="modulepreload">
+		<link href="/_app/immutable/chunks/DisfOn84.js" rel="modulepreload">
+		<link href="/_app/immutable/chunks/Dy8KfIgb.js" rel="modulepreload">
+		<link href="/_app/immutable/chunks/BpNv_xVx.js" rel="modulepreload">
+		<link href="/_app/immutable/chunks/zDc_eZmi.js" rel="modulepreload">
+		<link href="/_app/immutable/chunks/ClQCA0wJ.js" rel="modulepreload">
+		<link href="/_app/immutable/chunks/Dv-ja6SZ.js" rel="modulepreload">
+		<link href="/_app/immutable/chunks/D1nSEGYI.js" rel="modulepreload">
+		<link href="/_app/immutable/chunks/BM6Aka3j.js" rel="modulepreload">
+		<link href="/_app/immutable/chunks/U0L6eP3s.js" rel="modulepreload">
+		<link href="/_app/immutable/chunks/DCjCh5Kz.js" rel="modulepreload">
+		<link href="/_app/immutable/chunks/FWUpmrcf.js" rel="modulepreload">
+		<link href="/_app/immutable/chunks/RAIC2TZR.js" rel="modulepreload">
+		<link href="/_app/immutable/chunks/B6dXx6sz.js" rel="modulepreload">
+		<link href="/_app/immutable/chunks/BD41RJga.js" rel="modulepreload">
+		<link href="/_app/immutable/chunks/C1JwIuX3.js" rel="modulepreload">
+		<link href="/_app/immutable/chunks/BARXQzmL.js" rel="modulepreload">
+		<link href="/_app/immutable/chunks/D08TmBAW.js" rel="modulepreload">
+		<link href="/_app/immutable/chunks/CpHprWKh.js" rel="modulepreload">
+		<link href="/_app/immutable/chunks/BiUAqxeN.js" rel="modulepreload">
+		<link href="/_app/immutable/chunks/BsMwzSMP.js" rel="modulepreload">
+		<link href="/_app/immutable/chunks/HHWoVXKp.js" rel="modulepreload">
+		<link href="/_app/immutable/chunks/5VHK9YN0.js" rel="modulepreload">
+		<link href="/_app/immutable/chunks/CoXpp9Di.js" rel="modulepreload">
+		<link href="/_app/immutable/chunks/hBlWUOQo.js" rel="modulepreload">
+		<link href="/_app/immutable/chunks/ckVbpaKa.js" rel="modulepreload">
+		<link href="/_app/immutable/chunks/XwwV6uMJ.js" rel="modulepreload">
+		<link href="/_app/immutable/chunks/oZMIna3t.js" rel="modulepreload">
+		<link href="/_app/immutable/chunks/DFMWz2dd.js" rel="modulepreload">
+		<link href="/_app/immutable/chunks/Bwhoyec6.js" rel="modulepreload">
+		<link href="/_app/immutable/chunks/BDrkYBR0.js" rel="modulepreload">
+		<link href="/_app/immutable/chunks/CZ7EMsfc.js" rel="modulepreload">
+		<link href="/_app/immutable/chunks/U6_aRGuF.js" rel="modulepreload">
+		<link href="/_app/immutable/chunks/Dae78w9V.js" rel="modulepreload">
+		<link href="/_app/immutable/chunks/CeGvWnLL.js" rel="modulepreload">
+		<link href="/_app/immutable/chunks/C3KNZrb6.js" rel="modulepreload">
+		<link href="/_app/immutable/chunks/BZcR88xM.js" rel="modulepreload">
+		<link href="/_app/immutable/chunks/pA0re7Il.js" rel="modulepreload">
+		<link href="/_app/immutable/chunks/CTvhJNBb.js" rel="modulepreload">
+		<link href="/_app/immutable/chunks/DmLcXzps.js" rel="modulepreload">
+		<link href="/_app/immutable/chunks/BuRk4Lj0.js" rel="modulepreload">
+		<link href="/_app/immutable/chunks/BhIAwpT6.js" rel="modulepreload">
+		<link href="/_app/immutable/chunks/Bn0pdF2R.js" rel="modulepreload">
+		<link href="/_app/immutable/chunks/25r8pyo0.js" rel="modulepreload">
+		<link href="/_app/immutable/chunks/BPfW84md.js" rel="modulepreload">
+		<link href="/_app/immutable/chunks/CgD8hLOi.js" rel="modulepreload">
+		<link href="/_app/immutable/chunks/DQixVRXR.js" rel="modulepreload">
+		<link href="/_app/immutable/chunks/CMIzfV_a.js" rel="modulepreload">
+		<link href="/_app/immutable/chunks/Bl1cX4AX.js" rel="modulepreload">
+		<link href="/_app/immutable/chunks/z3tIDmmW.js" rel="modulepreload">
+		<link href="/_app/immutable/chunks/PSA74gti.js" rel="modulepreload">
+		<link href="/_app/immutable/chunks/B3WaIHgb.js" rel="modulepreload">
+		<link href="/_app/immutable/chunks/h4eMf5Rr.js" rel="modulepreload">
+		<link href="/_app/immutable/chunks/BsSVGCgA.js" rel="modulepreload">
+		<link href="/_app/immutable/chunks/DikDIKlc.js" rel="modulepreload">
+		<link href="/_app/immutable/chunks/DemVFUAz.js" rel="modulepreload">
+		<link href="/_app/immutable/chunks/DPkDerCv.js" rel="modulepreload">
+		<link href="/_app/immutable/chunks/Dn70UN2i.js" rel="modulepreload">
+		<link href="/_app/immutable/chunks/DLiecpv8.js" rel="modulepreload">
+		<link href="/_app/immutable/chunks/CigbKjgW.js" rel="modulepreload">
+		<link href="/_app/immutable/chunks/DxW2XJsK.js" rel="modulepreload">
+		<link href="/_app/immutable/chunks/lS0ebrju.js" rel="modulepreload">
+		<link href="/_app/immutable/chunks/Cpub7eCd.js" rel="modulepreload">
+		<link href="/_app/immutable/chunks/CBz1xrOH.js" rel="modulepreload">
+		<link href="/_app/immutable/chunks/CqN0WLAE.js" rel="modulepreload">
+		<link href="/_app/immutable/chunks/Bt1O-CgA.js" rel="modulepreload">
+		<link href="/_app/immutable/chunks/Bmug8elv.js" rel="modulepreload">
+		<link href="/_app/immutable/chunks/Bva5wDN7.js" rel="modulepreload">
+		<link href="/_app/immutable/chunks/B74mUX8G.js" rel="modulepreload">
+		
+		<link href="/_app/immutable/assets/responsive-dialog.Di7R-of-.css" rel="stylesheet">
+		<link href="/_app/immutable/assets/0.BxRusVil.css" rel="stylesheet">
+	</head>

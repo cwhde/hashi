@@ -1,0 +1,145 @@
+<!-- captured_at: 2026-11-20; source: the owner's asset host (Apache 2 autoindex with a custom header), host replaced by static.example.com; docs_url: https://httpd.apache.org/docs/2.4/mod/mod_autoindex.html -->
+<style>
+    /* general styling tweaks */
+    body {
+        font-family: system-ui, sans-serif;
+    }
+
+    .breadcrumb {
+        margin: 0.5rem 0 1rem 0;
+        font-size: 0.9rem;
+    }
+
+    .breadcrumb a {
+        color: #0066cc;
+        text-decoration: none;
+    }
+
+    .breadcrumb a:hover {
+        text-decoration: underline;
+    }
+
+    img.thumb-preview {
+        display: block;
+        margin-top: 4px;
+        max-height: 80px;
+        max-width: 120px;
+        object-fit: contain;
+        border: 1px solid #000;
+        /* black border */
+    }
+</style>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+  // try to find the autoindex table
+  const table =
+    document.querySelector('table#indexlist') ||
+    document.querySelector('table');
+
+  if (!table) return;
+
+  /* ---------- breadcrumb / current path ---------- */
+
+  const path = window.location.pathname;
+  const parts = path.split('/').filter(Boolean);
+
+  let breadcrumbHtml = '<a href="/">/</a>';
+  let accumulated = '';
+
+  parts.forEach(function (part, i) {
+    accumulated += '/' + part;
+    if (i < parts.length - 1) {
+      breadcrumbHtml +=
+        ' / <a href="' +
+        accumulated +
+        '/">' +
+        decodeURIComponent(part) +
+        '</a>';
+    } else {
+      // current directory
+      breadcrumbHtml +=
+        ' / <strong>' + decodeURIComponent(part) + '</strong>';
+    }
+  });
+
+  const breadcrumb = document.createElement('div');
+  breadcrumb.className = 'breadcrumb';
+  breadcrumb.innerHTML = breadcrumbHtml;
+
+  // insert breadcrumb just before the table
+  if (table.parentNode) {
+    table.parentNode.insertBefore(breadcrumb, table);
+  }
+
+  /* ---------- image previews (only in Name column) ---------- */
+
+  // find the header row and the index of the "Name" column
+  const headerRow =
+    table.querySelector('tr.indexhead') || table.rows[0];
+
+  if (!headerRow) return;
+
+  let nameColIndex = -1;
+  Array.prototype.forEach.call(headerRow.cells, function (cell, idx) {
+    const text = cell.textContent.trim().toLowerCase();
+    if (text === 'name') {
+      nameColIndex = idx;
+    }
+  });
+
+  if (nameColIndex === -1) return;
+
+  // loop over data rows (skip header/break rows)
+  Array.prototype.forEach.call(table.rows, function (row, rowIndex) {
+    if (
+      rowIndex === 0 ||
+      row.classList.contains('indexhead') ||
+      row.classList.contains('breakrow')
+    ) {
+      return;
+    }
+
+    const nameCell = row.cells[nameColIndex];
+    if (!nameCell) return;
+
+    const link = nameCell.querySelector('a[href]');
+    if (!link) return;
+
+    const href = link.getAttribute('href');
+    if (!href) return;
+
+    // extensions that should get previews (added .ico)
+    if (!/\.(jpg|jpeg|png|gif|webp|avif|ico)$/i.test(href)) return;
+
+    const img = document.createElement('img');
+    img.src = href;
+    img.loading = 'lazy';
+    img.className = 'thumb-preview';
+
+    nameCell.appendChild(img);
+  });
+});
+</script>  <table>
+   <tr><th valign="top"><img src="/icons/blank.gif" alt="[ICO]"></th><th><a href="?C=N;O=D">Name</a></th><th><a href="?C=M;O=A">Last modified</a></th><th><a href="?C=S;O=A">Size</a></th><th><a href="?C=D;O=A">Description</a></th></tr>
+   <tr><th colspan="5"><hr></th></tr>
+<tr><td valign="top"><a href="/logo/"><img src="/icons/back.gif" alt="[PARENTDIR]"></a></td><td><a href="/logo/">Parent Directory</a></td><td>&nbsp;</td><td align="right">  - </td><td>&nbsp;</td></tr>
+<tr><td valign="top"><a href="logo_b_bd.png"><img src="/icons/image2.gif" alt="[IMG]"></a></td><td><a href="logo_b_bd.png">logo_b_bd.png</a></td><td align="right">2025-12-05 13:25  </td><td align="right">197K</td><td>&nbsp;</td></tr>
+<tr><td valign="top"><a href="logo_b_bd.webp"><img src="/icons/image2.gif" alt="[IMG]"></a></td><td><a href="logo_b_bd.webp">logo_b_bd.webp</a></td><td align="right">2025-12-04 19:54  </td><td align="right"> 73K</td><td>&nbsp;</td></tr>
+<tr><td valign="top"><a href="logo_b_md.png"><img src="/icons/image2.gif" alt="[IMG]"></a></td><td><a href="logo_b_md.png">logo_b_md.png</a></td><td align="right">2025-12-05 13:25  </td><td align="right">206K</td><td>&nbsp;</td></tr>
+<tr><td valign="top"><a href="logo_b_md.webp"><img src="/icons/image2.gif" alt="[IMG]"></a></td><td><a href="logo_b_md.webp">logo_b_md.webp</a></td><td align="right">2025-12-04 19:54  </td><td align="right"> 75K</td><td>&nbsp;</td></tr>
+<tr><td valign="top"><a href="logo_b_sb.png"><img src="/icons/image2.gif" alt="[IMG]"></a></td><td><a href="logo_b_sb.png">logo_b_sb.png</a></td><td align="right">2025-12-05 13:25  </td><td align="right">201K</td><td>&nbsp;</td></tr>
+<tr><td valign="top"><a href="logo_b_sb.webp"><img src="/icons/image2.gif" alt="[IMG]"></a></td><td><a href="logo_b_sb.webp">logo_b_sb.webp</a></td><td align="right">2025-12-04 19:54  </td><td align="right"> 74K</td><td>&nbsp;</td></tr>
+<tr><td valign="top"><a href="logo_b_xb.png"><img src="/icons/image2.gif" alt="[IMG]"></a></td><td><a href="logo_b_xb.png">logo_b_xb.png</a></td><td align="right">2025-12-05 13:25  </td><td align="right">196K</td><td>&nbsp;</td></tr>
+<tr><td valign="top"><a href="logo_b_xb.webp"><img src="/icons/image2.gif" alt="[IMG]"></a></td><td><a href="logo_b_xb.webp">logo_b_xb.webp</a></td><td align="right">2025-12-04 19:54  </td><td align="right"> 72K</td><td>&nbsp;</td></tr>
+<tr><td valign="top"><a href="logo_w_bd.png"><img src="/icons/image2.gif" alt="[IMG]"></a></td><td><a href="logo_w_bd.png">logo_w_bd.png</a></td><td align="right">2025-12-05 13:25  </td><td align="right">197K</td><td>&nbsp;</td></tr>
+<tr><td valign="top"><a href="logo_w_bd.webp"><img src="/icons/image2.gif" alt="[IMG]"></a></td><td><a href="logo_w_bd.webp">logo_w_bd.webp</a></td><td align="right">2025-12-04 19:54  </td><td align="right"> 73K</td><td>&nbsp;</td></tr>
+<tr><td valign="top"><a href="logo_w_md.png"><img src="/icons/image2.gif" alt="[IMG]"></a></td><td><a href="logo_w_md.png">logo_w_md.png</a></td><td align="right">2025-12-05 13:25  </td><td align="right">207K</td><td>&nbsp;</td></tr>
+<tr><td valign="top"><a href="logo_w_md.webp"><img src="/icons/image2.gif" alt="[IMG]"></a></td><td><a href="logo_w_md.webp">logo_w_md.webp</a></td><td align="right">2025-12-04 19:54  </td><td align="right"> 75K</td><td>&nbsp;</td></tr>
+<tr><td valign="top"><a href="logo_w_sb.png"><img src="/icons/image2.gif" alt="[IMG]"></a></td><td><a href="logo_w_sb.png">logo_w_sb.png</a></td><td align="right">2025-12-05 13:25  </td><td align="right">201K</td><td>&nbsp;</td></tr>
+<tr><td valign="top"><a href="logo_w_sb.webp"><img src="/icons/image2.gif" alt="[IMG]"></a></td><td><a href="logo_w_sb.webp">logo_w_sb.webp</a></td><td align="right">2025-12-04 19:54  </td><td align="right"> 74K</td><td>&nbsp;</td></tr>
+<tr><td valign="top"><a href="logo_w_xb.png"><img src="/icons/image2.gif" alt="[IMG]"></a></td><td><a href="logo_w_xb.png">logo_w_xb.png</a></td><td align="right">2025-12-05 13:25  </td><td align="right">197K</td><td>&nbsp;</td></tr>
+<tr><td valign="top"><a href="logo_w_xb.webp"><img src="/icons/image2.gif" alt="[IMG]"></a></td><td><a href="logo_w_xb.webp">logo_w_xb.webp</a></td><td align="right">2025-12-04 19:54  </td><td align="right"> 72K</td><td>&nbsp;</td></tr>
+   <tr><th colspan="5"><hr></th></tr>
+</table>
+</body></html>

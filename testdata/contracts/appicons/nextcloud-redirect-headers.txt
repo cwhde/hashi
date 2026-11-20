@@ -1,0 +1,13 @@
+HTTP/2 302 
+content-security-policy: default-src 'self'; script-src 'self' 'nonce-r74h75Ai0jCyCnzx0/iGbEK+70N5q8rMEhwsS0m8smw='; style-src 'self' 'unsafe-inline'; frame-src *; img-src * data: blob:; font-src 'self' data:; media-src *; connect-src *; object-src 'none'; base-uri 'self';
+content-type: text/html; charset=UTF-8
+location: https://cloud.example.com/index.php/login
+referrer-policy: strict-origin-when-cross-origin
+server: nginx/1.31.8
+strict-transport-security: max-age=31536000; includeSubDomains
+x-content-type-options: nosniff
+x-frame-options: SAMEORIGIN
+x-permitted-cross-domain-policies: none
+x-powered-by: PHP/8.4.27
+x-robots-tag: noindex, nofollow
+
