@@ -358,7 +358,8 @@ Decision 2026-11-02 (user): headers only; body checking would need the WAF in fr
 
 Resolution per request: the most specific matching path of the service (an exact path beats every prefix, a longer
 prefix beats a shorter one) → the service's own mode → `waf.default_mode`. Per service/path rule exclusions (CRS rule
-IDs) handle false positives without disabling the WAF. Hashi never implements a WAF engine; it runs Coraza's.
+IDs) handle false positives without disabling the WAF. The UI shows each rule by its own CRS message and finds it by
+words from that message or its number; the names are read from the rule files the WAF runs, never kept by hand (bug 18). Hashi never implements a WAF engine; it runs Coraza's.
 
 ## 10. Settings
 
