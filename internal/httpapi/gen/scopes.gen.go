@@ -229,6 +229,7 @@ var Requirements = map[string]Requirement{
 	"ScanSetupFirewallHost":       {Scopes: []string{"setup.manage"}, Session: false, Reauth: false},
 	"ScanSetupTraefikHost":        {Scopes: []string{"setup.manage"}, Session: false, Reauth: false},
 	"ScanTraefikHost":             {Scopes: []string{"admin.write"}, Session: false, Reauth: false},
+	"Search":                      {Scopes: []string{"admin.read"}, Session: false, Reauth: false},
 	"SetPulseMainAddress":         {Scopes: []string{"admin.write"}, Session: false, Reauth: false},
 	"SetServiceWAF":               {Scopes: []string{"services.manage"}, Session: false, Reauth: false},
 	"SetVaultMode":                {Scopes: []string{"secrets.manage", "settings.manage"}, Session: false, Reauth: true},

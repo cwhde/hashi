@@ -2209,6 +2209,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/search": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Everything Hashi stores that matches a query, grouped by kind, each with the place that opens it (10b §2, bug 4) */
+        get: operations["search"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/waf/rules": {
         parameters: {
             query?: never;
@@ -4920,6 +4937,27 @@ export interface components {
             /** @description What the rule file guards against, e.g. SQL injection */
             group: string;
             paranoia: number;
+        };
+        SearchResults: {
+            /** @description The query as an address or CIDR, when it is one; the address page opens it */
+            address?: string;
+            groups: components["schemas"]["SearchGroup"][];
+        };
+        SearchGroup: {
+            /** @enum {string} */
+            kind: "service" | "dns_record" | "rewrite" | "ip_set" | "ip_set_item" | "rule_set" | "firewall_host" | "traefik_host" | "agent" | "connection" | "script" | "check" | "plan" | "activity";
+            /** @description The group's heading */
+            label: string;
+            results: components["schemas"]["SearchResult"][];
+            /** @description Matches beyond the ones listed */
+            more: number;
+        };
+        SearchResult: {
+            title: string;
+            /** @description One line that tells results of the same name apart */
+            detail: string;
+            /** @description The admin app path that opens the result */
+            href: string;
         };
         WAFRuleList: {
             rules: components["schemas"]["WAFRule"][];
@@ -9569,6 +9607,29 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ServiceEffective"];
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    search: {
+        parameters: {
+            query: {
+                q: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Groups in a fixed order, at most 8 results each; empty groups are left out */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SearchResults"];
                 };
             };
             default: components["responses"]["Problem"];

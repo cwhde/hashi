@@ -2158,6 +2158,19 @@ paths:
           description: Rendered YAML
           content: { application/json: { schema: { $ref: "#/components/schemas/ServiceEffective" } } }
         default: { $ref: "#/components/responses/Problem" }
+  /api/search:
+    get:
+      operationId: search
+      summary: Everything Hashi stores that matches a query, grouped by kind, each with the place that opens it (10b §2, bug 4)
+      tags: [system]
+      x-hashi-scopes: [admin.read]
+      parameters:
+        - { name: q, in: query, required: true, schema: { type: string, minLength: 1, maxLength: 200 } }
+      responses:
+        "200":
+          description: Groups in a fixed order, at most 8 results each; empty groups are left out
+          content: { application/json: { schema: { $ref: "#/components/schemas/SearchResults" } } }
+        default: { $ref: "#/components/responses/Problem" }
   /api/waf/rules:
     get:
       operationId: listWAFRules
@@ -4815,6 +4828,29 @@ components:
         name: { type: string, description: "The rule's own msg from the CRS file" }
         group: { type: string, description: "What the rule file guards against, e.g. SQL injection" }
         paranoia: { type: integer, minimum: 1, maximum: 4 }
+    SearchResults:
+      type: object
+      required: [groups]
+      properties:
+        address: { type: string, description: "The query as an address or CIDR, when it is one; the address page opens it" }
+        groups: { type: array, items: { $ref: "#/components/schemas/SearchGroup" } }
+    SearchGroup:
+      type: object
+      required: [kind, label, results, more]
+      properties:
+        kind:
+          type: string
+          enum: [service, dns_record, rewrite, ip_set, ip_set_item, rule_set, firewall_host, traefik_host, agent, connection, script, check, plan, activity]
+        label: { type: string, description: "The group's heading" }
+        results: { type: array, items: { $ref: "#/components/schemas/SearchResult" } }
+        more: { type: integer, description: "Matches beyond the ones listed" }
+    SearchResult:
+      type: object
+      required: [title, detail, href]
+      properties:
+        title: { type: string }
+        detail: { type: string, description: "One line that tells results of the same name apart" }
+        href: { type: string, description: "The admin app path that opens the result" }
     WAFRuleList:
       type: object
       required: [rules]

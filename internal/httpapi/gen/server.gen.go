@@ -1599,6 +1599,60 @@ func (e ScriptRunStatus) Valid() bool {
 	}
 }
 
+// Defines values for SearchGroupKind.
+const (
+	SearchGroupKindActivity     SearchGroupKind = "activity"
+	SearchGroupKindAgent        SearchGroupKind = "agent"
+	SearchGroupKindCheck        SearchGroupKind = "check"
+	SearchGroupKindConnection   SearchGroupKind = "connection"
+	SearchGroupKindDnsRecord    SearchGroupKind = "dns_record"
+	SearchGroupKindFirewallHost SearchGroupKind = "firewall_host"
+	SearchGroupKindIpSet        SearchGroupKind = "ip_set"
+	SearchGroupKindIpSetItem    SearchGroupKind = "ip_set_item"
+	SearchGroupKindPlan         SearchGroupKind = "plan"
+	SearchGroupKindRewrite      SearchGroupKind = "rewrite"
+	SearchGroupKindRuleSet      SearchGroupKind = "rule_set"
+	SearchGroupKindScript       SearchGroupKind = "script"
+	SearchGroupKindService      SearchGroupKind = "service"
+	SearchGroupKindTraefikHost  SearchGroupKind = "traefik_host"
+)
+
+// Valid indicates whether the value is a known member of the SearchGroupKind enum.
+func (e SearchGroupKind) Valid() bool {
+	switch e {
+	case SearchGroupKindActivity:
+		return true
+	case SearchGroupKindAgent:
+		return true
+	case SearchGroupKindCheck:
+		return true
+	case SearchGroupKindConnection:
+		return true
+	case SearchGroupKindDnsRecord:
+		return true
+	case SearchGroupKindFirewallHost:
+		return true
+	case SearchGroupKindIpSet:
+		return true
+	case SearchGroupKindIpSetItem:
+		return true
+	case SearchGroupKindPlan:
+		return true
+	case SearchGroupKindRewrite:
+		return true
+	case SearchGroupKindRuleSet:
+		return true
+	case SearchGroupKindScript:
+		return true
+	case SearchGroupKindService:
+		return true
+	case SearchGroupKindTraefikHost:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for SecretMetaClass.
 const (
 	SecretMetaClassAdmin   SecretMetaClass = "admin"
@@ -4745,6 +4799,38 @@ type ScriptRunStarted struct {
 // ScriptRunStatus defines model for ScriptRunStatus.
 type ScriptRunStatus string
 
+// SearchGroup defines model for SearchGroup.
+type SearchGroup struct {
+	Kind SearchGroupKind `json:"kind"`
+
+	// Label The group's heading
+	Label string `json:"label"`
+
+	// More Matches beyond the ones listed
+	More    int            `json:"more"`
+	Results []SearchResult `json:"results"`
+}
+
+// SearchGroupKind defines model for SearchGroup.Kind.
+type SearchGroupKind string
+
+// SearchResult defines model for SearchResult.
+type SearchResult struct {
+	// Detail One line that tells results of the same name apart
+	Detail string `json:"detail"`
+
+	// Href The admin app path that opens the result
+	Href  string `json:"href"`
+	Title string `json:"title"`
+}
+
+// SearchResults defines model for SearchResults.
+type SearchResults struct {
+	// Address The query as an address or CIDR, when it is one; the address page opens it
+	Address *string       `json:"address,omitempty"`
+	Groups  []SearchGroup `json:"groups"`
+}
+
 // SecretList defines model for SecretList.
 type SecretList struct {
 	Secrets []SecretMeta `json:"secrets"`
@@ -5685,6 +5771,11 @@ type PulseHeartbeatParams struct {
 // PreviewScriptScheduleParams defines parameters for PreviewScriptSchedule.
 type PreviewScriptScheduleParams struct {
 	Schedule string `form:"schedule" json:"schedule"`
+}
+
+// SearchParams defines parameters for Search.
+type SearchParams struct {
+	Q string `form:"q" json:"q"`
 }
 
 // ListSecurityCountersParams defines parameters for ListSecurityCounters.
@@ -6674,6 +6765,9 @@ type ServerInterface interface {
 	// ListScriptRuns The newest 100 runs, without output
 	// (GET /api/scripts/{id}/runs)
 	ListScriptRuns(w http.ResponseWriter, r *http.Request, id string)
+	// Search Everything Hashi stores that matches a query, grouped by kind, each with the place that opens it (10b §2, bug 4)
+	// (GET /api/search)
+	Search(w http.ResponseWriter, r *http.Request, params SearchParams)
 	// CreateCaptchaKey Create a site key in the Cap next to Hashi (read from its cap.env) and store it with its secret
 	// (POST /api/security/captcha/key)
 	CreateCaptchaKey(w http.ResponseWriter, r *http.Request)
@@ -9916,6 +10010,39 @@ func (siw *ServerInterfaceWrapper) ListScriptRuns(w http.ResponseWriter, r *http
 	handler.ServeHTTP(w, r)
 }
 
+// Search operation middleware
+func (siw *ServerInterfaceWrapper) Search(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params SearchParams
+
+	// ------------- Required query parameter "q" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, true, "q", r.URL.Query(), &params.Q, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "q"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "q", Err: err})
+		}
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.Search(w, r, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // CreateCaptchaKey operation middleware
 func (siw *ServerInterfaceWrapper) CreateCaptchaKey(w http.ResponseWriter, r *http.Request) {
 
@@ -12356,6 +12483,7 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/services/{id}/enable", wrapper.EnableService)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/services/{id}/disable", wrapper.DisableService)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/services/{id}/effective", wrapper.GetServiceEffective)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/search", wrapper.Search)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/waf/rules", wrapper.ListWAFRules)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/services/{id}/waf", wrapper.GetServiceWAF)
 	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/api/services/{id}/waf", wrapper.SetServiceWAF)
@@ -17312,6 +17440,45 @@ func (response ListScriptRunsdefaultApplicationProblemPlusJSONResponse) VisitLis
 	return err
 }
 
+type SearchRequestObject struct {
+	Params SearchParams
+}
+
+type SearchResponseObject interface {
+	VisitSearchResponse(w http.ResponseWriter) error
+}
+
+type Search200JSONResponse SearchResults
+
+func (response Search200JSONResponse) VisitSearchResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type SearchdefaultApplicationProblemPlusJSONResponse struct {
+	Body       Problem
+	StatusCode int
+}
+
+func (response SearchdefaultApplicationProblemPlusJSONResponse) VisitSearchResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(response.StatusCode)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
 type CreateCaptchaKeyRequestObject struct {
 }
 
@@ -22193,6 +22360,9 @@ type StrictServerInterface interface {
 	// ListScriptRuns The newest 100 runs, without output
 	// (GET /api/scripts/{id}/runs)
 	ListScriptRuns(ctx context.Context, request ListScriptRunsRequestObject) (ListScriptRunsResponseObject, error)
+	// Search Everything Hashi stores that matches a query, grouped by kind, each with the place that opens it (10b §2, bug 4)
+	// (GET /api/search)
+	Search(ctx context.Context, request SearchRequestObject) (SearchResponseObject, error)
 	// CreateCaptchaKey Create a site key in the Cap next to Hashi (read from its cap.env) and store it with its secret
 	// (POST /api/security/captcha/key)
 	CreateCaptchaKey(ctx context.Context, request CreateCaptchaKeyRequestObject) (CreateCaptchaKeyResponseObject, error)
@@ -26097,6 +26267,32 @@ func (sh *strictHandler) ListScriptRuns(w http.ResponseWriter, r *http.Request, 
 		sh.options.ResponseErrorHandlerFunc(w, r, err)
 	} else if validResponse, ok := response.(ListScriptRunsResponseObject); ok {
 		if err := validResponse.VisitListScriptRunsResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// Search operation middleware
+func (sh *strictHandler) Search(w http.ResponseWriter, r *http.Request, params SearchParams) {
+	var request SearchRequestObject
+
+	request.Params = params
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.Search(ctx, request.(SearchRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "Search")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(SearchResponseObject); ok {
+		if err := validResponse.VisitSearchResponse(w); err != nil {
 			sh.options.ResponseErrorHandlerFunc(w, r, err)
 		}
 	} else if response != nil {
