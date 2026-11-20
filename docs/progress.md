@@ -20,11 +20,11 @@ first, structure before text, search after the settings regroup.
 | 13.5 | Plans, status and alerts tell the truth | 12, 34, 35, 59, 76, 77, 79, 80, 82, 85, 86, 87, 88; from 13.4: 107, 145, 146, 147, 148; 16 (flaky CI test, recurring) | Cause of the NetBird check failure known and the waiting firewall plan resolved with the owner; the approval screen says what is at stake; a real host outage sends one grouped alert |
 | 13.6 | Security and IP sets | 18, 26, 81, 89 | Measured thresholds with 3× headroom; WAF exclusions by name; Counters and address links correct |
 | 13.7 | Global search | 4 | Search finds every kind of object, every setting and every tab from any page, keyboard only |
-| 13.8 | Public page assets | 30, 149 (if the selfh.st index is unclear, see how Pocket ID integrates it) | Overview built from its mock with working widget settings; public page icons and logos replaceable |
+| 13.8 | Public page assets | 30, 149 (if the selfh.st index is unclear, see how Pocket ID integrates it) | Public page icon, logo and background replaceable and served from Hashi's own copy; every dashboard app shows its own icon (picked, fetched or a letter) |
 | 13.9 | Pulse on OpenWrt | 21 | Agent installed, started, self-updated and reporting its address on the owner's own OpenWrt router |
 | 13.10 | UI copy pass with unslop-ui | none (the owner, 2026-11-20) | Talk the skill through with the owner (https://github.com/felipebasurto/unslop-ui: an agent skill that cuts AI tells from UI copy and charts, optional visual rules); decide together whether and how to run it (install or follow by hand, which pages, with or without its visual rules, a taste file from 10c); run it as decided; the owner accepts the result |
 
-Next: 13.7 (13.5's gate waits for a real host outage). After 13.10: a last bug sweep, then `v1.0.0`. With 1.0, a better README (the owner, 2026-11-19): what Hashi
+Next: 13.8; 13.7 and its held fixes ship with it (13.5's gate waits for a real host outage). After 13.10: a last bug sweep, then `v1.0.0`. With 1.0, a better README (the owner, 2026-11-19): what Hashi
 is, screenshots, how to install and run it, what it needs.
 
 **13.2 done** (2026-11-17, `v0.13.2-beta.1`, PR #69). Gate: the end-to-end run on the release commit walks all 16
@@ -47,6 +47,42 @@ another reported address moved the service's upstream and the agent's internal A
 and the service deleted (its hidden set went with it). Found: "Let the agent choose" kept the pinned address as long
 as the agent still reported it (the beat keeps the current address); fixed with a reproducing test, ships with the next
 release. Not done on prod: adding a Traefik or firewall host from Connections (no spare machine; covered by e2e).
+
+### 13.8 checklist (two PRs)
+
+Bugs 30 and 149. The overview half of the old gate was done in 13.4 (bug 31), so the gate now names only the assets.
+Captured 2026-11-20 (read-only): the owner's asset host lists icon (`default`, `bloom`, 8–1024 px, ico/png/webp),
+logo (`2k`/`4k`, `logo_{w,b}_{bd,md,sb,xb}`, png/webp), background (`bg*`, png/webp) and one mp3; selfh.st's
+`index.json` (3,045 icons, fields Name, Reference, SVG/PNG/WebP/Light/Dark as "Yes"/"No", Category, Tags) and its
+files at `<cdn>/{svg,png,webp}/<reference>[-light|-dark].<ext>` (404 when missing); the icon links of all 54 dashboard
+apps: 33 answer with `<link rel=icon|apple-touch-icon|manifest>`, 15 answer 401/403 (edge sign-in or the app's own
+login), 1 redirects to the sign-in page (its icon would be the sign-in app's), 4 fail (404/502).
+
+PR A, public page assets (30):
+- [ ] Spec first (`docs(spec):`): the asset source is a setting, empty by default (the repo is public, so no owner
+  host is built in; empty means Hashi's own 橋 icon and the title as text). Hashi downloads each chosen file once into
+  `/data/assets` and serves it from there; the public pages never load from the source. The mp3 is dropped: nothing
+  plays it. Background stays off by default.
+- [ ] Four slots: icon, logo for dark themes, logo for light themes, background. Each is either downloaded from the
+  source (a path under it, picked from the source's listing) or uploaded (png, webp, svg, ico; size-capped; svg served
+  with a locked-down CSP). Reset returns a slot to empty. API + store, served at `/assets/<slot>` on the admin and both
+  public listeners, cached with an ETag.
+- [ ] Public pages use them: icon as favicon and touch icon, the logo in the header (alt = page title), the background
+  behind a readable scrim when on. Settings → Public pages gets the controls (10c checklist).
+- [ ] Tests: download once (a second load makes no request), upload limits and types, svg CSP, both public listeners
+  serve the slots and nothing else, e2e sets a logo and sees it on the public page.
+
+PR B, app icons (149):
+- [ ] Per app (service or DNS entry on the dashboard): icon = custom (uploaded, or picked from selfh.st with a search
+  box, like Pocket ID: index cached 24 h, top 30 by exact/prefix/contains/tag, `-light` variant for dark themes,
+  credit "Icons by selfh.st, CC BY 4.0") or automatic.
+- [ ] Automatic: fetch the app's public page, take the best icon that fits (manifest icons, apple-touch-icon, sized
+  `icon`, `/favicon.ico`); when the answer is 401/403, a redirect to another host, or no icon, ask the upstream with the
+  app's Host header instead. Stored in `/data/assets/apps/`, refreshed daily, never fetched by the visitor's browser.
+  No icon → the letter, as today.
+- [ ] Picker in App display (per app row) with search, preview, upload and "Automatic".
+- [ ] Tests from the captured pages (sanitized): link parsing, manifest sizes, sign-in redirect detection, upstream
+  retry; selfh.st search ranking and reference safety; e2e picks an icon and sees it on the dashboard.
 
 ### 13.7 checklist (one PR)
 
