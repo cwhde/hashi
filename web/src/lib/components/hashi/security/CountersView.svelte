@@ -62,6 +62,14 @@
 		loaded = true;
 		if (r.error || !r.data) {
 			error = problemText(r.error);
+			// A refused search shows nothing, so a reset can't act on rows from the search before (bug 81). A failed
+			// "Show more" keeps what is on screen: those rows still match.
+			if (!more) {
+				rows = [];
+				total = 0;
+				next = undefined;
+				selected = [];
+			}
 			return;
 		}
 		rows = more ? [...rows, ...r.data.rows] : r.data.rows;
