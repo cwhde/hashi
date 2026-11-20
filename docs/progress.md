@@ -22,8 +22,9 @@ first, structure before text, search after the settings regroup.
 | 13.7 | Global search | 4 | Search finds every kind of object, every setting and every tab from any page, keyboard only |
 | 13.8 | Public page assets | 30, 149 (if the selfh.st index is unclear, see how Pocket ID integrates it) | Overview built from its mock with working widget settings; public page icons and logos replaceable |
 | 13.9 | Pulse on OpenWrt | 21 | Agent installed, started, self-updated and reporting its address on the owner's own OpenWrt router |
+| 13.10 | UI copy pass with unslop-ui | none (the owner, 2026-11-20) | Talk the skill through with the owner (https://github.com/felipebasurto/unslop-ui: an agent skill that cuts AI tells from UI copy and charts, optional visual rules); decide together whether and how to run it (install or follow by hand, which pages, with or without its visual rules, a taste file from 10c); run it as decided; the owner accepts the result |
 
-Next: 13.6 (13.5's gate waits for a real host outage). After 13.9: a last bug sweep, then `v1.0.0`. With 1.0, a better README (the owner, 2026-11-19): what Hashi
+Next: 13.6 (13.5's gate waits for a real host outage). After 13.10: a last bug sweep, then `v1.0.0`. With 1.0, a better README (the owner, 2026-11-19): what Hashi
 is, screenshots, how to install and run it, what it needs.
 
 **13.2 done** (2026-11-17, `v0.13.2-beta.1`, PR #69). Gate: the end-to-end run on the release commit walks all 16
@@ -60,7 +61,7 @@ release. Not done on prod: adding a Traefik or firewall host from Connections (n
   - 4xx answers: owner's phone 4, home 8; scanners 50–281, many on names no route matches.
   The owner chose (2026-11-20): request limit 1600 in 10 s (3× 530), and a new error trigger, 40 4xx answers in 10 s
   (10× the owner's 4), fed from the access log including unmatched names. Migration 00032 moves a stored 300 to 1600.
-- [ ] L4 meters (26). Read-only on prod 2026-11-20: the stored meter settings are 120 new TCP connections per minute,
+- [x] L4 meters (26). Read-only on prod 2026-11-20: the stored meter settings are 120 new TCP connections per minute,
   burst 128, 256 open (saved 2026-11-19; defaults 600, 120, 1000), and the kernel runs exactly those. Since 2026-11-03
   the meters banned Google's crawler 123 times, a hosting range 90 times, an AWS range 10 times and the home address
   once. Googlebot sends at most 10 requests per minute per address, so its connection rate is not visible in the
@@ -70,6 +71,9 @@ release. Not done on prod: adding a Traefik or firewall host from Connections (n
   the phone 5, everything else at most 7. So 120/min and 256 open did not trip on these clients in this window; the
   crawler's 123 bans come from bursts this window did not catch (unexplained). The phone's ban during the count was L7
   (the old 300 limit, then bug 153), not L4.
+  The owner chose (2026-11-20): 150 new connections per minute (3.6× the phone's 41), bursts 128 and 256 open kept.
+  Saved in Settings with the owner's passkey after the 0.13.6-beta.1 deploy; the firewall plan applied by itself and
+  the VPS kernel shows `limit rate over 150/minute burst 128`.
 
 Gate: measured thresholds with 3× headroom; WAF exclusions by name; Counters and address links correct.
 
