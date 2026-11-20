@@ -24,7 +24,7 @@ first, structure before text, search after the settings regroup.
 | 13.9 | Pulse on OpenWrt | 21 | Agent installed, started, self-updated and reporting its address on the owner's own OpenWrt router |
 | 13.10 | UI copy pass with unslop-ui | none (the owner, 2026-11-20) | Talk the skill through with the owner (https://github.com/felipebasurto/unslop-ui: an agent skill that cuts AI tells from UI copy and charts, optional visual rules); decide together whether and how to run it (install or follow by hand, which pages, with or without its visual rules, a taste file from 10c); run it as decided; the owner accepts the result |
 
-Next: 13.6 (13.5's gate waits for a real host outage). After 13.10: a last bug sweep, then `v1.0.0`. With 1.0, a better README (the owner, 2026-11-19): what Hashi
+Next: 13.7 (13.5's gate waits for a real host outage). After 13.10: a last bug sweep, then `v1.0.0`. With 1.0, a better README (the owner, 2026-11-19): what Hashi
 is, screenshots, how to install and run it, what it needs.
 
 **13.2 done** (2026-11-17, `v0.13.2-beta.1`, PR #69). Gate: the end-to-end run on the release commit walks all 16
@@ -47,6 +47,11 @@ another reported address moved the service's upstream and the agent's internal A
 and the service deleted (its hidden set went with it). Found: "Let the agent choose" kept the pinned address as long
 as the agent still reported it (the beat keeps the current address); fixed with a reproducing test, ships with the next
 release. Not done on prod: adding a Traefik or firewall host from Connections (no spare machine; covered by e2e).
+
+**13.6 done** (2026-11-20, `v0.13.6-beta.1`, signed in with the owner's passkey). Gate on prod: request limit 1600 in
+10 s and the error trigger 40 in 10 s stored after migration 32 (an address was challenged for error answers within the
+hour); 150 new connections per minute in the VPS kernel; the WAF tab of a real service lists its 10 exclusions by name
+and group, the picker offers all 282 rules; Counters with a search that is not an address shows the error, no rows.
 
 ### 13.6 checklist (one PR)
 
@@ -1188,6 +1193,7 @@ Decisions made in S0:
 
 ## Log
 
+- 2026-11-20 · deploy `v0.13.6-beta.1` (`059003e`, the owner's OK) · smoke ok (readyz, version, SPA, both public pages), schema 31 → 32 (request limit 300 → 1600, `l7_errors` source). Then, with the owner's yes and passkey: new connections per minute 120 → 150 in Settings; the firewall plan applied by itself. In it: 18, 26, 81, 89.
 - 2026-11-19 · deploy `v0.13.4-beta.4` (`530a613`, the owner's OK) · smoke ok (readyz, version, SPA, both public pages). Security hourly rollup ran: first run 168 hours in 3.7 s, caught up within about 15 min. Dashboard call on prod after: 1h 0.04 s, 24h 0.40 s, 7d 0.16 s (was 2.2 s), 30d 0.35 s (was 5.7 s). Sign-in page redesign (136), stream message (137), hourly rollup and retention (99).
 - 2026-11-19 · deploy `v0.13.4-beta.3` (`50b68e7`, the owner's OK) · smoke ok (readyz, version, SPA, both public pages),
   schema 28 → 29 (streams may share a name). Release run 1253 green. In it: 120, 126, 127, 128–132, 135, skeletons.
