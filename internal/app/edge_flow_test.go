@@ -1,6 +1,7 @@
 package app
 
 import (
+	"context"
 	"database/sql"
 	"net/http"
 	"path/filepath"
@@ -11,6 +12,8 @@ import (
 	"git.juzo.io/juzo/hashi/internal/dns/hetzner"
 	"git.juzo.io/juzo/hashi/internal/dns/hetzner/hetznertest"
 	"git.juzo.io/juzo/hashi/internal/secrets"
+	"git.juzo.io/juzo/hashi/internal/settings"
+	"git.juzo.io/juzo/hashi/internal/store/storetest"
 )
 
 // Forward auth over HTTP (06 §2, §4, §17): a shared rule set decides on two services, the fallback closes a service, a
@@ -147,6 +150,14 @@ func TestForwardAuthStageA(t *testing.T) {
 	// One frozen instant: the 318 requests fall in one 10 s window however slow the runner is (CI took 9.6 s).
 	at := time.Now()
 	cfg.abuseNow = func() time.Time { return at }
+	// The limit this test counts against is set here, not taken from the default (1600 since bug 26).
+	st := storetest.Open(t, cfg.DBPath())
+	eng := settings.DefaultOf[settings.Engine]()
+	eng.RateRequests, eng.RateWindowSeconds = 300, 10
+	if err := settings.Put(context.Background(), st.Q, eng); err != nil {
+		t.Fatal(err)
+	}
+	_ = st.Close()
 	in := start(t, cfg)
 	c := in.client()
 	c.bootstrapLogin()
