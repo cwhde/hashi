@@ -71,6 +71,16 @@
 		nextCursor = r.data.next_cursor;
 	}
 
+	// Large feeds resolve to thousands of ranges; the next page is appended (bug 89).
+	async function moreResolved() {
+		if (!resolved?.next_cursor) return;
+		const r = await api.GET('/api/ip-sets/{id}/resolved', {
+			params: { path: { id }, query: { cursor: resolved.next_cursor } }
+		});
+		if (r.error || !r.data) throw r.error;
+		resolved = { ...r.data, prefixes: [...resolved.prefixes, ...r.data.prefixes] };
+	}
+
 	async function load() {
 		const path = { params: { path: { id } } };
 		const [one, res, cons, all, hist] = await Promise.all([
@@ -415,9 +425,19 @@
 							<li class="px-4 py-2"><Mono>{p}</Mono></li>
 						{/each}
 					</ul>
-					{#if resolved.next_cursor}<p class="px-4 py-2 text-sm text-muted-foreground">
-							First {resolved.prefixes.length} of {resolved.v4_count + resolved.v6_count} ranges
-						</p>{/if}
+					{#if resolved.next_cursor}
+						<div class="flex items-center justify-between gap-3 border-t px-4 py-2.5">
+							<span class="text-sm text-muted-foreground"
+								>Showing {resolved.prefixes.length} of {resolved.v4_count + resolved.v6_count} ranges</span
+							>
+							<Button
+								variant="ghost"
+								size="sm"
+								onclick={() => moreResolved().catch((e) => (loadError = problemText(e)))}
+								>Show more</Button
+							>
+						</div>
+					{/if}
 				{:else}
 					<p class="px-4 py-6 text-md text-warn-text">
 						Resolves to nothing right now, so it matches nobody.
