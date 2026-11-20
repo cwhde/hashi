@@ -5,6 +5,7 @@ import (
 	"context"
 	"errors"
 	"git.juzo.io/juzo/hashi/internal/adguard"
+	"git.juzo.io/juzo/hashi/internal/appicons"
 	"git.juzo.io/juzo/hashi/internal/assets"
 	"git.juzo.io/juzo/hashi/internal/pulse"
 	"log/slog"
@@ -82,7 +83,9 @@ type Server struct {
 	// Assets holds the public pages' icon, logos and background (07 §9); AssetSource reads the owner's asset folder.
 	Assets      *assets.Store
 	AssetSource assets.Source
-	Log         *slog.Logger
+	// AppIcons keeps the dashboard apps' icons (07 §9.1).
+	AppIcons *appicons.Service
+	Log      *slog.Logger
 
 	// rewrites is the search's copy of the AdGuard rewrites (search_rewrites.go).
 	rewrites rewriteCache

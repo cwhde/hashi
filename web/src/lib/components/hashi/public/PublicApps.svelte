@@ -3,6 +3,7 @@
 	import { onMount } from 'svelte';
 	import StatusDot from '#lib/components/hashi/StatusDot.svelte';
 	import PublicHeader from './PublicHeader.svelte';
+	import AppIcon from '#lib/components/hashi/AppIcon.svelte';
 	import { Input } from '#lib/components/ui/input/index.ts';
 	import * as Select from '#lib/components/ui/select/index.ts';
 	import { Search } from '@lucide/svelte';
@@ -98,10 +99,12 @@
 						href={a.url}
 						class="flex items-center gap-3 rounded-2xl border bg-card p-3.5 transition-colors hover:border-muted-foreground/40"
 					>
-						<span
-							class="grid size-10 shrink-0 place-items-center rounded-xl border bg-surface-2 text-lg font-semibold"
-							>{a.name[0]}</span
-						>
+						<AppIcon
+							name={a.name}
+							icon={a.icon}
+							light={a.icon_light}
+							class="size-10 rounded-xl text-lg"
+						/>
 						<span class="min-w-0 flex-1"
 							><span class="block truncate text-base font-medium">{a.name}</span><span
 								class="block truncate text-sm text-muted-foreground">{domain(a.url)}</span

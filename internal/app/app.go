@@ -7,6 +7,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"git.juzo.io/juzo/hashi/internal/appicons"
 	"git.juzo.io/juzo/hashi/internal/assets"
 	"io"
 	"log/slog"
@@ -485,7 +486,12 @@ func Run(ctx context.Context, cfg Config, log *slog.Logger, ready func(adminAddr
 	if err != nil {
 		return err
 	}
-	api := &httpapi.Server{Assets: assetStore, AssetSource: assets.Source{Client: &http.Client{Timeout: 30 * time.Second}}, WAF: wafs, Captcha: capCache, Feeds: feedSvc, CapEnvFile: cfg.CapEnvFile, CapPort: cfg.CapPort,
+	iconSvc, err := appicons.New(st, filepath.Join(cfg.DataDir, "assets", "apps"), appicons.NewFinder(),
+		appicons.NewLibrary(appicons.LibraryBase, &http.Client{Timeout: 30 * time.Second}), log.With("component", "app-icons"))
+	if err != nil {
+		return err
+	}
+	api := &httpapi.Server{Assets: assetStore, AppIcons: iconSvc, AssetSource: assets.Source{Client: &http.Client{Timeout: 30 * time.Second}}, WAF: wafs, Captcha: capCache, Feeds: feedSvc, CapEnvFile: cfg.CapEnvFile, CapPort: cfg.CapPort,
 		Health: health, Version: gen.Version{Version: Version, Commit: Commit}, Store: st, Sessions: sessions,
 		Passkeys: passkeys, Setup: setupSvc, Settings: cfgSettings, DNS: dnsSvc, Traefik: traefikMgr, Certs: certMgr, IPSets: ipSets, AdGuard: adguardSvc, Pulse: pulseSvc, Monitor: monitorSvc, Notify: notifier, Firewall: fwMgr, Scripts: scriptSvc, Edge: edgeEngine, SSO: sso, Security: abuse, GeoIP: geoSvc, Sync: syncEngine, Vault: v, MasterKeyFile: cfg.MasterKeyFile, Audit: al, IP: ip, Logs: cfg.Logs,
 		CertsSoon: func(ctx context.Context) error { return runner.Soon(ctx, certs.JobKind) },
@@ -510,6 +516,7 @@ func Run(ctx context.Context, cfg Config, log *slog.Logger, ready func(adminAddr
 
 	g, gctx := errgroup.WithContext(ctx)
 	g.Go(func() error { return runner.Run(gctx) })
+	g.Go(func() error { return iconSvc.Run(gctx) })
 	for _, s := range servers {
 		g.Go(func() error { return s.serve(log) })
 	}
@@ -613,6 +620,7 @@ func adminMux(api *httpapi.Server) http.Handler {
 	mux := http.NewServeMux()
 	mux.Handle("GET /", web.Handler())
 	mux.HandleFunc("GET /assets/{slot}", api.ServeAsset)
+	mux.HandleFunc("GET /assets/apps/{name}", api.ServeAppIcon)
 	// The install script (08 §1). No session: nothing in it is secret, and the token comes from the admin.
 	mux.HandleFunc("GET /api/pulse/install.sh", func(w http.ResponseWriter, _ *http.Request) {
 		w.Header().Set("Content-Type", "text/x-shellscript")
@@ -656,6 +664,7 @@ func publicMux(api *httpapi.Server, page string, enabled *atomic.Bool) http.Hand
 		mux.HandleFunc("GET /api/public/status", onlyIf(enabled, h.GetPublicStatus))
 	} else {
 		mux.HandleFunc("GET /api/public/apps", onlyIf(enabled, h.GetPublicApps))
+		mux.HandleFunc("GET /assets/apps/{name}", onlyIf(enabled, api.ServeAppIcon))
 	}
 	mux.HandleFunc("GET /", onlyIf(enabled, web.Public(page).ServeHTTP))
 	return mux

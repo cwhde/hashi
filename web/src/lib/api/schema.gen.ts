@@ -1386,6 +1386,57 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/app-icons": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Every app that can be on the dashboard, with its icon (07 §9.1) */
+        get: operations["listAppIcons"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/app-icons/{app}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Choose an app's icon (an upload or a library icon), or let Hashi find it (looks now) */
+        put: operations["putAppIcon"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/icon-library": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Search the selfh.st icon collection (at most 30) */
+        get: operations["searchIconLibrary"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/public/status": {
         parameters: {
             query?: never;
@@ -4341,6 +4392,47 @@ export interface components {
             logo_light?: string;
             background?: string;
         };
+        AppIcons: {
+            apps: components["schemas"]["AppIcon"][];
+        };
+        AppIcon: {
+            /** @description service-<id> or dns-<id> */
+            app: string;
+            name: string;
+            service_id?: string;
+            /** @enum {string} */
+            mode: "auto" | "upload" | "library";
+            library_ref?: string;
+            /** @description Where Hashi serves the icon; missing: the letter shows */
+            icon?: string;
+            /** @description The white variant for dark themes, when there is one */
+            icon_light?: string;
+            /** @description Where the icon came from (a path on the app, upstream …, selfh.st …, upload) */
+            found?: string;
+            /** Format: date-time */
+            checked_at?: string;
+        };
+        AppIconChoice: {
+            /** @enum {string} */
+            mode: "auto" | "upload" | "library";
+            /**
+             * Format: byte
+             * @description upload: PNG, WebP, SVG or ICO, at most 1 MB
+             */
+            data?: string;
+            /** @description library: the icon's reference */
+            library_ref?: string;
+        };
+        IconLibraryHits: {
+            icons: components["schemas"]["IconLibraryHit"][];
+        };
+        IconLibraryHit: {
+            name: string;
+            reference: string;
+            /** @description The library's own address, for the picker's preview */
+            url: string;
+            light_url?: string;
+        };
         PublicStatus: {
             title: string;
             theme: string;
@@ -4357,6 +4449,10 @@ export interface components {
             group: string;
             url: string;
             state: components["schemas"]["MonitorState"];
+            /** @description Hashi's address of the app's icon; missing: show the letter */
+            icon?: string;
+            /** @description Its white variant for dark themes */
+            icon_light?: string;
         };
         PublicApps: {
             title: string;
@@ -8156,6 +8252,77 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["PublicAssets"];
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    listAppIcons: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Apps */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AppIcons"];
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    putAppIcon: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                app: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AppIconChoice"];
+            };
+        };
+        responses: {
+            /** @description Saved */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AppIcon"];
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    searchIconLibrary: {
+        parameters: {
+            query?: {
+                q?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Icons */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["IconLibraryHits"];
                 };
             };
             default: components["responses"]["Problem"];

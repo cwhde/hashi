@@ -102,6 +102,48 @@ func (e AgentDNSSettingsIpMode) Valid() bool {
 	}
 }
 
+// Defines values for AppIconMode.
+const (
+	AppIconModeAuto    AppIconMode = "auto"
+	AppIconModeLibrary AppIconMode = "library"
+	AppIconModeUpload  AppIconMode = "upload"
+)
+
+// Valid indicates whether the value is a known member of the AppIconMode enum.
+func (e AppIconMode) Valid() bool {
+	switch e {
+	case AppIconModeAuto:
+		return true
+	case AppIconModeLibrary:
+		return true
+	case AppIconModeUpload:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for AppIconChoiceMode.
+const (
+	AppIconChoiceModeAuto    AppIconChoiceMode = "auto"
+	AppIconChoiceModeLibrary AppIconChoiceMode = "library"
+	AppIconChoiceModeUpload  AppIconChoiceMode = "upload"
+)
+
+// Valid indicates whether the value is a known member of the AppIconChoiceMode enum.
+func (e AppIconChoiceMode) Valid() bool {
+	switch e {
+	case AppIconChoiceModeAuto:
+		return true
+	case AppIconChoiceModeLibrary:
+		return true
+	case AppIconChoiceModeUpload:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for AssetSlotName.
 const (
 	Background AssetSlotName = "background"
@@ -1295,16 +1337,16 @@ func (e PublicAppsDefaultSort) Valid() bool {
 
 // Defines values for PublicAssetSlotOrigin.
 const (
-	Source PublicAssetSlotOrigin = "source"
-	Upload PublicAssetSlotOrigin = "upload"
+	PublicAssetSlotOriginSource PublicAssetSlotOrigin = "source"
+	PublicAssetSlotOriginUpload PublicAssetSlotOrigin = "upload"
 )
 
 // Valid indicates whether the value is a known member of the PublicAssetSlotOrigin enum.
 func (e PublicAssetSlotOrigin) Valid() bool {
 	switch e {
-	case Source:
+	case PublicAssetSlotOriginSource:
 		return true
-	case Upload:
+	case PublicAssetSlotOriginUpload:
 		return true
 	default:
 		return false
@@ -2729,6 +2771,47 @@ type AllSettings struct {
 	Security   SecuritySettings   `json:"security"`
 }
 
+// AppIcon defines model for AppIcon.
+type AppIcon struct {
+	// App service-<id> or dns-<id>
+	App       string     `json:"app"`
+	CheckedAt *time.Time `json:"checked_at,omitempty"`
+
+	// Found Where the icon came from (a path on the app, upstream …, selfh.st …, upload)
+	Found *string `json:"found,omitempty"`
+
+	// Icon Where Hashi serves the icon; missing: the letter shows
+	Icon *string `json:"icon,omitempty"`
+
+	// IconLight The white variant for dark themes, when there is one
+	IconLight  *string     `json:"icon_light,omitempty"`
+	LibraryRef *string     `json:"library_ref,omitempty"`
+	Mode       AppIconMode `json:"mode"`
+	Name       string      `json:"name"`
+	ServiceId  *string     `json:"service_id,omitempty"`
+}
+
+// AppIconMode defines model for AppIcon.Mode.
+type AppIconMode string
+
+// AppIconChoice defines model for AppIconChoice.
+type AppIconChoice struct {
+	// Data upload: PNG, WebP, SVG or ICO, at most 1 MB
+	Data *[]byte `json:"data,omitempty"`
+
+	// LibraryRef library: the icon's reference
+	LibraryRef *string           `json:"library_ref,omitempty"`
+	Mode       AppIconChoiceMode `json:"mode"`
+}
+
+// AppIconChoiceMode defines model for AppIconChoice.Mode.
+type AppIconChoiceMode string
+
+// AppIcons defines model for AppIcons.
+type AppIcons struct {
+	Apps []AppIcon `json:"apps"`
+}
+
 // AppearanceSettings defines model for AppearanceSettings.
 type AppearanceSettings struct {
 	// CustomTheme The admin's palette (10-ui §2); the other roles are derived. Refused when text is unreadable.
@@ -3990,6 +4073,21 @@ type IPSetSources struct {
 	} `json:"sources"`
 }
 
+// IconLibraryHit defines model for IconLibraryHit.
+type IconLibraryHit struct {
+	LightUrl  *string `json:"light_url,omitempty"`
+	Name      string  `json:"name"`
+	Reference string  `json:"reference"`
+
+	// Url The library's own address, for the picker's preview
+	Url string `json:"url"`
+}
+
+// IconLibraryHits defines model for IconLibraryHits.
+type IconLibraryHits struct {
+	Icons []IconLibraryHit `json:"icons"`
+}
+
 // Job defines model for Job.
 type Job struct {
 	Enabled         bool      `json:"enabled"`
@@ -4309,10 +4407,16 @@ type Problem struct {
 
 // PublicApp defines model for PublicApp.
 type PublicApp struct {
-	Group string       `json:"group"`
-	Name  string       `json:"name"`
-	State MonitorState `json:"state"`
-	Url   string       `json:"url"`
+	Group string `json:"group"`
+
+	// Icon Hashi's address of the app's icon; missing: show the letter
+	Icon *string `json:"icon,omitempty"`
+
+	// IconLight Its white variant for dark themes
+	IconLight *string      `json:"icon_light,omitempty"`
+	Name      string       `json:"name"`
+	State     MonitorState `json:"state"`
+	Url       string       `json:"url"`
 }
 
 // PublicApps defines model for PublicApps.
@@ -5834,6 +5938,11 @@ type ListDNSRRSetsParams struct {
 // ListDNSRRSetsParamsOrigin defines parameters for ListDNSRRSets.
 type ListDNSRRSetsParamsOrigin string
 
+// SearchIconLibraryParams defines parameters for SearchIconLibrary.
+type SearchIconLibraryParams struct {
+	Q *string `form:"q,omitempty" json:"q,omitempty"`
+}
+
 // ListIPSetsParams defines parameters for ListIPSets.
 type ListIPSetsParams struct {
 	Kind *ListIPSetsParamsKind `form:"kind,omitempty" json:"kind,omitempty"`
@@ -5939,6 +6048,9 @@ type CreateAdGuardConnectionJSONRequestBody = AdGuardConnectionInput
 
 // UpdateAdGuardConnectionJSONRequestBody defines body for UpdateAdGuardConnection for application/json ContentType.
 type UpdateAdGuardConnectionJSONRequestBody = AdGuardConnectionInput
+
+// PutAppIconJSONRequestBody defines body for PutAppIcon for application/json ContentType.
+type PutAppIconJSONRequestBody = AppIconChoice
 
 // BootstrapLoginJSONRequestBody defines body for BootstrapLogin for application/json ContentType.
 type BootstrapLoginJSONRequestBody = BootstrapLogin
@@ -6544,6 +6656,12 @@ type ServerInterface interface {
 	// GetPublicPages The services that publish the public app dashboard and status page
 	// (GET /api/app-display/pages)
 	GetPublicPages(w http.ResponseWriter, r *http.Request)
+	// ListAppIcons Every app that can be on the dashboard, with its icon (07 §9.1)
+	// (GET /api/app-icons)
+	ListAppIcons(w http.ResponseWriter, r *http.Request)
+	// PutAppIcon Choose an app's icon (an upload or a library icon), or let Hashi find it (looks now)
+	// (PUT /api/app-icons/{app})
+	PutAppIcon(w http.ResponseWriter, r *http.Request, app string)
 	// BootstrapLogin Sign in with the one-time bootstrap credentials (private networks only, before setup completes)
 	// (POST /api/auth/bootstrap/login)
 	BootstrapLogin(w http.ResponseWriter, r *http.Request)
@@ -6706,6 +6824,9 @@ type ServerInterface interface {
 	// ScanFirewallHost Read a host's SSH key for the admin to compare (nothing is stored)
 	// (POST /api/firewall/scan)
 	ScanFirewallHost(w http.ResponseWriter, r *http.Request)
+	// SearchIconLibrary Search the selfh.st icon collection (at most 30)
+	// (GET /api/icon-library)
+	SearchIconLibrary(w http.ResponseWriter, r *http.Request, params SearchIconLibraryParams)
 	// ListIPSets Every IP set with its last compile summary, system sets first
 	// (GET /api/ip-sets)
 	ListIPSets(w http.ResponseWriter, r *http.Request, params ListIPSetsParams)
@@ -7587,6 +7708,46 @@ func (siw *ServerInterfaceWrapper) GetPublicPages(w http.ResponseWriter, r *http
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.GetPublicPages(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ListAppIcons operation middleware
+func (siw *ServerInterfaceWrapper) ListAppIcons(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListAppIcons(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// PutAppIcon operation middleware
+func (siw *ServerInterfaceWrapper) PutAppIcon(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "app" -------------
+	var app string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "app", r.PathValue("app"), &app, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "app", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.PutAppIcon(w, r, app)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -8648,6 +8809,39 @@ func (siw *ServerInterfaceWrapper) ScanFirewallHost(w http.ResponseWriter, r *ht
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.ScanFirewallHost(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// SearchIconLibrary operation middleware
+func (siw *ServerInterfaceWrapper) SearchIconLibrary(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params SearchIconLibraryParams
+
+	// ------------- Optional query parameter "q" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "q", r.URL.Query(), &params.Q, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "q"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "q", Err: err})
+		}
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.SearchIconLibrary(w, r, params)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -12663,6 +12857,9 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/public-assets/source", wrapper.ListPublicAssetSource)
 	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/api/public-assets/slots/{slot}", wrapper.DeletePublicAssetSlot)
 	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/api/public-assets/slots/{slot}", wrapper.PutPublicAssetSlot)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/app-icons", wrapper.ListAppIcons)
+	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/api/app-icons/{app}", wrapper.PutAppIcon)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/icon-library", wrapper.SearchIconLibrary)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/public/status", wrapper.GetPublicStatus)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/public/apps", wrapper.GetPublicApps)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/settings", wrapper.GetSettings)
@@ -13311,6 +13508,84 @@ type GetPublicPagesdefaultApplicationProblemPlusJSONResponse struct {
 }
 
 func (response GetPublicPagesdefaultApplicationProblemPlusJSONResponse) VisitGetPublicPagesResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(response.StatusCode)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ListAppIconsRequestObject struct {
+}
+
+type ListAppIconsResponseObject interface {
+	VisitListAppIconsResponse(w http.ResponseWriter) error
+}
+
+type ListAppIcons200JSONResponse AppIcons
+
+func (response ListAppIcons200JSONResponse) VisitListAppIconsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ListAppIconsdefaultApplicationProblemPlusJSONResponse struct {
+	Body       Problem
+	StatusCode int
+}
+
+func (response ListAppIconsdefaultApplicationProblemPlusJSONResponse) VisitListAppIconsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(response.StatusCode)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PutAppIconRequestObject struct {
+	App  string `json:"app"`
+	Body *PutAppIconJSONRequestBody
+}
+
+type PutAppIconResponseObject interface {
+	VisitPutAppIconResponse(w http.ResponseWriter) error
+}
+
+type PutAppIcon200JSONResponse AppIcon
+
+func (response PutAppIcon200JSONResponse) VisitPutAppIconResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PutAppIcondefaultApplicationProblemPlusJSONResponse struct {
+	Body       Problem
+	StatusCode int
+}
+
+func (response PutAppIcondefaultApplicationProblemPlusJSONResponse) VisitPutAppIconResponse(w http.ResponseWriter) error {
 
 	var buf bytes.Buffer
 	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
@@ -15428,6 +15703,45 @@ type ScanFirewallHostdefaultApplicationProblemPlusJSONResponse struct {
 }
 
 func (response ScanFirewallHostdefaultApplicationProblemPlusJSONResponse) VisitScanFirewallHostResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(response.StatusCode)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type SearchIconLibraryRequestObject struct {
+	Params SearchIconLibraryParams
+}
+
+type SearchIconLibraryResponseObject interface {
+	VisitSearchIconLibraryResponse(w http.ResponseWriter) error
+}
+
+type SearchIconLibrary200JSONResponse IconLibraryHits
+
+func (response SearchIconLibrary200JSONResponse) VisitSearchIconLibraryResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type SearchIconLibrarydefaultApplicationProblemPlusJSONResponse struct {
+	Body       Problem
+	StatusCode int
+}
+
+func (response SearchIconLibrarydefaultApplicationProblemPlusJSONResponse) VisitSearchIconLibraryResponse(w http.ResponseWriter) error {
 
 	var buf bytes.Buffer
 	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
@@ -22467,6 +22781,12 @@ type StrictServerInterface interface {
 	// GetPublicPages The services that publish the public app dashboard and status page
 	// (GET /api/app-display/pages)
 	GetPublicPages(ctx context.Context, request GetPublicPagesRequestObject) (GetPublicPagesResponseObject, error)
+	// ListAppIcons Every app that can be on the dashboard, with its icon (07 §9.1)
+	// (GET /api/app-icons)
+	ListAppIcons(ctx context.Context, request ListAppIconsRequestObject) (ListAppIconsResponseObject, error)
+	// PutAppIcon Choose an app's icon (an upload or a library icon), or let Hashi find it (looks now)
+	// (PUT /api/app-icons/{app})
+	PutAppIcon(ctx context.Context, request PutAppIconRequestObject) (PutAppIconResponseObject, error)
 	// BootstrapLogin Sign in with the one-time bootstrap credentials (private networks only, before setup completes)
 	// (POST /api/auth/bootstrap/login)
 	BootstrapLogin(ctx context.Context, request BootstrapLoginRequestObject) (BootstrapLoginResponseObject, error)
@@ -22629,6 +22949,9 @@ type StrictServerInterface interface {
 	// ScanFirewallHost Read a host's SSH key for the admin to compare (nothing is stored)
 	// (POST /api/firewall/scan)
 	ScanFirewallHost(ctx context.Context, request ScanFirewallHostRequestObject) (ScanFirewallHostResponseObject, error)
+	// SearchIconLibrary Search the selfh.st icon collection (at most 30)
+	// (GET /api/icon-library)
+	SearchIconLibrary(ctx context.Context, request SearchIconLibraryRequestObject) (SearchIconLibraryResponseObject, error)
 	// ListIPSets Every IP set with its last compile summary, system sets first
 	// (GET /api/ip-sets)
 	ListIPSets(ctx context.Context, request ListIPSetsRequestObject) (ListIPSetsResponseObject, error)
@@ -23570,6 +23893,63 @@ func (sh *strictHandler) GetPublicPages(w http.ResponseWriter, r *http.Request) 
 		sh.options.ResponseErrorHandlerFunc(w, r, err)
 	} else if validResponse, ok := response.(GetPublicPagesResponseObject); ok {
 		if err := validResponse.VisitGetPublicPagesResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// ListAppIcons operation middleware
+func (sh *strictHandler) ListAppIcons(w http.ResponseWriter, r *http.Request) {
+	var request ListAppIconsRequestObject
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.ListAppIcons(ctx, request.(ListAppIconsRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "ListAppIcons")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(ListAppIconsResponseObject); ok {
+		if err := validResponse.VisitListAppIconsResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// PutAppIcon operation middleware
+func (sh *strictHandler) PutAppIcon(w http.ResponseWriter, r *http.Request, app string) {
+	var request PutAppIconRequestObject
+
+	request.App = app
+
+	var body PutAppIconJSONRequestBody
+	if err := runtime.BindJSONBody(r, &body); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.PutAppIcon(ctx, request.(PutAppIconRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "PutAppIcon")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(PutAppIconResponseObject); ok {
+		if err := validResponse.VisitPutAppIconResponse(w); err != nil {
 			sh.options.ResponseErrorHandlerFunc(w, r, err)
 		}
 	} else if response != nil {
@@ -25074,6 +25454,32 @@ func (sh *strictHandler) ScanFirewallHost(w http.ResponseWriter, r *http.Request
 		sh.options.ResponseErrorHandlerFunc(w, r, err)
 	} else if validResponse, ok := response.(ScanFirewallHostResponseObject); ok {
 		if err := validResponse.VisitScanFirewallHostResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// SearchIconLibrary operation middleware
+func (sh *strictHandler) SearchIconLibrary(w http.ResponseWriter, r *http.Request, params SearchIconLibraryParams) {
+	var request SearchIconLibraryRequestObject
+
+	request.Params = params
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.SearchIconLibrary(ctx, request.(SearchIconLibraryRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "SearchIconLibrary")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(SearchIconLibraryResponseObject); ok {
+		if err := validResponse.VisitSearchIconLibraryResponse(w); err != nil {
 			sh.options.ResponseErrorHandlerFunc(w, r, err)
 		}
 	} else if response != nil {

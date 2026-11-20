@@ -105,6 +105,20 @@ type AdminUser struct {
 	CreatedAt  int64
 }
 
+type AppIcon struct {
+	App         string
+	ServiceID   sql.NullString
+	DnsRecordID sql.NullString
+	Mode        string
+	LibraryRef  string
+	ContentType string
+	Etag        string
+	LightType   string
+	LightEtag   string
+	Found       string
+	CheckedAt   int64
+}
+
 type AppSetting struct {
 	Key       string
 	ValueJson string

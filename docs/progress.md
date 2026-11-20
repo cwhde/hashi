@@ -79,16 +79,25 @@ PR A, public page assets (30):
   script that builds links, so script and style blocks are skipped before reading links.
 
 PR B, app icons (149):
-- [ ] Per app (service or DNS entry on the dashboard): icon = custom (uploaded, or picked from selfh.st with a search
+- [x] Per app (service or DNS entry on the dashboard): icon = custom (uploaded, or picked from selfh.st with a search
   box, like Pocket ID: index cached 24 h, top 30 by exact/prefix/contains/tag, `-light` variant for dark themes,
   credit "Icons by selfh.st, CC BY 4.0") or automatic.
-- [ ] Automatic: fetch the app's public page, take the best icon that fits (manifest icons, apple-touch-icon, sized
+- [x] Automatic: fetch the app's public page, take the best icon that fits (manifest icons, apple-touch-icon, sized
   `icon`, `/favicon.ico`); when the answer is 401/403, a redirect to another host, or no icon, ask the upstream with the
   app's Host header instead. Stored in `/data/assets/apps/`, refreshed daily, never fetched by the visitor's browser.
   No icon → the letter, as today.
-- [ ] Picker in App display (per app row) with search, preview, upload and "Automatic".
-- [ ] Tests from the captured pages (sanitized): link parsing, manifest sizes, sign-in redirect detection, upstream
+- [x] Picker in App display (per app row) with search, preview, upload and "Automatic".
+- [x] Tests from the captured pages (sanitized): link parsing, manifest sizes, sign-in redirect detection, upstream
   retry; selfh.st search ranking and reference safety; e2e picks an icon and sees it on the dashboard.
+  Done (2026-11-20): table `app_icons` (one row per app, cascades with its service or DNS entry), files in
+  `/data/assets/apps/`, served at `/assets/apps/<app>` on the admin and the dashboard listener. App display: the
+  icon tile opens the picker (selfh.st search starting from the app's name, upload, "Find it on the app"); a choice
+  applies at once like the switch next to it. Hashi looks for automatic icons 30 s after start and then once a day per
+  app; a chosen icon is never replaced. Run once from the laptop against the 54 real apps (public path only, read-only):
+  33 found (SVG for Gitea, Pocket ID and two more; PNGs 96–512 px otherwise), Nextcloud correctly none (its page sends
+  visitors to the sign-in host), the 15 behind sign-in and Hashi's own two pages none on that path: those are what the
+  upstream fallback is for, provable only from the server. DNS entries on the dashboard get automatic icons; their
+  picker is not on App display, which lists services only.
 
 ### 13.7 checklist (one PR)
 

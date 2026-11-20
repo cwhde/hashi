@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"errors"
+	"git.juzo.io/juzo/hashi/internal/appicons"
 	"time"
 
 	"git.juzo.io/juzo/hashi/internal/audit"
@@ -456,8 +457,24 @@ func (s *Server) GetPublicApps(ctx context.Context, _ gen.GetPublicAppsRequestOb
 	}
 	out := gen.GetPublicApps200JSONResponse{Title: title, Assets: shown, Theme: look.Theme, CustomTheme: look.CustomTheme, DefaultSort: gen.PublicAppsDefaultSort(d.DefaultSort), UpdatedAt: nonZero(v.UpdatedAt),
 		Apps: make([]gen.PublicApp, 0, len(v.Apps))}
+	var icons map[string]db.AppIcon
+	if s.AppIcons != nil {
+		if icons, err = s.AppIcons.Icons(ctx); err != nil {
+			return nil, err
+		}
+	}
 	for _, a := range v.Apps {
-		out.Apps = append(out.Apps, gen.PublicApp{Name: a.Name, Group: a.Group, Url: a.URL, State: gen.MonitorState(a.State)})
+		app := gen.PublicApp{Name: a.Name, Group: a.Group, Url: a.URL, State: gen.MonitorState(a.State)}
+		if r, ok := icons[appicons.Key(a.SourceType, a.SourceID)]; ok {
+			icon, light := appicons.URLs(r)
+			if icon != "" {
+				app.Icon = &icon
+			}
+			if light != "" {
+				app.IconLight = &light
+			}
+		}
+		out.Apps = append(out.Apps, app)
 	}
 	return out, nil
 }

@@ -8,11 +8,14 @@
 	import { Skeleton } from '#lib/components/ui/skeleton/index.ts';
 	import { api, problemText, type Schemas } from '#lib/api/client.ts';
 	import type { Endpoint } from '#lib/monitor.ts';
+	import AppIconPicker from '#lib/components/hashi/AppIconPicker.svelte';
 
 	// 10b §3: what the public dashboard and status page show. Order follows group and name for now.
 	let services = $state<Schemas['Service'][]>([]);
 	let endpoints = $state<Endpoint[]>([]);
 	let look = $state<Schemas['AppearanceSettings'] | null>(null);
+	// Each app's icon on the dashboard (bug 149), by service.
+	let icons = $state<Record<string, Schemas['AppIcon']>>({});
 	// Where each page is published (bug 64): the services that point at it.
 	let pages = $state<Schemas['PublicPages'] | null>(null);
 	let error = $state('');
@@ -36,6 +39,9 @@
 	}
 	onMount(() => {
 		load().catch((e) => (error = problemText(e)));
+		void api.GET('/api/app-icons').then((r) => {
+			for (const a of r.data?.apps ?? []) if (a.service_id) icons[a.service_id] = a;
+		});
 		void api.GET('/api/app-display/pages').then((r) => (pages = r.data ?? null));
 	});
 
@@ -139,11 +145,12 @@
 					/>
 				</li>{/if}
 			{#each services as r (r.id)}
+				{@const icon = icons[r.id]}
 				<li class="flex items-center gap-3 px-4 py-2 text-md">
-					<span
-						class="grid size-7 place-items-center rounded-lg border bg-surface-2 text-xs font-semibold"
-						>{r.name[0]}</span
-					>
+					{#if icon}<AppIconPicker app={icon} onchange={(a) => (icons[r.id] = a)} />{:else}<span
+							class="grid size-7 place-items-center rounded-lg border bg-surface-2 text-xs font-semibold"
+							>{r.name[0]}</span
+						>{/if}
 					<span class="min-w-0 flex-1 truncate font-medium">{r.name}</span>
 					<Switch
 						checked={r.dashboard_visible}

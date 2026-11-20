@@ -1181,6 +1181,31 @@ test('setup with a passkey, then sign in with it', async ({ page, request }) => 
 	expect(icon.headers()['content-security-policy']).toContain("default-src 'none'");
 	expect(sourceHits.slice(seenBefore), 'the public page loaded from the source').toEqual([]);
 	source.close();
+	// App icons (07 §9.1, bug 149): an uploaded icon replaces the letter on App display and on the dashboard card,
+	// served by Hashi.
+	await page.goto(`${state.baseURL}/app-display`);
+	await page.getByRole('button', { name: 'Icon of Guarded' }).click();
+	await expect(page.getByRole('dialog')).toContainText('selfh.st');
+	await page
+		.getByRole('list', { name: 'Icons' })
+		.waitFor({ timeout: 10_000 })
+		.catch(() => {}); // the CDN may be away
+	await page.screenshot({ path: 'test-results/13-8-icon-picker.png' });
+	await page
+		.getByLabel('Upload an icon for Guarded')
+		.setInputFiles({ name: 'guarded.png', mimeType: 'image/png', buffer: png });
+	await expect(page.getByRole('dialog')).toHaveCount(0);
+	await expect(
+		page.getByRole('button', { name: 'Icon of Guarded' }).locator('img').first()
+	).toHaveAttribute('src', /^\/assets\/apps\/service-[^?]+\?v=/);
+	await page.goto(state.appsURL);
+	await expect(
+		page
+			.getByRole('link', { name: /Guarded/ })
+			.locator('img')
+			.first()
+	).toHaveAttribute('src', /^\/assets\/apps\/service-/);
+	await page.screenshot({ path: 'test-results/13-8-app-icon.png' });
 	// The public pages draw in the browser: a crash there shows "500" while the server answers 200 (bug 139).
 	for (const url of [state.appsURL, state.statusURL]) {
 		const crashes: string[] = [];

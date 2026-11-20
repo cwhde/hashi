@@ -1304,6 +1304,46 @@ paths:
           description: Emptied
           content: { application/json: { schema: { $ref: "#/components/schemas/PublicAssets" } } }
         default: { $ref: "#/components/responses/Problem" }
+  /api/app-icons:
+    get:
+      operationId: listAppIcons
+      summary: Every app that can be on the dashboard, with its icon (07 §9.1)
+      tags: [monitor]
+      x-hashi-scopes: [admin.read]
+      responses:
+        "200":
+          description: Apps
+          content: { application/json: { schema: { $ref: "#/components/schemas/AppIcons" } } }
+        default: { $ref: "#/components/responses/Problem" }
+  /api/app-icons/{app}:
+    put:
+      operationId: putAppIcon
+      summary: Choose an app's icon (an upload or a library icon), or let Hashi find it (looks now)
+      tags: [monitor]
+      x-hashi-scopes: [services.manage]
+      parameters:
+        - { name: app, in: path, required: true, schema: { type: string } }
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: "#/components/schemas/AppIconChoice" } } }
+      responses:
+        "200":
+          description: Saved
+          content: { application/json: { schema: { $ref: "#/components/schemas/AppIcon" } } }
+        default: { $ref: "#/components/responses/Problem" }
+  /api/icon-library:
+    get:
+      operationId: searchIconLibrary
+      summary: Search the selfh.st icon collection (at most 30)
+      tags: [monitor]
+      x-hashi-scopes: [admin.read]
+      parameters:
+        - { name: q, in: query, schema: { type: string, default: "" } }
+      responses:
+        "200":
+          description: Icons
+          content: { application/json: { schema: { $ref: "#/components/schemas/IconLibraryHits" } } }
+        default: { $ref: "#/components/responses/Problem" }
   /api/public/status:
     get:
       operationId: getPublicStatus
@@ -4280,6 +4320,44 @@ components:
         logo_dark: { type: string }
         logo_light: { type: string }
         background: { type: string }
+    AppIcons:
+      type: object
+      required: [apps]
+      properties:
+        apps: { type: array, items: { $ref: "#/components/schemas/AppIcon" } }
+    AppIcon:
+      type: object
+      required: [app, name, mode]
+      properties:
+        app: { type: string, description: "service-<id> or dns-<id>" }
+        name: { type: string }
+        service_id: { type: string }
+        mode: { type: string, enum: [auto, upload, library] }
+        library_ref: { type: string }
+        icon: { type: string, description: "Where Hashi serves the icon; missing: the letter shows" }
+        icon_light: { type: string, description: "The white variant for dark themes, when there is one" }
+        found: { type: string, description: "Where the icon came from (a path on the app, upstream …, selfh.st …, upload)" }
+        checked_at: { type: string, format: date-time }
+    AppIconChoice:
+      type: object
+      required: [mode]
+      properties:
+        mode: { type: string, enum: [auto, upload, library] }
+        data: { type: string, format: byte, description: "upload: PNG, WebP, SVG or ICO, at most 1 MB" }
+        library_ref: { type: string, description: "library: the icon's reference" }
+    IconLibraryHits:
+      type: object
+      required: [icons]
+      properties:
+        icons: { type: array, items: { $ref: "#/components/schemas/IconLibraryHit" } }
+    IconLibraryHit:
+      type: object
+      required: [name, reference, url]
+      properties:
+        name: { type: string }
+        reference: { type: string }
+        url: { type: string, description: "The library's own address, for the picker's preview" }
+        light_url: { type: string }
     PublicStatus:
       type: object
       additionalProperties: false
@@ -4301,6 +4379,8 @@ components:
         group: { type: string }
         url: { type: string }
         state: { $ref: "#/components/schemas/MonitorState" }
+        icon: { type: string, description: "Hashi's address of the app's icon; missing: show the letter" }
+        icon_light: { type: string, description: "Its white variant for dark themes" }
     PublicApps:
       type: object
       additionalProperties: false

@@ -367,6 +367,8 @@ type PublicApp struct {
 	Group string
 	URL   string
 	State string
+	// SourceType and SourceID name the service or DNS entry it shows (its icon is keyed by them).
+	SourceType, SourceID string
 }
 
 // PublicApps is the dashboard's data.
@@ -458,7 +460,8 @@ func (s *Service) PublicApps(ctx context.Context) (PublicApps, error) {
 			}
 		}
 		add := func(name, url, source string, group string) {
-			app := PublicApp{Name: name, Group: group, URL: url, State: StateUnknown}
+			typ, id, _ := strings.Cut(source, "|")
+			app := PublicApp{Name: name, Group: group, URL: url, State: StateUnknown, SourceType: typ, SourceID: id}
 			if e, ok := bySource[source]; ok {
 				app.State, app.Group = shownState(e), e.GroupName
 			}
