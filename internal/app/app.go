@@ -7,6 +7,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"git.juzo.io/juzo/hashi/internal/assets"
 	"io"
 	"log/slog"
 	"net"
@@ -480,7 +481,11 @@ func Run(ctx context.Context, cfg Config, log *slog.Logger, ready func(adminAddr
 	if err := wafs.Warm(waf.Config{}); err != nil {
 		return fmt.Errorf("WAF: %w", err)
 	}
-	api := &httpapi.Server{WAF: wafs, Captcha: capCache, Feeds: feedSvc, CapEnvFile: cfg.CapEnvFile, CapPort: cfg.CapPort,
+	assetStore, err := assets.NewStore(filepath.Join(cfg.DataDir, "assets"))
+	if err != nil {
+		return err
+	}
+	api := &httpapi.Server{Assets: assetStore, AssetSource: assets.Source{Client: &http.Client{Timeout: 30 * time.Second}}, WAF: wafs, Captcha: capCache, Feeds: feedSvc, CapEnvFile: cfg.CapEnvFile, CapPort: cfg.CapPort,
 		Health: health, Version: gen.Version{Version: Version, Commit: Commit}, Store: st, Sessions: sessions,
 		Passkeys: passkeys, Setup: setupSvc, Settings: cfgSettings, DNS: dnsSvc, Traefik: traefikMgr, Certs: certMgr, IPSets: ipSets, AdGuard: adguardSvc, Pulse: pulseSvc, Monitor: monitorSvc, Notify: notifier, Firewall: fwMgr, Scripts: scriptSvc, Edge: edgeEngine, SSO: sso, Security: abuse, GeoIP: geoSvc, Sync: syncEngine, Vault: v, MasterKeyFile: cfg.MasterKeyFile, Audit: al, IP: ip, Logs: cfg.Logs,
 		CertsSoon: func(ctx context.Context) error { return runner.Soon(ctx, certs.JobKind) },
@@ -607,6 +612,7 @@ func (s *server) serve(log *slog.Logger) error {
 func adminMux(api *httpapi.Server) http.Handler {
 	mux := http.NewServeMux()
 	mux.Handle("GET /", web.Handler())
+	mux.HandleFunc("GET /assets/{slot}", api.ServeAsset)
 	// The install script (08 §1). No session: nothing in it is secret, and the token comes from the admin.
 	mux.HandleFunc("GET /api/pulse/install.sh", func(w http.ResponseWriter, _ *http.Request) {
 		w.Header().Set("Content-Type", "text/x-shellscript")
@@ -645,6 +651,7 @@ func publicMux(api *httpapi.Server, page string, enabled *atomic.Bool) http.Hand
 	}
 	h := gen.NewStrictHandlerWithOptions(api, nil, gen.StrictHTTPServerOptions{RequestErrorHandlerFunc: fail, ResponseErrorHandlerFunc: fail})
 	mux.HandleFunc("GET /healthz", h.GetHealthz)
+	mux.HandleFunc("GET /assets/{slot}", onlyIf(enabled, api.ServeAsset))
 	if page == "status" {
 		mux.HandleFunc("GET /api/public/status", onlyIf(enabled, h.GetPublicStatus))
 	} else {

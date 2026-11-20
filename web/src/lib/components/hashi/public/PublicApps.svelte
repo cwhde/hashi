@@ -2,6 +2,7 @@
 	import { Skeleton } from '#lib/components/ui/skeleton/index.ts';
 	import { onMount } from 'svelte';
 	import StatusDot from '#lib/components/hashi/StatusDot.svelte';
+	import PublicHeader from './PublicHeader.svelte';
 	import { Input } from '#lib/components/ui/input/index.ts';
 	import * as Select from '#lib/components/ui/select/index.ts';
 	import { Search } from '@lucide/svelte';
@@ -54,7 +55,7 @@
 <div class="mx-auto max-w-6xl px-4 py-10">
 	<header class="mb-8 flex flex-wrap items-end gap-3">
 		<!-- Up/down counts are the status page's job, not the launcher's (bug 147). -->
-		<h1 class="min-w-48 flex-1 text-title font-semibold">{data?.title ?? ''}</h1>
+		<PublicHeader title={data?.title ?? ''} assets={data?.assets} />
 		<!-- Always the plain field: the button that turned into a field looked broken in Firefox until clicked (bug 146). -->
 		<!-- Search and sort stay together: one row under the title on a phone (bug 147). -->
 		<div class="flex w-full gap-3 sm:w-auto">

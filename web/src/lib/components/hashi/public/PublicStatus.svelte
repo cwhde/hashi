@@ -3,6 +3,7 @@
 	import { onMount } from 'svelte';
 	import HistoryStrip from '#lib/components/hashi/HistoryStrip.svelte';
 	import StatusBadge from '#lib/components/hashi/StatusBadge.svelte';
+	import PublicHeader from './PublicHeader.svelte';
 	import { api, type Schemas } from '#lib/api/client.ts';
 	import { publicSummary, stripHealth, uptimeText } from '#lib/monitor.ts';
 	import { dateTime, time } from '#lib/format.ts';
@@ -54,7 +55,7 @@
 
 <svelte:head><title>Status · {data?.title ?? ''}</title></svelte:head>
 <div class="mx-auto max-w-4xl px-4 py-10">
-	<h1 class="text-title font-semibold">{data?.title ?? ''} status</h1>
+	<PublicHeader title={data?.title ?? ''} assets={data?.assets} suffix="status" />
 	{#if stale}
 		<div
 			role="alert"

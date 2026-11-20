@@ -5,6 +5,7 @@ import (
 	"context"
 	"errors"
 	"git.juzo.io/juzo/hashi/internal/adguard"
+	"git.juzo.io/juzo/hashi/internal/assets"
 	"git.juzo.io/juzo/hashi/internal/pulse"
 	"log/slog"
 	"net/http"
@@ -78,7 +79,10 @@ type Server struct {
 	Audit         *audit.Log
 	IP            *clientip.Resolver
 	Logs          *logring.Ring
-	Log           *slog.Logger
+	// Assets holds the public pages' icon, logos and background (07 §9); AssetSource reads the owner's asset folder.
+	Assets      *assets.Store
+	AssetSource assets.Source
+	Log         *slog.Logger
 
 	// rewrites is the search's copy of the AdGuard rewrites (search_rewrites.go).
 	rewrites rewriteCache

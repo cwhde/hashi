@@ -1,6 +1,7 @@
 package app
 
 import (
+	"context"
 	"io"
 	"log/slog"
 	"net/http"
@@ -9,6 +10,7 @@ import (
 	"sync/atomic"
 	"testing"
 
+	"git.juzo.io/juzo/hashi/internal/assets"
 	"git.juzo.io/juzo/hashi/internal/httpapi"
 	"git.juzo.io/juzo/hashi/internal/pulse"
 	"git.juzo.io/juzo/hashi/internal/settings"
@@ -105,6 +107,43 @@ func TestPublicPageSettings(t *testing.T) {
 		// Off is 404; on serves the page (503 where the web UI is not built, as in CI's check job).
 		if got := rec.Code == http.StatusNotFound; got != off {
 			t.Errorf("%s: %d, switched off %v", page, rec.Code, off)
+		}
+	}
+}
+
+// 07 §9: each public listener serves the asset slots (its page needs them), and nothing when the page is off.
+func TestPublicMuxServesAssets(t *testing.T) {
+	st := storetest.New(t)
+	store, err := assets.NewStore(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	png := []byte("\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR\x00\x00\x00\x01\x00\x00\x00\x01\x08\x06\x00\x00\x00\x1f\x15\xc4\x89")
+	ct, etag, err := store.Put(assets.Icon, png)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := settings.Put(context.Background(), st.Q, settings.PublicAssets{Slots: map[string]settings.AssetSlot{
+		"icon": {Origin: settings.AssetUploaded, ContentType: ct, ETag: etag}}}); err != nil {
+		t.Fatal(err)
+	}
+	api := &httpapi.Server{Store: st, Assets: store, Log: slog.New(slog.DiscardHandler)}
+	for _, page := range []string{"apps", "status"} {
+		var on atomic.Bool
+		on.Store(true)
+		h := publicMux(api, page, &on)
+		for path, want := range map[string]int{"/assets/icon": 200, "/assets/logo_dark": 404, "/assets/hashi.db": 404} {
+			rec := httptest.NewRecorder()
+			h.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, path, nil))
+			if rec.Code != want {
+				t.Errorf("%s %s: %d", page, path, rec.Code)
+			}
+		}
+		on.Store(false)
+		rec := httptest.NewRecorder()
+		h.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/assets/icon", nil))
+		if rec.Code != 404 {
+			t.Errorf("%s off: %d", page, rec.Code)
 		}
 	}
 }

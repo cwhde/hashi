@@ -1239,6 +1239,71 @@ paths:
       responses:
         "204": { description: Saved }
         default: { $ref: "#/components/responses/Problem" }
+  /api/public-assets:
+    get:
+      operationId: getPublicAssets
+      summary: The public pages' icon, logos and background (07 §9)
+      tags: [settings]
+      x-hashi-scopes: [admin.read]
+      responses:
+        "200":
+          description: Assets
+          content: { application/json: { schema: { $ref: "#/components/schemas/PublicAssets" } } }
+        default: { $ref: "#/components/responses/Problem" }
+    put:
+      operationId: putPublicAssets
+      summary: Set the asset source and whether the background shows
+      tags: [settings]
+      x-hashi-scopes: [settings.manage]
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: "#/components/schemas/PublicAssetsSettings" } } }
+      responses:
+        "200":
+          description: Saved
+          content: { application/json: { schema: { $ref: "#/components/schemas/PublicAssets" } } }
+        default: { $ref: "#/components/responses/Problem" }
+  /api/public-assets/source:
+    get:
+      operationId: listPublicAssetSource
+      summary: One folder of the asset source, read now (subfolders and image files)
+      tags: [settings]
+      x-hashi-scopes: [settings.manage]
+      parameters:
+        - { name: dir, in: query, schema: { type: string, default: "" } }
+      responses:
+        "200":
+          description: Folder
+          content: { application/json: { schema: { $ref: "#/components/schemas/AssetFolder" } } }
+        default: { $ref: "#/components/responses/Problem" }
+  /api/public-assets/slots/{slot}:
+    put:
+      operationId: putPublicAssetSlot
+      summary: Fill a slot from a file of the source (copied once) or from an upload
+      tags: [settings]
+      x-hashi-scopes: [settings.manage]
+      parameters:
+        - { name: slot, in: path, required: true, schema: { $ref: "#/components/schemas/AssetSlotName" } }
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: "#/components/schemas/AssetSlotFill" } } }
+      responses:
+        "200":
+          description: Saved
+          content: { application/json: { schema: { $ref: "#/components/schemas/PublicAssets" } } }
+        default: { $ref: "#/components/responses/Problem" }
+    delete:
+      operationId: deletePublicAssetSlot
+      summary: Empty a slot
+      tags: [settings]
+      x-hashi-scopes: [settings.manage]
+      parameters:
+        - { name: slot, in: path, required: true, schema: { $ref: "#/components/schemas/AssetSlotName" } }
+      responses:
+        "200":
+          description: Emptied
+          content: { application/json: { schema: { $ref: "#/components/schemas/PublicAssets" } } }
+        default: { $ref: "#/components/responses/Problem" }
   /api/public/status:
     get:
       operationId: getPublicStatus
@@ -4170,6 +4235,51 @@ components:
         state: { $ref: "#/components/schemas/MonitorState" }
         strip: { type: array, items: { $ref: "#/components/schemas/MonitorStripSample" } }
         uptime_24h: { type: number, format: double }
+    PublicAssets:
+      type: object
+      required: [source, background, slots]
+      properties:
+        source: { type: string, description: "Base address of the owner's asset folder; empty when none" }
+        background: { type: boolean, description: "Show the background image on the public pages" }
+        slots: { type: array, items: { $ref: "#/components/schemas/PublicAssetSlot" }, description: "Filled slots only" }
+    PublicAssetsSettings:
+      type: object
+      required: [source, background]
+      properties:
+        source: { type: string }
+        background: { type: boolean }
+    PublicAssetSlot:
+      type: object
+      required: [slot, origin, content_type, url]
+      properties:
+        slot: { $ref: "#/components/schemas/AssetSlotName" }
+        origin: { type: string, enum: [source, upload] }
+        path: { type: string, description: "The source file it was copied from" }
+        content_type: { type: string }
+        url: { type: string, description: "Where Hashi serves it, with its version" }
+    AssetSlotName: { type: string, enum: [icon, logo_dark, logo_light, background] }
+    AssetSlotFill:
+      type: object
+      description: "Exactly one: path (a file of the source) or data (an upload: PNG, WebP, SVG or ICO; 1 MB, background 5 MB)"
+      properties:
+        path: { type: string }
+        data: { type: string, format: byte }
+    AssetFolder:
+      type: object
+      required: [dir, dirs, files]
+      properties:
+        dir: { type: string, description: "The folder, relative to the source, ending in / (empty: the source itself)" }
+        dirs: { type: array, items: { type: string } }
+        files: { type: array, items: { type: string } }
+    PublicPageAssets:
+      type: object
+      additionalProperties: false
+      description: "Where each filled slot is served; a missing one is empty. background only when it is switched on."
+      properties:
+        icon: { type: string }
+        logo_dark: { type: string }
+        logo_light: { type: string }
+        background: { type: string }
     PublicStatus:
       type: object
       additionalProperties: false
@@ -4180,6 +4290,7 @@ components:
         custom_theme: { $ref: "#/components/schemas/CustomTheme" }
         updated_at: { type: string, format: date-time }
         grouped: { type: boolean, description: "Show the endpoints under their categories, in the order given" }
+        assets: { $ref: "#/components/schemas/PublicPageAssets" }
         endpoints: { type: array, items: { $ref: "#/components/schemas/PublicEndpoint" } }
     PublicApp:
       type: object
@@ -4200,6 +4311,7 @@ components:
         custom_theme: { $ref: "#/components/schemas/CustomTheme" }
         default_sort: { type: string, enum: [name, group, status], description: "The order the page starts with (Dashboard settings)" }
         updated_at: { type: string, format: date-time }
+        assets: { $ref: "#/components/schemas/PublicPageAssets" }
         apps: { type: array, items: { $ref: "#/components/schemas/PublicApp" } }
     Problem:
       type: object

@@ -102,6 +102,30 @@ func (e AgentDNSSettingsIpMode) Valid() bool {
 	}
 }
 
+// Defines values for AssetSlotName.
+const (
+	Background AssetSlotName = "background"
+	Icon       AssetSlotName = "icon"
+	LogoDark   AssetSlotName = "logo_dark"
+	LogoLight  AssetSlotName = "logo_light"
+)
+
+// Valid indicates whether the value is a known member of the AssetSlotName enum.
+func (e AssetSlotName) Valid() bool {
+	switch e {
+	case Background:
+		return true
+	case Icon:
+		return true
+	case LogoDark:
+		return true
+	case LogoLight:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for AuditEventOutcome.
 const (
 	Denied  AuditEventOutcome = "denied"
@@ -1263,6 +1287,24 @@ func (e PublicAppsDefaultSort) Valid() bool {
 	case PublicAppsDefaultSortName:
 		return true
 	case PublicAppsDefaultSortStatus:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for PublicAssetSlotOrigin.
+const (
+	Source PublicAssetSlotOrigin = "source"
+	Upload PublicAssetSlotOrigin = "upload"
+)
+
+// Valid indicates whether the value is a known member of the PublicAssetSlotOrigin enum.
+func (e PublicAssetSlotOrigin) Valid() bool {
+	switch e {
+	case Source:
+		return true
+	case Upload:
 		return true
 	default:
 		return false
@@ -2703,6 +2745,23 @@ type AppearanceSettings struct {
 	// Theme A built-in theme id, or custom
 	Theme string `json:"theme"`
 }
+
+// AssetFolder defines model for AssetFolder.
+type AssetFolder struct {
+	// Dir The folder, relative to the source, ending in / (empty: the source itself)
+	Dir   string   `json:"dir"`
+	Dirs  []string `json:"dirs"`
+	Files []string `json:"files"`
+}
+
+// AssetSlotFill Exactly one: path (a file of the source) or data (an upload: PNG, WebP, SVG or ICO; 1 MB, background 5 MB)
+type AssetSlotFill struct {
+	Data *[]byte `json:"data,omitempty"`
+	Path *string `json:"path,omitempty"`
+}
+
+// AssetSlotName defines model for AssetSlotName.
+type AssetSlotName string
 
 // AuditEvent defines model for AuditEvent.
 type AuditEvent struct {
@@ -4260,6 +4319,9 @@ type PublicApp struct {
 type PublicApps struct {
 	Apps []PublicApp `json:"apps"`
 
+	// Assets Where each filled slot is served; a missing one is empty. background only when it is switched on.
+	Assets *PublicPageAssets `json:"assets,omitempty"`
+
 	// CustomTheme The admin's palette (10-ui §2); the other roles are derived. Refused when text is unreadable.
 	CustomTheme *CustomTheme `json:"custom_theme,omitempty"`
 
@@ -4273,6 +4335,40 @@ type PublicApps struct {
 // PublicAppsDefaultSort The order the page starts with (Dashboard settings)
 type PublicAppsDefaultSort string
 
+// PublicAssetSlot defines model for PublicAssetSlot.
+type PublicAssetSlot struct {
+	ContentType string                `json:"content_type"`
+	Origin      PublicAssetSlotOrigin `json:"origin"`
+
+	// Path The source file it was copied from
+	Path *string       `json:"path,omitempty"`
+	Slot AssetSlotName `json:"slot"`
+
+	// Url Where Hashi serves it, with its version
+	Url string `json:"url"`
+}
+
+// PublicAssetSlotOrigin defines model for PublicAssetSlot.Origin.
+type PublicAssetSlotOrigin string
+
+// PublicAssets defines model for PublicAssets.
+type PublicAssets struct {
+	// Background Show the background image on the public pages
+	Background bool `json:"background"`
+
+	// Slots Filled slots only
+	Slots []PublicAssetSlot `json:"slots"`
+
+	// Source Base address of the owner's asset folder; empty when none
+	Source string `json:"source"`
+}
+
+// PublicAssetsSettings defines model for PublicAssetsSettings.
+type PublicAssetsSettings struct {
+	Background bool   `json:"background"`
+	Source     string `json:"source"`
+}
+
 // PublicEndpoint defines model for PublicEndpoint.
 type PublicEndpoint struct {
 	Group string `json:"group"`
@@ -4283,6 +4379,14 @@ type PublicEndpoint struct {
 	State      MonitorState         `json:"state"`
 	Strip      []MonitorStripSample `json:"strip"`
 	Uptime24h  *float64             `json:"uptime_24h,omitempty"`
+}
+
+// PublicPageAssets Where each filled slot is served; a missing one is empty. background only when it is switched on.
+type PublicPageAssets struct {
+	Background *string `json:"background,omitempty"`
+	Icon       *string `json:"icon,omitempty"`
+	LogoDark   *string `json:"logo_dark,omitempty"`
+	LogoLight  *string `json:"logo_light,omitempty"`
 }
 
 // PublicPageLink defines model for PublicPageLink.
@@ -4303,6 +4407,9 @@ type PublicPages struct {
 
 // PublicStatus defines model for PublicStatus.
 type PublicStatus struct {
+	// Assets Where each filled slot is served; a missing one is empty. background only when it is switched on.
+	Assets *PublicPageAssets `json:"assets,omitempty"`
+
 	// CustomTheme The admin's palette (10-ui §2); the other roles are derived. Refused when text is unreadable.
 	CustomTheme *CustomTheme     `json:"custom_theme,omitempty"`
 	Endpoints   []PublicEndpoint `json:"endpoints"`
@@ -5763,6 +5870,11 @@ type GetMonitorEndpointParams struct {
 // GetMonitorEndpointParamsRange defines parameters for GetMonitorEndpoint.
 type GetMonitorEndpointParamsRange string
 
+// ListPublicAssetSourceParams defines parameters for ListPublicAssetSource.
+type ListPublicAssetSourceParams struct {
+	Dir *string `form:"dir,omitempty" json:"dir,omitempty"`
+}
+
 // PulseHeartbeatParams defines parameters for PulseHeartbeat.
 type PulseHeartbeatParams struct {
 	Authorization string `json:"Authorization"`
@@ -5929,6 +6041,12 @@ type PutNotificationRouteJSONRequestBody = NotificationRoute
 
 // DiscoverTelegramChatsJSONRequestBody defines body for DiscoverTelegramChats for application/json ContentType.
 type DiscoverTelegramChatsJSONRequestBody = TelegramDiscover
+
+// PutPublicAssetsJSONRequestBody defines body for PutPublicAssets for application/json ContentType.
+type PutPublicAssetsJSONRequestBody = PublicAssetsSettings
+
+// PutPublicAssetSlotJSONRequestBody defines body for PutPublicAssetSlot for application/json ContentType.
+type PutPublicAssetSlotJSONRequestBody = AssetSlotFill
 
 // CreatePulseAgentJSONRequestBody defines body for CreatePulseAgent for application/json ContentType.
 type CreatePulseAgentJSONRequestBody = PulseAgentCreate
@@ -6678,6 +6796,21 @@ type ServerInterface interface {
 	// DiscoverTelegramChats The chats that recently messaged a bot, so the admin can pick one; nothing is stored
 	// (POST /api/notifications/telegram/discover)
 	DiscoverTelegramChats(w http.ResponseWriter, r *http.Request)
+	// GetPublicAssets The public pages' icon, logos and background (07 §9)
+	// (GET /api/public-assets)
+	GetPublicAssets(w http.ResponseWriter, r *http.Request)
+	// PutPublicAssets Set the asset source and whether the background shows
+	// (PUT /api/public-assets)
+	PutPublicAssets(w http.ResponseWriter, r *http.Request)
+	// DeletePublicAssetSlot Empty a slot
+	// (DELETE /api/public-assets/slots/{slot})
+	DeletePublicAssetSlot(w http.ResponseWriter, r *http.Request, slot AssetSlotName)
+	// PutPublicAssetSlot Fill a slot from a file of the source (copied once) or from an upload
+	// (PUT /api/public-assets/slots/{slot})
+	PutPublicAssetSlot(w http.ResponseWriter, r *http.Request, slot AssetSlotName)
+	// ListPublicAssetSource One folder of the asset source, read now (subfolders and image files)
+	// (GET /api/public-assets/source)
+	ListPublicAssetSource(w http.ResponseWriter, r *http.Request, params ListPublicAssetSourceParams)
 	// GetPublicApps Public dashboard data (cached 15 s)
 	// (GET /api/public/apps)
 	GetPublicApps(w http.ResponseWriter, r *http.Request)
@@ -9308,6 +9441,119 @@ func (siw *ServerInterfaceWrapper) DiscoverTelegramChats(w http.ResponseWriter, 
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.DiscoverTelegramChats(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// GetPublicAssets operation middleware
+func (siw *ServerInterfaceWrapper) GetPublicAssets(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetPublicAssets(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// PutPublicAssets operation middleware
+func (siw *ServerInterfaceWrapper) PutPublicAssets(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.PutPublicAssets(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// DeletePublicAssetSlot operation middleware
+func (siw *ServerInterfaceWrapper) DeletePublicAssetSlot(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "slot" -------------
+	var slot AssetSlotName
+
+	err = runtime.BindStyledParameterWithOptions("simple", "slot", r.PathValue("slot"), &slot, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "slot", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.DeletePublicAssetSlot(w, r, slot)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// PutPublicAssetSlot operation middleware
+func (siw *ServerInterfaceWrapper) PutPublicAssetSlot(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "slot" -------------
+	var slot AssetSlotName
+
+	err = runtime.BindStyledParameterWithOptions("simple", "slot", r.PathValue("slot"), &slot, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "slot", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.PutPublicAssetSlot(w, r, slot)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ListPublicAssetSource operation middleware
+func (siw *ServerInterfaceWrapper) ListPublicAssetSource(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params ListPublicAssetSourceParams
+
+	// ------------- Optional query parameter "dir" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "dir", r.URL.Query(), &params.Dir, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "dir"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "dir", Err: err})
+		}
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListPublicAssetSource(w, r, params)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -12412,6 +12658,11 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/api/notifications/route", wrapper.PutNotificationRoute)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/notifications/deliveries", wrapper.ListNotificationDeliveries)
 	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/api/services/{id}/dashboard", wrapper.PutServiceDashboard)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/public-assets", wrapper.GetPublicAssets)
+	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/api/public-assets", wrapper.PutPublicAssets)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/public-assets/source", wrapper.ListPublicAssetSource)
+	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/api/public-assets/slots/{slot}", wrapper.DeletePublicAssetSlot)
+	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/api/public-assets/slots/{slot}", wrapper.PutPublicAssetSlot)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/public/status", wrapper.GetPublicStatus)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/public/apps", wrapper.GetPublicApps)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/settings", wrapper.GetSettings)
@@ -16313,6 +16564,201 @@ type DiscoverTelegramChatsdefaultApplicationProblemPlusJSONResponse struct {
 }
 
 func (response DiscoverTelegramChatsdefaultApplicationProblemPlusJSONResponse) VisitDiscoverTelegramChatsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(response.StatusCode)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetPublicAssetsRequestObject struct {
+}
+
+type GetPublicAssetsResponseObject interface {
+	VisitGetPublicAssetsResponse(w http.ResponseWriter) error
+}
+
+type GetPublicAssets200JSONResponse PublicAssets
+
+func (response GetPublicAssets200JSONResponse) VisitGetPublicAssetsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetPublicAssetsdefaultApplicationProblemPlusJSONResponse struct {
+	Body       Problem
+	StatusCode int
+}
+
+func (response GetPublicAssetsdefaultApplicationProblemPlusJSONResponse) VisitGetPublicAssetsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(response.StatusCode)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PutPublicAssetsRequestObject struct {
+	Body *PutPublicAssetsJSONRequestBody
+}
+
+type PutPublicAssetsResponseObject interface {
+	VisitPutPublicAssetsResponse(w http.ResponseWriter) error
+}
+
+type PutPublicAssets200JSONResponse PublicAssets
+
+func (response PutPublicAssets200JSONResponse) VisitPutPublicAssetsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PutPublicAssetsdefaultApplicationProblemPlusJSONResponse struct {
+	Body       Problem
+	StatusCode int
+}
+
+func (response PutPublicAssetsdefaultApplicationProblemPlusJSONResponse) VisitPutPublicAssetsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(response.StatusCode)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type DeletePublicAssetSlotRequestObject struct {
+	Slot AssetSlotName `json:"slot"`
+}
+
+type DeletePublicAssetSlotResponseObject interface {
+	VisitDeletePublicAssetSlotResponse(w http.ResponseWriter) error
+}
+
+type DeletePublicAssetSlot200JSONResponse PublicAssets
+
+func (response DeletePublicAssetSlot200JSONResponse) VisitDeletePublicAssetSlotResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type DeletePublicAssetSlotdefaultApplicationProblemPlusJSONResponse struct {
+	Body       Problem
+	StatusCode int
+}
+
+func (response DeletePublicAssetSlotdefaultApplicationProblemPlusJSONResponse) VisitDeletePublicAssetSlotResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(response.StatusCode)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PutPublicAssetSlotRequestObject struct {
+	Slot AssetSlotName `json:"slot"`
+	Body *PutPublicAssetSlotJSONRequestBody
+}
+
+type PutPublicAssetSlotResponseObject interface {
+	VisitPutPublicAssetSlotResponse(w http.ResponseWriter) error
+}
+
+type PutPublicAssetSlot200JSONResponse PublicAssets
+
+func (response PutPublicAssetSlot200JSONResponse) VisitPutPublicAssetSlotResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PutPublicAssetSlotdefaultApplicationProblemPlusJSONResponse struct {
+	Body       Problem
+	StatusCode int
+}
+
+func (response PutPublicAssetSlotdefaultApplicationProblemPlusJSONResponse) VisitPutPublicAssetSlotResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(response.StatusCode)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ListPublicAssetSourceRequestObject struct {
+	Params ListPublicAssetSourceParams
+}
+
+type ListPublicAssetSourceResponseObject interface {
+	VisitListPublicAssetSourceResponse(w http.ResponseWriter) error
+}
+
+type ListPublicAssetSource200JSONResponse AssetFolder
+
+func (response ListPublicAssetSource200JSONResponse) VisitListPublicAssetSourceResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ListPublicAssetSourcedefaultApplicationProblemPlusJSONResponse struct {
+	Body       Problem
+	StatusCode int
+}
+
+func (response ListPublicAssetSourcedefaultApplicationProblemPlusJSONResponse) VisitListPublicAssetSourceResponse(w http.ResponseWriter) error {
 
 	var buf bytes.Buffer
 	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
@@ -22273,6 +22719,21 @@ type StrictServerInterface interface {
 	// DiscoverTelegramChats The chats that recently messaged a bot, so the admin can pick one; nothing is stored
 	// (POST /api/notifications/telegram/discover)
 	DiscoverTelegramChats(ctx context.Context, request DiscoverTelegramChatsRequestObject) (DiscoverTelegramChatsResponseObject, error)
+	// GetPublicAssets The public pages' icon, logos and background (07 §9)
+	// (GET /api/public-assets)
+	GetPublicAssets(ctx context.Context, request GetPublicAssetsRequestObject) (GetPublicAssetsResponseObject, error)
+	// PutPublicAssets Set the asset source and whether the background shows
+	// (PUT /api/public-assets)
+	PutPublicAssets(ctx context.Context, request PutPublicAssetsRequestObject) (PutPublicAssetsResponseObject, error)
+	// DeletePublicAssetSlot Empty a slot
+	// (DELETE /api/public-assets/slots/{slot})
+	DeletePublicAssetSlot(ctx context.Context, request DeletePublicAssetSlotRequestObject) (DeletePublicAssetSlotResponseObject, error)
+	// PutPublicAssetSlot Fill a slot from a file of the source (copied once) or from an upload
+	// (PUT /api/public-assets/slots/{slot})
+	PutPublicAssetSlot(ctx context.Context, request PutPublicAssetSlotRequestObject) (PutPublicAssetSlotResponseObject, error)
+	// ListPublicAssetSource One folder of the asset source, read now (subfolders and image files)
+	// (GET /api/public-assets/source)
+	ListPublicAssetSource(ctx context.Context, request ListPublicAssetSourceRequestObject) (ListPublicAssetSourceResponseObject, error)
 	// GetPublicApps Public dashboard data (cached 15 s)
 	// (GET /api/public/apps)
 	GetPublicApps(ctx context.Context, request GetPublicAppsRequestObject) (GetPublicAppsResponseObject, error)
@@ -25458,6 +25919,146 @@ func (sh *strictHandler) DiscoverTelegramChats(w http.ResponseWriter, r *http.Re
 		sh.options.ResponseErrorHandlerFunc(w, r, err)
 	} else if validResponse, ok := response.(DiscoverTelegramChatsResponseObject); ok {
 		if err := validResponse.VisitDiscoverTelegramChatsResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// GetPublicAssets operation middleware
+func (sh *strictHandler) GetPublicAssets(w http.ResponseWriter, r *http.Request) {
+	var request GetPublicAssetsRequestObject
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.GetPublicAssets(ctx, request.(GetPublicAssetsRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "GetPublicAssets")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(GetPublicAssetsResponseObject); ok {
+		if err := validResponse.VisitGetPublicAssetsResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// PutPublicAssets operation middleware
+func (sh *strictHandler) PutPublicAssets(w http.ResponseWriter, r *http.Request) {
+	var request PutPublicAssetsRequestObject
+
+	var body PutPublicAssetsJSONRequestBody
+	if err := runtime.BindJSONBody(r, &body); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.PutPublicAssets(ctx, request.(PutPublicAssetsRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "PutPublicAssets")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(PutPublicAssetsResponseObject); ok {
+		if err := validResponse.VisitPutPublicAssetsResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// DeletePublicAssetSlot operation middleware
+func (sh *strictHandler) DeletePublicAssetSlot(w http.ResponseWriter, r *http.Request, slot AssetSlotName) {
+	var request DeletePublicAssetSlotRequestObject
+
+	request.Slot = slot
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.DeletePublicAssetSlot(ctx, request.(DeletePublicAssetSlotRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "DeletePublicAssetSlot")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(DeletePublicAssetSlotResponseObject); ok {
+		if err := validResponse.VisitDeletePublicAssetSlotResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// PutPublicAssetSlot operation middleware
+func (sh *strictHandler) PutPublicAssetSlot(w http.ResponseWriter, r *http.Request, slot AssetSlotName) {
+	var request PutPublicAssetSlotRequestObject
+
+	request.Slot = slot
+
+	var body PutPublicAssetSlotJSONRequestBody
+	if err := runtime.BindJSONBody(r, &body); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.PutPublicAssetSlot(ctx, request.(PutPublicAssetSlotRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "PutPublicAssetSlot")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(PutPublicAssetSlotResponseObject); ok {
+		if err := validResponse.VisitPutPublicAssetSlotResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// ListPublicAssetSource operation middleware
+func (sh *strictHandler) ListPublicAssetSource(w http.ResponseWriter, r *http.Request, params ListPublicAssetSourceParams) {
+	var request ListPublicAssetSourceRequestObject
+
+	request.Params = params
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.ListPublicAssetSource(ctx, request.(ListPublicAssetSourceRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "ListPublicAssetSource")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(ListPublicAssetSourceResponseObject); ok {
+		if err := validResponse.VisitListPublicAssetSourceResponse(w); err != nil {
 			sh.options.ResponseErrorHandlerFunc(w, r, err)
 		}
 	} else if response != nil {

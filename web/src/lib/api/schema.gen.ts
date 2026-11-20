@@ -1333,6 +1333,59 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/public-assets": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** The public pages' icon, logos and background (07 §9) */
+        get: operations["getPublicAssets"];
+        /** Set the asset source and whether the background shows */
+        put: operations["putPublicAssets"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/public-assets/source": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** One folder of the asset source, read now (subfolders and image files) */
+        get: operations["listPublicAssetSource"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/public-assets/slots/{slot}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Fill a slot from a file of the source (copied once) or from an upload */
+        put: operations["putPublicAssetSlot"];
+        post?: never;
+        /** Empty a slot */
+        delete: operations["deletePublicAssetSlot"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/public/status": {
         parameters: {
             query?: never;
@@ -4245,6 +4298,49 @@ export interface components {
             /** Format: double */
             uptime_24h?: number;
         };
+        PublicAssets: {
+            /** @description Base address of the owner's asset folder; empty when none */
+            source: string;
+            /** @description Show the background image on the public pages */
+            background: boolean;
+            /** @description Filled slots only */
+            slots: components["schemas"]["PublicAssetSlot"][];
+        };
+        PublicAssetsSettings: {
+            source: string;
+            background: boolean;
+        };
+        PublicAssetSlot: {
+            slot: components["schemas"]["AssetSlotName"];
+            /** @enum {string} */
+            origin: "source" | "upload";
+            /** @description The source file it was copied from */
+            path?: string;
+            content_type: string;
+            /** @description Where Hashi serves it, with its version */
+            url: string;
+        };
+        /** @enum {string} */
+        AssetSlotName: "icon" | "logo_dark" | "logo_light" | "background";
+        /** @description Exactly one: path (a file of the source) or data (an upload: PNG, WebP, SVG or ICO; 1 MB, background 5 MB) */
+        AssetSlotFill: {
+            path?: string;
+            /** Format: byte */
+            data?: string;
+        };
+        AssetFolder: {
+            /** @description The folder, relative to the source, ending in / (empty: the source itself) */
+            dir: string;
+            dirs: string[];
+            files: string[];
+        };
+        /** @description Where each filled slot is served; a missing one is empty. background only when it is switched on. */
+        PublicPageAssets: {
+            icon?: string;
+            logo_dark?: string;
+            logo_light?: string;
+            background?: string;
+        };
         PublicStatus: {
             title: string;
             theme: string;
@@ -4253,6 +4349,7 @@ export interface components {
             updated_at?: string;
             /** @description Show the endpoints under their categories, in the order given */
             grouped?: boolean;
+            assets?: components["schemas"]["PublicPageAssets"];
             endpoints: components["schemas"]["PublicEndpoint"][];
         };
         PublicApp: {
@@ -4272,6 +4369,7 @@ export interface components {
             default_sort: "name" | "group" | "status";
             /** Format: date-time */
             updated_at?: string;
+            assets?: components["schemas"]["PublicPageAssets"];
             apps: components["schemas"]["PublicApp"][];
         };
         Problem: {
@@ -7940,6 +8038,125 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    getPublicAssets: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Assets */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PublicAssets"];
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    putPublicAssets: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PublicAssetsSettings"];
+            };
+        };
+        responses: {
+            /** @description Saved */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PublicAssets"];
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    listPublicAssetSource: {
+        parameters: {
+            query?: {
+                dir?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Folder */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AssetFolder"];
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    putPublicAssetSlot: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                slot: components["schemas"]["AssetSlotName"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AssetSlotFill"];
+            };
+        };
+        responses: {
+            /** @description Saved */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PublicAssets"];
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    deletePublicAssetSlot: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                slot: components["schemas"]["AssetSlotName"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Emptied */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PublicAssets"];
+                };
             };
             default: components["responses"]["Problem"];
         };

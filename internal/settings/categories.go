@@ -75,6 +75,28 @@ type Dashboard struct {
 	NewServicesVisible bool   `json:"new_services_visible"`
 }
 
+// PublicAssets: the public pages' icon, logos and background (07 §9). Source is the owner's asset folder (empty: none);
+// Slots says what each slot holds, its file lives in <data>/assets. Background shows only when switched on.
+type PublicAssets struct {
+	Source     string               `json:"source"`
+	Background bool                 `json:"background"`
+	Slots      map[string]AssetSlot `json:"slots"`
+}
+
+// AssetSlot is what one slot holds: a file copied from the source (Path names it) or uploaded.
+type AssetSlot struct {
+	Origin      string `json:"origin"`
+	Path        string `json:"path,omitempty"`
+	ContentType string `json:"content_type"`
+	ETag        string `json:"etag"`
+}
+
+// Asset origins.
+const (
+	AssetFromSource = "source"
+	AssetUploaded   = "upload"
+)
+
 // StatusPage: the public status page's categories, the endpoints' groups (07 §7). Order lists category names first to
 // last; categories not in it follow by name. Hidden ones are left out. Grouped false shows one list sorted by name.
 type StatusPage struct {
@@ -211,6 +233,8 @@ func defaults(c Category) Category {
 		return Dashboard{DefaultSort: SortGroup, NewServicesVisible: true}
 	case StatusPage:
 		return StatusPage{Grouped: true, Order: []string{}, Hidden: []string{}}
+	case PublicAssets:
+		return PublicAssets{Slots: map[string]AssetSlot{}}
 	case FirewallDefaults:
 		return FirewallDefaults{NetBirdMode: "peer", MSSClamp: true}
 	case Security:
@@ -243,12 +267,13 @@ func defaults(c Category) Category {
 	return c
 }
 
-func (General) Key() string    { return "general" }
-func (Security) Key() string   { return "security" }
-func (Appearance) Key() string { return "appearance" }
-func (Monitoring) Key() string { return "monitoring" }
-func (Dashboard) Key() string  { return "dashboard" }
-func (StatusPage) Key() string { return "status_page" }
+func (General) Key() string      { return "general" }
+func (Security) Key() string     { return "security" }
+func (Appearance) Key() string   { return "appearance" }
+func (Monitoring) Key() string   { return "monitoring" }
+func (Dashboard) Key() string    { return "dashboard" }
+func (PublicAssets) Key() string { return "public_assets" }
+func (StatusPage) Key() string   { return "status_page" }
 
 func (FirewallDefaults) Key() string { return "firewall_defaults" }
 func (AgentDNS) Key() string         { return "internal_agent_dns" }
@@ -530,6 +555,25 @@ func (m Monitoring) Validate() error {
 func (d Dashboard) Validate() error {
 	if d.DefaultSort != SortName && d.DefaultSort != SortGroup && d.DefaultSort != SortStatus {
 		return invalid("sort by name, group or status")
+	}
+	return nil
+}
+
+// Validate checks PublicAssets.
+func (a PublicAssets) Validate() error {
+	if a.Source != "" {
+		u, err := url.Parse(a.Source)
+		if err != nil || (u.Scheme != "https" && u.Scheme != "http") || u.Host == "" || u.RawQuery != "" || u.Fragment != "" {
+			return invalid("the asset source must be an http or https address without a query")
+		}
+	}
+	for k, v := range a.Slots {
+		if k != "icon" && k != "logo_dark" && k != "logo_light" && k != "background" {
+			return invalid("unknown asset slot %q", k)
+		}
+		if (v.Origin != AssetFromSource && v.Origin != AssetUploaded) || v.ContentType == "" || v.ETag == "" {
+			return invalid("asset slot %q is incomplete", k)
+		}
 	}
 	return nil
 }

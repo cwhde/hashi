@@ -59,18 +59,24 @@ apps: 33 answer with `<link rel=icon|apple-touch-icon|manifest>`, 15 answer 401/
 login), 1 redirects to the sign-in page (its icon would be the sign-in app's), 4 fail (404/502).
 
 PR A, public page assets (30):
-- [ ] Spec first (`docs(spec):`): the asset source is a setting, empty by default (the repo is public, so no owner
+- [x] Spec first (`docs(spec):`): the asset source is a setting, empty by default (the repo is public, so no owner
   host is built in; empty means Hashi's own 橋 icon and the title as text). Hashi downloads each chosen file once into
   `/data/assets` and serves it from there; the public pages never load from the source. The mp3 is dropped: nothing
   plays it. Background stays off by default.
-- [ ] Four slots: icon, logo for dark themes, logo for light themes, background. Each is either downloaded from the
+- [x] Four slots: icon, logo for dark themes, logo for light themes, background. Each is either downloaded from the
   source (a path under it, picked from the source's listing) or uploaded (png, webp, svg, ico; size-capped; svg served
   with a locked-down CSP). Reset returns a slot to empty. API + store, served at `/assets/<slot>` on the admin and both
   public listeners, cached with an ETag.
-- [ ] Public pages use them: icon as favicon and touch icon, the logo in the header (alt = page title), the background
+- [x] Public pages use them: icon as favicon and touch icon, the logo in the header (alt = page title), the background
   behind a readable scrim when on. Settings → Public pages gets the controls (10c checklist).
-- [ ] Tests: download once (a second load makes no request), upload limits and types, svg CSP, both public listeners
+- [x] Tests: download once (a second load makes no request), upload limits and types, svg CSP, both public listeners
   serve the slots and nothing else, e2e sets a logo and sees it on the public page.
+  Done (2026-11-20): Settings → Public pages → Look: asset source, four slots with Choose (a folder view of the
+  source with thumbnails), Upload and Remove, all saved with the category's Save; "Show the background" appears once a
+  background is set. Each public header shows the logo for its theme mode or the title. e2e: a stand-in source, a logo
+  picked from it, the icon (SVG) and light logo uploaded, the public page shows the logo and icon from Hashi, the
+  source gets no request from the public page. Found by the listing contract: the owner's listing header holds a
+  script that builds links, so script and style blocks are skipped before reading links.
 
 PR B, app icons (149):
 - [ ] Per app (service or DNS entry on the dashboard): icon = custom (uploaded, or picked from selfh.st with a search

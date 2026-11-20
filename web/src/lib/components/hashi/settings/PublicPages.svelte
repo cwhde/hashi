@@ -13,27 +13,37 @@
 	import { withReauth } from '#lib/auth/reauth.ts';
 	import { Draft, guardUnsaved } from '#lib/unsaved.svelte.ts';
 	import { Saver } from '#lib/settings/saver.svelte.ts';
+	import { SvelteMap } from 'svelte/reactivity';
+	import AssetSlots, { type Pending, type SlotName } from './AssetSlots.svelte';
 
 	type D = Schemas['DashboardSettings'];
 	let pages = $state<{ dashboard: boolean; status: boolean } | null>(null);
 	let d = $state<D | null>(null);
 	let sp = $state<Schemas['StatusPageSettings'] | null>(null);
 	let cats = $state<string[]>([]); // categories of the public checks, in the order set
+	// The public pages' icon, logos and background (07 §9, bug 30).
+	let assets = $state<Schemas['PublicAssets'] | null>(null);
+	let look = $state<Schemas['PublicAssetsSettings']>({ source: '', background: false });
+	let pending = $state<Partial<Record<SlotName, Pending>>>({});
+	const files = new SvelteMap<SlotName, File>();
 	let error = $state('');
-	const draft = new Draft(() => [pages, d, sp, cats]);
+	const draft = new Draft(() => [pages, d, sp, cats, look, pending]);
 	const saver = new Saver();
 	guardUnsaved(() => draft.dirty);
 	onMount(async () => {
-		const [a, b, c, e] = await Promise.all([
+		const [a, b, c, e, f] = await Promise.all([
 			api.GET('/api/settings/appearance'),
 			api.GET('/api/settings/dashboard'),
 			api.GET('/api/settings/status-page'),
-			api.GET('/api/monitor/endpoints')
+			api.GET('/api/monitor/endpoints'),
+			api.GET('/api/public-assets')
 		]);
-		if (!a.data || !b.data || !c.data || !e.data) {
-			error = problemText(a.error ?? b.error ?? c.error ?? e.error);
+		if (!a.data || !b.data || !c.data || !e.data || !f.data) {
+			error = problemText(a.error ?? b.error ?? c.error ?? e.error ?? f.error);
 			return;
 		}
+		assets = f.data;
+		look = { source: f.data.source, background: f.data.background };
 		pages = { dashboard: a.data.public_dashboard_enabled, status: a.data.public_status_enabled };
 		d = b.data;
 		sp = c.data;
@@ -52,6 +62,38 @@
 	function show(g: string, on: boolean) {
 		sp!.hidden = on ? sp!.hidden.filter((x) => x !== g) : [...sp!.hidden, g];
 	}
+	// The source first: a file picked from it is read from the saved source.
+	async function saveAssets() {
+		const r = await api.PUT('/api/public-assets', {
+			body: { ...look, source: look.source.trim() }
+		});
+		if (!r.data) throw r.error;
+		assets = r.data;
+		for (const [slot, p] of Object.entries(pending) as [SlotName, Pending][]) {
+			const path = { params: { path: { slot } } };
+			const res =
+				'remove' in p
+					? await api.DELETE('/api/public-assets/slots/{slot}', path)
+					: await api.PUT('/api/public-assets/slots/{slot}', {
+							...path,
+							body: 'path' in p ? { path: p.path } : { data: await base64(files.get(slot)!) }
+						});
+			if (!res.data) throw res.error;
+			assets = res.data;
+			const next = { ...pending };
+			delete next[slot];
+			pending = next;
+			files.delete(slot);
+		}
+		look = { source: assets.source, background: assets.background };
+	}
+	const base64 = (f: File) =>
+		new Promise<string>((done, fail) => {
+			const r = new FileReader();
+			r.onload = () => done(String(r.result).replace(/^data:[^,]*,/, ''));
+			r.onerror = () => fail(r.error);
+			r.readAsDataURL(f);
+		});
 	const save = () =>
 		saver.run(
 			async () => {
@@ -76,6 +118,7 @@
 				});
 				if (!s.data) throw s.error;
 				sp = s.data;
+				await saveAssets();
 			},
 			'Saved.',
 			draft
@@ -154,6 +197,11 @@
 			{/if}
 		</div>
 	</Panel>
+	{#if assets}
+		<Panel title="Look">
+			<AssetSlots bind:look bind:pending saved={assets} {files} />
+		</Panel>
+	{/if}
 	<SaveBar {saver} dirty={draft.dirty} onsave={save} />
 {:else}<Skeleton class="h-40 rounded-2xl" />
 {/if}

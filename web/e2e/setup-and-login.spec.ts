@@ -2,6 +2,8 @@ import AxeBuilder from '@axe-core/playwright';
 import { expect, test, type Page } from '@playwright/test';
 import { openSync, readFileSync, writeFileSync } from 'node:fs';
 import { execFileSync, spawn } from 'node:child_process';
+import { createServer } from 'node:http';
+import type { AddressInfo } from 'node:net';
 import { logPath, statePath } from './global-setup';
 
 // S1 gate (11-delivery.md §3): passkey registration and login pass with a virtual authenticator, end to end through
@@ -1120,6 +1122,65 @@ test('setup with a passkey, then sign in with it', async ({ page, request }) => 
 	expect(await (await page.request.get(`${state.appsURL}/api/public/apps`)).json()).toMatchObject({
 		default_sort: 'name'
 	});
+	// Public page look (07 §9, bug 30): a logo picked from the owner's asset source is copied into Hashi once; an icon
+	// and the light logo are uploaded; the public page loads all of them from Hashi, never from the source.
+	const png = Buffer.from(
+		'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==',
+		'base64'
+	);
+	const sourceHits: string[] = [];
+	const source = createServer((req, res) => {
+		sourceHits.push(req.url ?? '');
+		const pages: Record<string, string> = {
+			'/logo/': '<a href="?C=N;O=D">Name</a><a href="/">Parent</a><a href="2k/">2k/</a>',
+			'/logo/2k/': '<a href="logo_w_bd.png">logo_w_bd.png</a><a href="notes.txt">notes.txt</a>'
+		};
+		if (req.url === '/logo/2k/logo_w_bd.png') {
+			res.setHeader('Content-Type', 'image/png');
+			res.end(png);
+		} else if (req.url && pages[req.url]) res.end(pages[req.url]);
+		else res.writeHead(404).end();
+	});
+	await new Promise<void>((done) => source.listen(0, '127.0.0.1', done));
+	const sourceURL = `http://127.0.0.1:${(source.address() as AddressInfo).port}/`;
+	await page.goto(`${state.baseURL}/settings?category=public`);
+	await page.getByLabel('Asset source').fill(sourceURL);
+	await page.getByRole('button', { name: 'Save', exact: true }).click();
+	await expect(page.getByRole('status')).toContainText('Saved');
+	await page.getByRole('button', { name: 'Choose Logo on dark themes from the source' }).click();
+	const folder = page.getByRole('dialog');
+	await folder.getByRole('button', { name: '2k' }).click();
+	await expect(folder.getByText('notes.txt')).toHaveCount(0);
+	await folder.getByRole('button', { name: 'logo_w_bd.png' }).click();
+	await page
+		.getByLabel('Upload Logo on light themes')
+		.setInputFiles({ name: 'light.png', mimeType: 'image/png', buffer: png });
+	await page.getByLabel('Upload Icon').setInputFiles({
+		name: 'icon.svg',
+		mimeType: 'image/svg+xml',
+		buffer: Buffer.from(
+			'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1 1"><rect width="1" height="1"/></svg>'
+		)
+	});
+	await expect(page.getByRole('list', { name: 'Public page assets' })).toContainText(
+		'logo/2k/logo_w_bd.png'
+	);
+	await page.screenshot({ path: 'test-results/13-8-look.png', fullPage: true });
+	await page.getByRole('button', { name: 'Save', exact: true }).click();
+	await expect(page.getByRole('status')).toContainText('Saved');
+	const seenBefore = sourceHits.length; // the admin's folder view shows thumbnails from the source; visitors never
+	await page.goto(state.appsURL);
+	const title = (await (await page.request.get(`${state.appsURL}/api/public/apps`)).json()).title;
+	await expect(
+		page.getByRole('heading', { level: 1 }).getByRole('img', { name: title })
+	).toBeVisible();
+	await expect(page.locator('link[rel="icon"][href^="/assets/icon?v="]')).toHaveCount(1);
+	await page.screenshot({ path: 'test-results/13-8-public-apps.png' });
+	const icon = await page.request.get(`${state.appsURL}/assets/icon`);
+	expect(icon.headers()['content-type']).toBe('image/svg+xml');
+	expect(icon.headers()['content-security-policy']).toContain("default-src 'none'");
+	expect(sourceHits.slice(seenBefore), 'the public page loaded from the source').toEqual([]);
+	source.close();
 	// The public pages draw in the browser: a crash there shows "500" while the server answers 200 (bug 139).
 	for (const url of [state.appsURL, state.statusURL]) {
 		const crashes: string[] = [];
