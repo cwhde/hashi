@@ -1274,6 +1274,7 @@ Decisions made in S0:
 
 ## Log
 
+- 2026-11-20 · deploy `v0.13.8-beta.1` (`61a6ef4`, the owner's OK) · smoke ok (readyz, version, SPA, both public pages), schema 32 → 33 (`app_icons`). Public page icon, logos and background (30); app icons (149): 39 of 54 dashboard apps have an icon found by Hashi a minute after start, the rest show their letter (sonarr, radarr and prowlarr among them; pick from the library). Charts (155, 156) and 13.7's search fix ship with it. CI ran twice for this release (bump pushed separately); the second run was cancelled.
 - 2026-11-20 · deploy `v0.13.7-beta.1` (`c5188e0`, the owner's OK) · smoke ok (readyz, version, SPA, both public pages). Global search (4); searches answered in about 2.3 s because of a slow AdGuard instance (154), fixed after the deploy.
 - 2026-11-20 · deploy `v0.13.6-beta.1` (`059003e`, the owner's OK) · smoke ok (readyz, version, SPA, both public pages), schema 31 → 32 (request limit 300 → 1600, `l7_errors` source). Then, with the owner's yes and passkey: new connections per minute 120 → 150 in Settings; the firewall plan applied by itself. In it: 18, 26, 81, 89.
 - 2026-11-19 · deploy `v0.13.4-beta.4` (`530a613`, the owner's OK) · smoke ok (readyz, version, SPA, both public pages). Security hourly rollup ran: first run 168 hours in 3.7 s, caught up within about 15 min. Dashboard call on prod after: 1h 0.04 s, 24h 0.40 s, 7d 0.16 s (was 2.2 s), 30d 0.35 s (was 5.7 s). Sign-in page redesign (136), stream message (137), hourly rollup and retention (99).
