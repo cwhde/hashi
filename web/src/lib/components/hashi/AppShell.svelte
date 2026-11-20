@@ -13,7 +13,7 @@
 	import { cn } from '#lib/utils.ts';
 	import * as DropdownMenu from '#lib/components/ui/dropdown-menu/index.ts';
 	import * as Sheet from '#lib/components/ui/sheet/index.ts';
-	import * as Command from '#lib/components/ui/command/index.ts';
+	import SearchDialog from '#lib/components/hashi/SearchDialog.svelte';
 	import { Button } from '#lib/components/ui/button/index.ts';
 	import {
 		Pin,
@@ -220,7 +220,7 @@
 				class="hidden h-8 w-64 items-center gap-2 rounded-[10px] border bg-surface px-2.5 text-md text-muted-foreground hover:text-foreground lg:flex"
 			>
 				<Search class="size-4" />
-				<span class="flex-1 text-left">Search IPs, domains, pages</span>
+				<span class="flex-1 text-left">Search</span>
 				<kbd class="text-2xs">⌘K</kbd>
 			</button>
 			<Button
@@ -359,29 +359,4 @@
 
 {#if live}<VaultUnlockDialog bind:open={unlockOpen} /><LeaveDialog />{/if}
 
-<Command.Dialog bind:open={searchOpen}>
-	<Command.Input placeholder="IP, CIDR, ASN, domain or page…" />
-	<Command.List>
-		<Command.Empty>No match. Try an IP like 192.0.2.201 or a domain.</Command.Empty>
-		{#if !live}<Command.Group heading="Addresses">
-				<Command.Item onSelect={() => (searchOpen = false)}>192.0.2.201 · banned · NL</Command.Item>
-				<Command.Item onSelect={() => (searchOpen = false)}
-					>203.0.113.9 · challenged · DE</Command.Item
-				>
-			</Command.Group>
-			<Command.Group heading="Services">
-				<Command.Item onSelect={() => (searchOpen = false)}>git.example.com</Command.Item>
-				<Command.Item onSelect={() => (searchOpen = false)}>media.example.com</Command.Item>
-			</Command.Group>{/if}
-		<Command.Group heading="Pages">
-			{#each nav.flatMap((g) => g.items) as item (item.href)}
-				<Command.Item
-					onSelect={() => {
-						searchOpen = false;
-						goto(item.href);
-					}}>{item.label}</Command.Item
-				>
-			{/each}
-		</Command.Group>
-	</Command.List>
-</Command.Dialog>
+<SearchDialog bind:open={searchOpen} pages={nav.flatMap((g) => g.items)} live={!!live} />

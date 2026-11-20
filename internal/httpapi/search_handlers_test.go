@@ -4,6 +4,8 @@ import (
 	"context"
 	"io"
 	"log/slog"
+	"os"
+	"strings"
 	"testing"
 
 	"git.juzo.io/juzo/hashi/internal/audit"
@@ -95,5 +97,38 @@ func TestSearchRanksAndCaps(t *testing.T) {
 	}
 	if g.More != 1 {
 		t.Errorf("more = %d, want 1 (\"a\" doesn't match)", g.More)
+	}
+}
+
+// "gitea waf" opens the service's WAF tab; "gitea" alone opens the page.
+func TestSearchOpensAnObjectsTab(t *testing.T) {
+	hits := []searchHit{{title: "gitea", href: "/services/1"}, {title: "grafana", href: "/services/2"}}
+	q := newSearchQuery("gitea waf")
+	g := q.group(gen.SearchGroupKindService, "Services", q.withTabs(hits, serviceTabs), false)
+	if g == nil || len(g.Results) != 1 || g.Results[0].Title != "gitea · WAF" || g.Results[0].Href != "/services/1?tab=waf" {
+		t.Fatalf("%+v", g)
+	}
+	q = newSearchQuery("gitea")
+	g = q.group(gen.SearchGroupKindService, "Services", q.withTabs(hits, serviceTabs), false)
+	if g == nil || len(g.Results) != 1 || g.Results[0].Href != "/services/1" {
+		t.Fatalf("%+v", g)
+	}
+}
+
+// The tab lists above copy the pages' tabs; this keeps them true when a page renames or drops one.
+func TestSearchTabsExistOnTheirPages(t *testing.T) {
+	pages := map[string][]objectTab{
+		"services/[id]": serviceTabs, "firewall/[id]": firewallTabs, "ip-sets/[id]": ipSetTabs,
+	}
+	for page, tabs := range pages {
+		src, err := os.ReadFile("../../web/src/routes/(app)/" + page + "/+page.svelte")
+		if err != nil {
+			t.Fatal(err)
+		}
+		for _, tab := range tabs {
+			if !strings.Contains(string(src), `value="`+tab.value+`"`) || !strings.Contains(string(src), tab.label) {
+				t.Errorf("%s has no tab %q labelled %q", page, tab.value, tab.label)
+			}
+		}
 	}
 }

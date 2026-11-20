@@ -2,6 +2,7 @@
 	import { hrefWithTab, tabFrom } from '#lib/url-tab.ts';
 	import UserMiddlewares from '#lib/components/hashi/traefik/UserMiddlewares.svelte';
 	import { onMount } from 'svelte';
+	import { findKey, reveal } from '#lib/find.ts';
 	import { goto } from '$app/navigation';
 	import { page } from '$app/state';
 	import PageHeader from '#lib/components/hashi/PageHeader.svelte';
@@ -46,7 +47,11 @@
 		certs = k.data.certificates;
 		loaded = true;
 	}
-	onMount(() => load().catch((e) => (loadError = problemText(e))));
+	onMount(() => {
+		load().catch((e) => (loadError = problemText(e)));
+		const f = findKey(page.url);
+		if (f) void reveal(f);
+	});
 
 	const healthOf = (h: Conn['health']): Health =>
 		({
@@ -160,65 +165,67 @@
 
 		<Tabs.Content value="hosts" class="space-y-4">
 			{#each conns as c (c.id)}
-				<Panel>
-					<div class="grid gap-5 lg:grid-cols-[18rem_minmax(0,1fr)]">
-						<div class="space-y-3">
-							<div>
-								<div class="flex items-center gap-2 text-lg font-semibold">
-									{c.name}<StatusBadge state={healthOf(c.health)} />
+				<div data-find={c.id}>
+					<Panel>
+						<div class="grid gap-5 lg:grid-cols-[18rem_minmax(0,1fr)]">
+							<div class="space-y-3">
+								<div>
+									<div class="flex items-center gap-2 text-lg font-semibold">
+										{c.name}<StatusBadge state={healthOf(c.health)} />
+									</div>
+									<div class="text-sm text-muted-foreground">
+										SSH <Mono>{c.user}@{c.host}:{c.port}</Mono>{#if c.os_name}{' '}<span
+												>&nbsp;· {c.os_name}</span
+											>{/if}
+									</div>
 								</div>
-								<div class="text-sm text-muted-foreground">
-									SSH <Mono>{c.user}@{c.host}:{c.port}</Mono>{#if c.os_name}{' '}<span
-											>&nbsp;· {c.os_name}</span
-										>{/if}
+								<dl class="grid grid-cols-2 gap-y-2 text-md">
+									<dt class="text-muted-foreground">Version</dt>
+									<dd>{c.installed_version || 'not installed yet'}</dd>
+									<dt class="text-muted-foreground">Checked</dt>
+									<dd>{c.last_validated_at ? fmtTime(c.last_validated_at) : 'never'}</dd>
+									<dt class="text-muted-foreground">Host key</dt>
+									<dd class="truncate"><Mono>{c.host_key_fingerprint}</Mono></dd>
+								</dl>
+								{#if c.health === 'failed' && c.last_error}
+									<p class="rounded-xl border border-bad/25 bg-bad/10 p-3 text-sm text-bad-text">
+										{c.last_error}
+									</p>
+								{/if}
+								<Button size="sm" variant="outline" onclick={() => plan(c)} disabled={!!busy}
+									><RefreshCw />{busy === 'plan:' + c.id ? 'Checking…' : 'Check and sync'}</Button
+								>
+							</div>
+							<div class="min-w-0">
+								<div class="mb-1.5 text-xs font-medium text-muted-foreground">
+									Files Hashi applied on {c.name}
 								</div>
+								{#if c.files.length}
+									<ul class="divide-y rounded-xl border" aria-label="Files on {c.name}">
+										{#each c.files as f (f.path)}
+											<li class="flex items-center gap-3 px-3 py-2 text-md">
+												<FileCode2 class="size-4 shrink-0 text-muted-foreground" />
+												<span class="min-w-0 flex-1 truncate" title={f.path}
+													><Mono>{base(f.path)}</Mono></span
+												>
+												<span class="hidden text-xs text-muted-foreground sm:inline"
+													><Mono>{short(f.sha256)}</Mono></span
+												>
+												<span class="hidden text-xs text-muted-foreground md:inline"
+													>{fmtTime(f.applied_at)}</span
+												>
+											</li>
+										{/each}
+									</ul>
+								{:else}
+									<p class="rounded-xl border p-3 text-md text-muted-foreground">
+										Nothing applied yet.
+									</p>
+								{/if}
 							</div>
-							<dl class="grid grid-cols-2 gap-y-2 text-md">
-								<dt class="text-muted-foreground">Version</dt>
-								<dd>{c.installed_version || 'not installed yet'}</dd>
-								<dt class="text-muted-foreground">Checked</dt>
-								<dd>{c.last_validated_at ? fmtTime(c.last_validated_at) : 'never'}</dd>
-								<dt class="text-muted-foreground">Host key</dt>
-								<dd class="truncate"><Mono>{c.host_key_fingerprint}</Mono></dd>
-							</dl>
-							{#if c.health === 'failed' && c.last_error}
-								<p class="rounded-xl border border-bad/25 bg-bad/10 p-3 text-sm text-bad-text">
-									{c.last_error}
-								</p>
-							{/if}
-							<Button size="sm" variant="outline" onclick={() => plan(c)} disabled={!!busy}
-								><RefreshCw />{busy === 'plan:' + c.id ? 'Checking…' : 'Check and sync'}</Button
-							>
 						</div>
-						<div class="min-w-0">
-							<div class="mb-1.5 text-xs font-medium text-muted-foreground">
-								Files Hashi applied on {c.name}
-							</div>
-							{#if c.files.length}
-								<ul class="divide-y rounded-xl border" aria-label="Files on {c.name}">
-									{#each c.files as f (f.path)}
-										<li class="flex items-center gap-3 px-3 py-2 text-md">
-											<FileCode2 class="size-4 shrink-0 text-muted-foreground" />
-											<span class="min-w-0 flex-1 truncate" title={f.path}
-												><Mono>{base(f.path)}</Mono></span
-											>
-											<span class="hidden text-xs text-muted-foreground sm:inline"
-												><Mono>{short(f.sha256)}</Mono></span
-											>
-											<span class="hidden text-xs text-muted-foreground md:inline"
-												>{fmtTime(f.applied_at)}</span
-											>
-										</li>
-									{/each}
-								</ul>
-							{:else}
-								<p class="rounded-xl border p-3 text-md text-muted-foreground">
-									Nothing applied yet.
-								</p>
-							{/if}
-						</div>
-					</div>
-				</Panel>
+					</Panel>
+				</div>
 			{:else}
 				<Panel>
 					<div class="flex items-center gap-3 text-md text-muted-foreground">

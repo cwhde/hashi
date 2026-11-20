@@ -56,7 +56,8 @@
 	let loadError = $state('');
 	let outcome = $state<{ text: string; bad: boolean } | null>(null);
 
-	let q = $state('');
+	// A search result opens the set with its own query in the items search (?q=, bug 4).
+	let q = $state(page.url.searchParams.get('q') ?? '');
 	const usedAsTarget = $derived(consumers.some((c) => c.position === 'target'));
 
 	let nextCursor = $state('');

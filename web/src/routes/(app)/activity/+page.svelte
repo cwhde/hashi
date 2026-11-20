@@ -36,9 +36,13 @@
 				.includes(filter.toLowerCase())
 		)
 	);
+	// A search result opens the entries of one target (?target=, bug 4); the server filters, so older ones show too.
+	const only = $derived(page.url.searchParams.get('target') ?? '');
 	async function loadAudit(more = false) {
 		const res = await api.GET('/api/activity/audit', {
-			params: { query: { limit: 100, cursor: more ? cursor : undefined } }
+			params: {
+				query: { limit: 100, cursor: more ? cursor : undefined, target: only || undefined }
+			}
 		});
 		if (res.error || !res.data) {
 			auditError = problemText(res.error);
@@ -100,8 +104,12 @@
 		error: 'text-bad-text'
 	};
 
-	onMount(() => {
+	$effect(() => {
+		void only;
+		events = null;
 		loadAudit();
+	});
+	onMount(() => {
 		loadJobs();
 		pollLog();
 		const t = setInterval(() => {
@@ -172,6 +180,10 @@
 						aria-label="Filter audit entries"
 					/>
 				</div>
+				{#if only}<p class="mt-2 text-sm text-muted-foreground">
+						Only entries for <Mono>{only}</Mono>.
+						<a href="/activity" class="text-foreground underline underline-offset-2">Show all</a>
+					</p>{/if}
 			</div>
 			{#if auditError}{@render error(auditError)}
 			{:else if !events}{@render loading()}

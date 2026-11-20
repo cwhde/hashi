@@ -22,7 +22,9 @@
 	let error = $state('');
 	let busy = $state(false);
 	const draft = new Draft(() => form);
-	guardUnsaved(() => draft.dirty);
+	// A suggested challenge page is not saved yet, so Save stays on, but only the owner's own edits ask before leaving.
+	const shown = new Draft(() => form);
+	guardUnsaved(() => shown.dirty);
 
 	function take(c: Schemas['CaptchaSettings']) {
 		info = c;
@@ -38,6 +40,7 @@
 			admin_service_id: c.admin_service_id ?? ''
 		};
 		draft.mark();
+		shown.mark();
 	}
 
 	onMount(async () => {
@@ -53,6 +56,7 @@
 		take(c.data);
 		if (form && !form.challenge_domain && g.data?.root_domain)
 			form.challenge_domain = `captcha.hashi.${g.data.root_domain}`;
+		shown.mark();
 		services = (sv.data?.services ?? []).filter((s) => s.origin === 'user');
 	});
 

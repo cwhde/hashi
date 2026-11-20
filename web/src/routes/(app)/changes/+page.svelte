@@ -1,5 +1,7 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
+	import { page } from '$app/state';
+	import { findKey, reveal } from '#lib/find.ts';
 	import PageHeader from '#lib/components/hashi/PageHeader.svelte';
 	import PlanReview from '#lib/components/hashi/PlanReview.svelte';
 	import Panel from '#lib/components/hashi/Panel.svelte';
@@ -28,7 +30,11 @@
 		loaded = true;
 		pendingPlans.count = open.filter((p) => p.status === 'pending').length;
 	}
-	onMount(() => load().catch((e) => (error = problemText(e))));
+	onMount(() => {
+		load().catch((e) => (error = problemText(e)));
+		const f = findKey(page.url);
+		if (f) void reveal(f);
+	});
 
 	async function act(p: Plan, what: 'approve' | 'apply' | 'discard') {
 		error = notice = '';
@@ -92,36 +98,38 @@
 			</Panel>
 		{/if}
 		{#each open as p (p.id)}
-			<PlanReview
-				title={p.title}
-				trigger={triggerText(p)}
-				risk={p.risk}
-				items={reviewItems(p)}
-				stakes={p.status === 'pending' ? stakes(p) : []}
-			>
-				{#snippet footer()}
-					<p class="mr-auto text-sm text-muted-foreground">
-						{#if p.status === 'pending'}Approving asks for your passkey.{:else if p.status === 'applying'}Applying
-							now…{:else}Approved; applies on the next sync.{/if}
-					</p>
-					{#if p.status !== 'applying'}
-						<Button variant="ghost" size="sm" disabled={!!busy} onclick={() => act(p, 'discard')}
-							>Discard</Button
-						>
-					{/if}
-					{#if p.status === 'pending'}
-						<Button size="sm" disabled={!!busy} onclick={() => act(p, 'approve')}>
-							{#if busy === p.id}<LoaderCircle class="animate-spin" />{:else}<Fingerprint />{/if}
-							Approve and apply
-						</Button>
-					{:else if p.status === 'approved'}
-						<Button size="sm" disabled={!!busy} onclick={() => act(p, 'apply')}>
-							{#if busy === p.id}<LoaderCircle class="animate-spin" />{:else}<Play />{/if}
-							Apply now
-						</Button>
-					{/if}
-				{/snippet}
-			</PlanReview>
+			<div data-find={p.id}>
+				<PlanReview
+					title={p.title}
+					trigger={triggerText(p)}
+					risk={p.risk}
+					items={reviewItems(p)}
+					stakes={p.status === 'pending' ? stakes(p) : []}
+				>
+					{#snippet footer()}
+						<p class="mr-auto text-sm text-muted-foreground">
+							{#if p.status === 'pending'}Approving asks for your passkey.{:else if p.status === 'applying'}Applying
+								now…{:else}Approved; applies on the next sync.{/if}
+						</p>
+						{#if p.status !== 'applying'}
+							<Button variant="ghost" size="sm" disabled={!!busy} onclick={() => act(p, 'discard')}
+								>Discard</Button
+							>
+						{/if}
+						{#if p.status === 'pending'}
+							<Button size="sm" disabled={!!busy} onclick={() => act(p, 'approve')}>
+								{#if busy === p.id}<LoaderCircle class="animate-spin" />{:else}<Fingerprint />{/if}
+								Approve and apply
+							</Button>
+						{:else if p.status === 'approved'}
+							<Button size="sm" disabled={!!busy} onclick={() => act(p, 'apply')}>
+								{#if busy === p.id}<LoaderCircle class="animate-spin" />{:else}<Play />{/if}
+								Apply now
+							</Button>
+						{/if}
+					{/snippet}
+				</PlanReview>
+			</div>
 		{/each}
 	</div>
 	<Panel title="Recent runs">
@@ -130,7 +138,7 @@
 		{/if}
 		<ul class="space-y-3">
 			{#each recent as r (r.id)}
-				<li class="text-md">
+				<li data-find={r.id} class="text-md">
 					<div class="flex items-center justify-between gap-2">
 						<span class="font-medium">{r.title}</span>
 						<Tag tone={tone(r)}>{r.status}</Tag>

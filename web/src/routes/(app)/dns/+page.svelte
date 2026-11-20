@@ -5,6 +5,7 @@
 	import { onMount } from 'svelte';
 	import { goto } from '$app/navigation';
 	import { page } from '$app/state';
+	import { findKey } from '#lib/find.ts';
 	import PageHeader from '#lib/components/hashi/PageHeader.svelte';
 	import Panel from '#lib/components/hashi/Panel.svelte';
 	import Tag from '#lib/components/hashi/Tag.svelte';
@@ -49,8 +50,10 @@
 	// The row being edited: an RRSet key, or "new" for the add form.
 	let editing = $state<string | null>(null);
 
-	let q = $state('');
-	let showGenerated = $state(false);
+	// A search result names the record (?find=<name>, bug 4); the filter shows it.
+	const found = page.url.searchParams.has('tab') ? '' : (findKey(page.url) ?? '');
+	let q = $state(found);
+	let showGenerated = $state(found !== ''); // a found record may be a generated one
 
 	// The open tab lives in the address (bug 41).
 	const tabs = ['records', 'import', 'adguard', 'agents'];

@@ -8,6 +8,7 @@
 	import { Button } from '#lib/components/ui/button/index.ts';
 	import { Input } from '#lib/components/ui/input/index.ts';
 	import { page } from '$app/state';
+	import { findKey } from '#lib/find.ts';
 	import { api, problemText, type Schemas } from '#lib/api/client.ts';
 
 	// 10b §3: each AdGuard instance's rewrites and what Hashi would change there. Reading changes nothing.
@@ -20,7 +21,7 @@
 	// Bug 64: Connections opens one instance (?instance=<id>); a filter narrows long lists by name or answer.
 	const only = $derived(page.url.searchParams.get('instance') ?? '');
 	const shown = $derived(only ? items.filter((it) => it.conn.id === only) : items);
-	let q = $state('');
+	let q = $state(findKey(page.url) ?? ''); // a search result names the rewrite (bug 4)
 	const match = (domain: string, answer?: string) =>
 		(domain + ' ' + (answer ?? '')).toLowerCase().includes(q.trim().toLowerCase());
 	let error = $state('');

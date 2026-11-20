@@ -1238,6 +1238,39 @@ test('setup with a passkey, then sign in with it', async ({ page, request }) => 
 	await expect(heartbeat).toHaveValue(String(Number(before) + 7));
 	await heartbeat.fill(before);
 
+	// Bug 4: one search for everything, keyboard only. Enter opens the top result.
+	const search = async (q: string, top: string | RegExp) => {
+		await page.keyboard.press('ControlOrMeta+k');
+		const box = page.getByRole('dialog').getByLabel('Search Hashi');
+		await expect(box).toBeFocused();
+		await page.keyboard.type(q);
+		await expect(page.getByRole('option', { selected: true })).toContainText(top);
+		await page.keyboard.press('Enter');
+	};
+	await page.goto(`${state.baseURL}/overview`);
+	await expect(page.getByRole('heading', { name: 'Overview', level: 1 })).toBeVisible();
+	await search('192.0.2.44', 'Look up 192.0.2.44');
+	await expect(page).toHaveURL(/\/ip-sets\/address\?ip=192\.0\.2\.44$/);
+	await expect(page.getByRole('heading', { name: '192.0.2.44' })).toBeVisible();
+	await page.keyboard.press('ControlOrMeta+k');
+	await expect(page.getByRole('dialog').getByLabel('Search Hashi')).toBeFocused();
+	await page.keyboard.type('192.0.2.44');
+	await expect(page.getByRole('option', { name: /192\.0\.2\.44\s*in home/ })).toBeVisible();
+	await page.screenshot({ path: 'test-results/visual/search-address.png' });
+	await page.keyboard.press('Escape');
+	await search('guarded waf', 'Guarded · WAF');
+	await expect(page).toHaveURL(/\/services\/[0-9A-Z]+\?tab=waf$/);
+	await expect(page.getByRole('tab', { name: 'WAF' })).toHaveAttribute('aria-selected', 'true');
+	await search('request limit', 'Request limit');
+	await expect(page).toHaveURL(/category=edge&find=Request%20limit$/);
+	await expect(page.getByText('Request limit', { exact: true })).toHaveClass(/ring-2/);
+	await search('counters', 'Counters');
+	await expect(page).toHaveURL(/\/security\?tab=counters$/);
+	await expect(page.getByRole('tab', { name: 'Counters' })).toHaveAttribute(
+		'aria-selected',
+		'true'
+	);
+
 	// S12: strict vault mode (02 §5.4). A PRF passkey becomes an unlocker, strict mode is switched on, and after each
 	// restart Hashi is locked until the recovery key or the passkey unlocks it; the session survives the restarts.
 	await page.goto(`${state.baseURL}/settings?category=security`);

@@ -5,6 +5,7 @@
 	import { page } from '$app/state';
 	import PageHeader from '#lib/components/hashi/PageHeader.svelte';
 	import { cn } from '#lib/utils.ts';
+	import { findKey, reveal } from '#lib/find.ts';
 	import GeneralSettings from '#lib/components/hashi/settings/GeneralSettings.svelte';
 	import SecuritySettings from '#lib/components/hashi/settings/SecuritySettings.svelte';
 	import EdgeProtection from '#lib/components/hashi/settings/EdgeProtection.svelte';
@@ -39,6 +40,11 @@
 	const asked = $derived(page.url.searchParams.get('category') ?? 'general');
 	const cat = $derived(moved[asked] ?? (cats.some((c) => c.id === asked) ? asked : 'general'));
 	const show = (id: string) => goto(`?category=${id}`, { replace: true, reset: false });
+	// A search result names the setting (?find=<label>, bug 4): Settings scrolls to it once its category has drawn.
+	const wanted = $derived(findKey(page.url));
+	$effect(() => {
+		if (wanted) void reveal(wanted);
+	});
 	// The address names the category shown, so an old or unknown name is replaced by the one that holds it now.
 	$effect(() => {
 		if (asked !== cat && page.url.searchParams.has('category')) show(cat);

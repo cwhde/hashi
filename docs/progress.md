@@ -48,6 +48,27 @@ and the service deleted (its hidden set went with it). Found: "Let the agent cho
 as the agent still reported it (the beat keeps the current address); fixed with a reproducing test, ships with the next
 release. Not done on prod: adding a Traefik or firewall host from Connections (no spare machine; covered by e2e).
 
+### 13.7 checklist (one PR)
+
+Bug 4: the top bar search finds only page names. Plan (2026-11-20):
+
+- [x] API: `GET /api/search?q=` returns groups of results, each with a title, a detail line and the exact place to open.
+  The server searches what it stores: services (name, domains, upstream), DNS records, AdGuard rewrites, IP sets (name,
+  note) and their items, rule sets, firewall hosts, Traefik hosts, Pulse agents, connections, scripts, checks, plans and
+  activity. An address or CIDR gets the address page first, then the IP sets that hold it. At most 8 per group.
+- [x] The browser adds what lives in the UI: pages, every tab of every page (each opens with `?tab=`), and every
+  setting by its label (opens Settings at the category and scrolls to the setting, `&find=`). A test keeps the setting and
+  tab lists true to the pages: every listed label must exist in its page.
+- [x] Search dialog: results grouped by kind, pages and settings at once while the server answers, keyboard only
+  (arrows, Enter, Escape), the search field with an accessible name (half of bug 152).
+- [x] e2e: an address, a service, a setting and a tab found and opened by keyboard.
+  Done (2026-11-20): the address opens its page and lists the IP set items holding it; "guarded waf" opens that
+  service's WAF tab; "request limit" opens Edge protection with the setting marked; "counters" opens the Security tab.
+  An object's tab is found by object and tab name. Results whose title matches best come first; Enter opens the top one.
+- [x] Found on the way: Edge protection asked "Leave without saving?" with nothing changed, because Cap's suggested
+  challenge page counted as an edit (only when no challenge page is saved yet). Now only the owner's own edits ask; the
+  suggestion still lets Save run. Reproduced by the search steps above (in-app navigation away from Settings).
+
 **13.6 done** (2026-11-20, `v0.13.6-beta.1`, signed in with the owner's passkey). Gate on prod: request limit 1600 in
 10 s and the error trigger 40 in 10 s stored after migration 32 (an address was challenged for error answers within the
 hour); 150 new connections per minute in the VPS kernel; the WAF tab of a real service lists its exclusions by name

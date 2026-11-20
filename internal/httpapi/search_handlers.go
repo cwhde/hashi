@@ -84,6 +84,45 @@ func (q searchQuery) group(kind gen.SearchGroupKind, label string, hits []search
 	return g
 }
 
+// objectTab is one tab of an object's page: its address value and its label there.
+type objectTab struct{ value, label string }
+
+var (
+	serviceTabs  = []objectTab{{"traffic", "Traffic"}, {"access", "Access"}, {"waf", "WAF"}, {"config", "Rendered config"}}
+	firewallTabs = []objectTab{{"ports", "Ports"}, {"access", "Host access"}, {"rules", "Live ruleset"},
+		{"generated", "Generated"}, {"script", "Old script"}}
+	ipSetTabs = []objectTab{{"resolved", "Resolved"}, {"used", "Used by"}, {"history", "History"}}
+)
+
+// withTabs adds a result per tab of an object's page when the query names the tab as well as the object ("gitea waf"),
+// so the tab opens directly. The first tab is the page itself and needs no result of its own.
+func (q searchQuery) withTabs(hits []searchHit, tabs []objectTab) []searchHit {
+	out := hits
+	for _, t := range tabs {
+		label := strings.ToLower(t.label)
+		var rest []string
+		named := false
+		for _, w := range q.words {
+			if !named && strings.Contains(label, w) {
+				named = true
+				continue
+			}
+			rest = append(rest, w)
+		}
+		if !named || len(rest) == 0 {
+			continue
+		}
+		sub := searchQuery{raw: strings.Join(rest, " "), words: rest}
+		for _, h := range hits {
+			if sub.matches(h) {
+				out = append(out, searchHit{title: h.title + " · " + t.label, detail: h.detail,
+					href: h.href + "?tab=" + t.value, text: h.text + " " + label})
+			}
+		}
+	}
+	return out
+}
+
 func (s *Server) Search(ctx context.Context, req gen.SearchRequestObject) (gen.SearchResponseObject, error) {
 	q := newSearchQuery(req.Params.Q)
 	out := gen.SearchResults{Groups: []gen.SearchGroup{}}
@@ -157,7 +196,7 @@ func (s *Server) searchServices(ctx context.Context, q searchQuery) (*gen.Search
 		hits = append(hits, searchHit{title: sv.Name, detail: detail, href: "/services/" + sv.ID,
 			text: sv.Slug + " " + up + " " + strings.Join(more, " ")})
 	}
-	return q.group(gen.SearchGroupKindService, "Services", hits, false), nil
+	return q.group(gen.SearchGroupKindService, "Services", q.withTabs(hits, serviceTabs), false), nil
 }
 
 func (s *Server) searchDNS(ctx context.Context, q searchQuery) (*gen.SearchGroup, error) {
@@ -231,7 +270,7 @@ func (s *Server) searchIPSets(ctx context.Context, q searchQuery) (*gen.SearchGr
 		hits = append(hits, searchHit{title: r.Name, detail: r.Kind + " set", href: "/ip-sets/" + r.ID,
 			text: r.Slug + " " + r.Description})
 	}
-	return q.group(gen.SearchGroupKindIpSet, "IP sets", hits, false), nil
+	return q.group(gen.SearchGroupKindIpSet, "IP sets", q.withTabs(hits, ipSetTabs), false), nil
 }
 
 // searchIPSetItems finds the items that hold an address or CIDR, or whose text matches: the set's own search (05a §5).
@@ -290,7 +329,7 @@ func (s *Server) searchFirewallHosts(ctx context.Context, q searchQuery) (*gen.S
 	for _, h := range rows {
 		hits = append(hits, searchHit{title: h.Name, detail: h.PublicIp, href: "/firewall/" + h.ID, text: h.SshHost})
 	}
-	return q.group(gen.SearchGroupKindFirewallHost, "Firewall hosts", hits, false), nil
+	return q.group(gen.SearchGroupKindFirewallHost, "Firewall hosts", q.withTabs(hits, firewallTabs), false), nil
 }
 
 func (s *Server) searchTraefikHosts(ctx context.Context, q searchQuery) (*gen.SearchGroup, error) {
@@ -328,7 +367,7 @@ func (s *Server) searchConnections(ctx context.Context, q searchQuery) (*gen.Sea
 			return nil, err
 		}
 		for _, z := range zones {
-			hits = append(hits, searchHit{title: z.Name, detail: "DNS zone", href: find("/connections", "dns:"+z.ID)})
+			hits = append(hits, searchHit{title: z.Name, detail: "DNS zone", href: find("/connections", z.ID)})
 		}
 	}
 	ag, err := s.Store.R.ListAdGuardConnections(ctx)
@@ -336,7 +375,7 @@ func (s *Server) searchConnections(ctx context.Context, q searchQuery) (*gen.Sea
 		return nil, err
 	}
 	for _, c := range ag {
-		hits = append(hits, searchHit{title: c.Name, detail: "AdGuard Home", href: find("/connections", "adguard:"+c.ID),
+		hits = append(hits, searchHit{title: c.Name, detail: "AdGuard Home", href: find("/connections", c.ID),
 			text: c.ServerName})
 	}
 	oidc, err := s.Store.R.ListOIDCProviders(ctx)
@@ -344,7 +383,7 @@ func (s *Server) searchConnections(ctx context.Context, q searchQuery) (*gen.Sea
 		return nil, err
 	}
 	for _, p := range oidc {
-		hits = append(hits, searchHit{title: p.Name, detail: "Sign-in provider", href: find("/connections", "signin:"+p.ID),
+		hits = append(hits, searchHit{title: p.Name, detail: "Sign-in provider", href: find("/connections", p.ID),
 			text: p.Issuer})
 	}
 	np, err := s.Store.R.ListNotificationProviders(ctx)

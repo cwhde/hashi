@@ -20,6 +20,7 @@
 	import { ChevronDown, MoreHorizontal, Plus } from '@lucide/svelte';
 	import { api, problemText, type Schemas } from '#lib/api/client.ts';
 	import { withReauth } from '#lib/auth/reauth.ts';
+	import { findKey, reveal } from '#lib/find.ts';
 	import { pulseAgents } from '#lib/pulseAgents.svelte.ts';
 	import { firewallHosts } from '#lib/firewallHosts.svelte.ts';
 	import { dateTime } from '#lib/format.ts';
@@ -105,6 +106,8 @@
 	}
 	onMount(() => {
 		reload();
+		const f = findKey(page.url);
+		if (f) void reveal(f);
 		const k = page.url.searchParams.get('add');
 		if (k && ['traefik', 'firewall', 'pulse', 'adguard', 'signin'].includes(k)) {
 			add(k as Kind);
@@ -427,7 +430,7 @@
 				{/if}
 				<ul>
 					{#each s.rows as r (r.key)}
-						<li class="flex flex-wrap items-center gap-x-3 gap-y-1 py-2 text-md">
+						<li data-find={r.key} class="flex flex-wrap items-center gap-x-3 gap-y-1 py-2 text-md">
 							{#if r.href}<a href={r.href} class="min-w-40 font-medium hover:underline">{r.name}</a
 								>{:else}<span class="min-w-40 font-medium">{r.name}</span>{/if}
 							<span

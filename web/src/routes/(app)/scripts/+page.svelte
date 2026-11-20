@@ -1,6 +1,8 @@
 <script lang="ts">
 	import { Draft, guardUnsaved } from '#lib/unsaved.svelte.ts';
 	import { onMount } from 'svelte';
+	import { page } from '$app/state';
+	import { findKey } from '#lib/find.ts';
 	import PageHeader from '#lib/components/hashi/PageHeader.svelte';
 	import Panel from '#lib/components/hashi/Panel.svelte';
 	import Tag from '#lib/components/hashi/Tag.svelte';
@@ -78,6 +80,9 @@
 		}
 		scripts = s.data.scripts;
 		if (h.data) hosts = h.data.hosts;
+		// A search result names the script to open (?find=<id>, bug 4).
+		const asked = findKey(page.url);
+		if (selected === null && asked && scripts.some((x) => x.id === asked)) pick(asked);
 		if (selected === null && scripts[0]) pick(scripts[0].id);
 	}
 	onMount(load);
