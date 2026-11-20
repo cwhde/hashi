@@ -42,7 +42,11 @@ first paint. `dark:` variants follow `data-mode`, not the OS.
 - Groups (sentence case, no caps labels): **Overview** · **Routing**: Services, DNS, Traefik, Firewall hosts, Pulse ·
   **Protect**: Security, IP sets, Rule sets · **Watch**: Status, App display · **Operate**: Scripts, Activity ·
   **Configure**: Connections, Settings.
-- Top bar (sticky): page title · search (⌘K: addresses → address page, CIDRs, IP sets, rule sets, services, domains, pages) · **pending changes** count (always visible,
+- Top bar (sticky): page title · search (⌘K: one search for everything, keyboard only: an address or CIDR → address page and
+  the IP set items holding it; every stored object (services, DNS records, AdGuard rewrites, IP sets, rule sets, firewall
+  and Traefik hosts, agents, connections, scripts, checks, plans, activity); every page, every tab (an object's tab by
+  object and tab name, "gitea waf"); every setting by its label, opening Settings scrolled to it. Each result opens the
+  exact place (`?find=`, `?tab=`). Pages, tabs and settings are matched in the browser, objects by `GET /api/search`) · **pending changes** count (always visible,
   amber when anything waits) · vault state · theme · account (session expiry and bound IP).
 - Vault locked: an amber banner under the top bar on every page, with Unlock.
 
