@@ -1212,24 +1212,16 @@ Decisions made in S0:
 
 (Problems that survived two fix attempts: hypothesis, evidence, question for the human.)
 
-- 2026-11-20 · **fra1 AdGuard 1.0.0 never answers `GET /control/rewrite/list`.** After the owner updated fra1 from
-  0.107.x to 1.0.0 in its web UI, Hashi's rewrite read times out after 15 s every time, so plans for fra1 can't be made.
-  The status call with the same login on the same connection answers in 0.2 s, DNS (rewrites included) works, and zrh1
-  (0.107.80) is fine. Evidence:
-  - The API is unchanged: AdGuard's openapi.yaml for 0.107.79 and 1.0.0 is identical for status and every rewrite call.
-    A throwaway 1.0.0 container gave the same answers as `testdata/contracts/adguard/` (list, add, settings, 401).
-  - The same container with fra1's whole config, stats.db, sessions.db and current querylog.json answers the list in
-    0.05 s over HTTP and HTTPS, HTTP/1.1 and 2, with a reused connection, and with Go's `Accept-Encoding: gzip`.
-  - Packet capture on vmbr1: fra1 TCP-acks Hashi's list request on the connection the status call used, then sends
-    nothing for 15 s until Hashi closes it. The network path is fine; AdGuard's handler does not answer.
-  - Fix attempt 1: `systemctl restart AdGuardHome` on CT 100 (owner's OK). The first restart since 2026-11-01; DNS was
-    back within seconds. No change.
-  - Not yet compared: fra1's filter lists (85 MB, possibly a stuck filter update holding a lock), the 553 MB rotated
-    querylog.json.1, and the native Debian install against the Docker image.
-  Hypothesis: on fra1, the list handler waits on a lock that something else holds (filter refresh or query-log
-  rotation). Proof needs a goroutine dump: set `http.pprof.enabled: true` in fra1's AdGuardHome.yaml (port 6060),
-  restart, read `/debug/pprof/goroutine?debug=2` during a list call, then revert and restart. Needs the owner's OK
-  (two short DNS gaps on fra1).
+- 2026-11-20 · **fra1 AdGuard 1.0.0 rewrite list never reaches Hashi — cause found, fix waits for the owner's OK.**
+  Not an AdGuard or Hashi bug: the PVE host's LXC bridge has MTU 1280 (set in its network config), CT 105/106 use 1280
+  inside, but the AdGuard container (CT 100) and CT 107 still use 1500. Frames over 1280 bytes from those containers are
+  dropped at the bridge without an error. 1.0.0 sends more response headers, so the rewrite list reply grew to a 1246-byte
+  TCP segment (over the 1228 the bridge path carries); AdGuard retransmits it until Hashi gives up after 15 s. The
+  status reply (617 bytes) still fits, which is why the connection test passed. Evidence: `ss -tanpi` in CT 100 during a
+  read shows Send-Q 1246 and bytes_sent growing while bytes_acked stays put; tcpdump on the bridge never sees that segment;
+  a goroutine dump (pprof on briefly, owner's OK, reverted) shows no stuck handler. The API itself is unchanged (openapi
+  diff 0.107.79 → 1.0.0 and a throwaway 1.0.0 container match `testdata/contracts/adguard/`). Restarting AdGuard did
+  not help. Fix: set `mtu=1280` on net0 of CT 100 and CT 107 (`pct set`), owner's OK needed.
 
 ## Unverified
 
