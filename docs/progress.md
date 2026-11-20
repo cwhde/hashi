@@ -65,6 +65,10 @@ Bug 4: the top bar search finds only page names. Plan (2026-11-20):
   Done (2026-11-20): the address opens its page and lists the IP set items holding it; "guarded waf" opens that
   service's WAF tab; "request limit" opens Edge protection with the setting marked; "counters" opens the Security tab.
   An object's tab is found by object and tab name. Results whose title matches best come first; Enter opens the top one.
+- [x] On prod with `v0.13.7-beta.1` (2026-11-20): "gitea waf" lists that service's WAF tab, an address offers its
+  lookup, "pocket" finds the service, its rule set and its check. But every search took about 2.3 s: one AdGuard
+  instance needs 15 s to list its rewrites (bug 154) and search waited out its 2 s limit for it each time. Fixed
+  locally: search reads the rewrites from a copy kept by a background refresh (`2ffe576`), not released yet.
 - [x] Found on the way: Edge protection asked "Leave without saving?" with nothing changed, because Cap's suggested
   challenge page counted as an edit (only when no challenge page is saved yet). Now only the owner's own edits ask; the
   suggestion still lets Save run. Reproduced by the search steps above (in-app navigation away from Settings).
@@ -1214,6 +1218,7 @@ Decisions made in S0:
 
 ## Log
 
+- 2026-11-20 · deploy `v0.13.7-beta.1` (`c5188e0`, the owner's OK) · smoke ok (readyz, version, SPA, both public pages). Global search (4); searches answered in about 2.3 s because of a slow AdGuard instance (154), fixed after the deploy.
 - 2026-11-20 · deploy `v0.13.6-beta.1` (`059003e`, the owner's OK) · smoke ok (readyz, version, SPA, both public pages), schema 31 → 32 (request limit 300 → 1600, `l7_errors` source). Then, with the owner's yes and passkey: new connections per minute 120 → 150 in Settings; the firewall plan applied by itself. In it: 18, 26, 81, 89.
 - 2026-11-19 · deploy `v0.13.4-beta.4` (`530a613`, the owner's OK) · smoke ok (readyz, version, SPA, both public pages). Security hourly rollup ran: first run 168 hours in 3.7 s, caught up within about 15 min. Dashboard call on prod after: 1h 0.04 s, 24h 0.40 s, 7d 0.16 s (was 2.2 s), 30d 0.35 s (was 5.7 s). Sign-in page redesign (136), stream message (137), hourly rollup and retention (99).
 - 2026-11-19 · deploy `v0.13.4-beta.3` (`50b68e7`, the owner's OK) · smoke ok (readyz, version, SPA, both public pages),
