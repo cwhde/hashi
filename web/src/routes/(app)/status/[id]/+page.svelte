@@ -135,7 +135,9 @@
 	}
 	const ms = (v: number | undefined) => (v === undefined ? 'no data' : `${v} ms`);
 	const series = $derived(d?.series ?? []);
-	const gaps = $derived(series.flatMap((p) => (p.gap_ms === undefined ? [] : [p.gap_ms])));
+	// Public minus internal response time, with the moment of each (bug 156); negative when the public path is faster.
+	const gapPoints = $derived(series.filter((p) => p.gap_ms !== undefined && p.gap_ms !== null));
+	const gaps = $derived(gapPoints.map((p) => p.gap_ms ?? 0));
 	// Bug 64: a check made from something links back to it.
 	const sourceHref: Record<string, (id: string) => string> = {
 		service: (id) => `/services/${id}`,
@@ -225,8 +227,9 @@
 			{#if gaps.length}
 				<LineChart
 					title="Public vs internal gap"
-					values={gaps.map((g) => Math.max(0, g))}
-					current="{gaps.at(-1)} ms"
+					values={gaps}
+					unit=" ms"
+					labels={gapPoints.map((p) => dateTime(p.at))}
 				/>
 			{/if}
 			<LineChart

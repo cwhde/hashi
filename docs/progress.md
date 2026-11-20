@@ -72,6 +72,11 @@ Bug 4: the top bar search finds only page names. Plan (2026-11-20):
 - [x] Found on the way: Edge protection asked "Leave without saving?" with nothing changed, because Cap's suggested
   challenge page counted as an edit (only when no challenge page is saved yet). Now only the owner's own edits ask; the
   suggestion still lets Save run. Reproduced by the search steps above (in-app navigation away from Settings).
+- [x] Owner's report on 13.7 day (bugs 155, 156): Status → a check: hovering a chart now shows time and value in a
+  bubble beside the pointer, as on the overview; the "Public vs internal gap" chart got its time labels (without them it
+  ignored the pointer) and draws negative gaps below a zero line. Checked with a pointer in Chromium against fake data;
+  Playwright's Firefox does not start on this laptop ("Could not find profile folder"), so Firefox itself is unchecked.
+  Held with `2ffe576` for the next release (owner, 2026-11-20).
 
 **13.6 done** (2026-11-20, `v0.13.6-beta.1`, signed in with the owner's passkey). Gate on prod: request limit 1600 in
 10 s and the error trigger 40 in 10 s stored after migration 32 (an address was challenged for error answers within the
