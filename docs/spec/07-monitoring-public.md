@@ -82,7 +82,7 @@ Heimdall-style launcher of selected entries.
 
 - Sources: services with dashboard enabled (display name defaults to service name); manual DNS entries with dashboard
   enabled (display name required).
-- Cards link to the public URL; icon from the asset set or per-entry upload.
+- Cards link to the public URL; each shows its app icon (§9.1).
 - Search field always shown (bug 146); sort selector (name, group, status; default from settings).
 - Header counts: `x / n hosts online`, `x / n Linux firewall hosts available`.
 - No admin controls. Enabled by default (setting).
@@ -90,10 +90,28 @@ Heimdall-style launcher of selected entries.
 
 ## 9. Assets
 
-Default assets from `https://static.example.com/`, downloaded once and cached under `/data/assets`: icons `/icon/default/`,
-`/icon/bloom/`; logos `/logo/2k/`, `/logo/4k/`; backgrounds `/background/2k/`, `/background/4k/`; media
-`/media/chillwave-mix.mp3`. Logos/icons on by default; backgrounds optional and off by default (admin screens use the theme canvas; a
-user-selected background is a personalization option that must not reduce readability); all replaceable in Settings → Appearance.
+Four slots for the public pages: icon (favicon and touch icon), logo for dark themes, logo for light themes, background.
+Each slot is empty, downloaded or uploaded; Settings → Public pages sets them.
+
+- Asset source: a base URL (setting, empty by default; the repo is public, so no host is built in). Hashi reads the
+  source's folder listing (`/icon/<set>/`, `/logo/<2k|4k>/`, `/background/<2k|4k>/`) so the owner picks a file, then
+  downloads it once into `/data/assets`. Visitors' browsers never load from the source.
+- Upload: png, webp, svg or ico, at most 5 MB (background) or 1 MB (others). SVG is served with
+  `Content-Security-Policy: default-src 'none'; style-src 'unsafe-inline'` and `nosniff`.
+- Served at `/assets/<slot>` on the admin and both public listeners, with an ETag; an empty slot answers 404.
+- Empty icon → Hashi's 橋 icon; empty logo → the page title as text. Background is off by default and, when on, sits
+  behind a scrim that keeps text at its normal contrast (10-ui §2). Admin screens keep the theme canvas and the 橋 icon.
+
+### 9.1 App icons (bug 149)
+
+Each dashboard app's icon is, in order: (1) custom, uploaded or picked from the selfh.st icon collection
+(`https://cdn.jsdelivr.net/gh/selfhst/icons@main`: `index.json`, files at `/{svg,png,webp}/<reference>[-light].<ext>`;
+the index is cached 24 h, a search returns at most 30, ranked exact, prefix, contains, tag; the `-light` file is used on
+dark themes when it exists; the picker credits "Icons by selfh.st, CC BY 4.0"); (2) automatic, fetched by Hashi from
+the app (manifest icons, `apple-touch-icon`, sized `icon` links, `/favicon.ico`, largest that fits first); when the
+public address answers 401/403, redirects to another host or names no icon, Hashi asks the upstream with the app's
+Host header instead; refreshed daily, stored in `/data/assets/apps/`; (3) the name's first letter. Visitors' browsers
+load app icons only from Hashi.
 
 ## 10. Tests that must exist
 
