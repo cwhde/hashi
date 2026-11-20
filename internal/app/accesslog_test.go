@@ -55,3 +55,25 @@ func TestAccessSinkCountsServiceResponses(t *testing.T) {
 		t.Fatalf("response rows %v", got)
 	}
 }
+
+// Bug 26: 4xx answers feed the error trigger, from services and from names no route matches (scanners probe those);
+// Hashi's own routers never count.
+func TestAccessSinkFeedsTheErrorTrigger(t *testing.T) {
+	ctx := context.Background()
+	st := storetest.New(t)
+	now := time.Now()
+	log := slog.New(slog.NewTextHandler(io.Discard, nil))
+	abuse := security.NewEngine(st, log, func() time.Time { return now })
+	scanner, fa := netip.MustParseAddr("198.51.100.9"), netip.MustParseAddr("198.51.100.10")
+	var lines []traefik.AccessLine
+	for range 40 {
+		lines = append(lines,
+			traefik.AccessLine{Client: scanner, Router: "", Path: "/.env", Status: 404, Start: now},
+			traefik.AccessLine{Client: fa, Router: "hashi-fa@file", Path: "/", Status: 403, Start: now})
+	}
+	accessSink(st, abuse, log)(ctx, "conn", lines)
+	ch := abuse.Challenges()
+	if len(ch) != 1 || ch[0].Prefix != security.Key(scanner) || ch[0].Source != security.SourceErrors {
+		t.Fatalf("challenges = %+v", ch)
+	}
+}

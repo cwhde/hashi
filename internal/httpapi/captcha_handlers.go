@@ -201,6 +201,7 @@ func engineBody(e settings.Engine) gen.EngineSettings {
 	return gen.EngineSettings{TcpNewPerMinute: e.TCPNewPerMinute, TcpBurst: e.TCPBurst, TcpMaxConcurrent: e.TCPMaxConcurrent,
 		WafDefaultMode: e.WAFDefaultMode, WafViolations: e.WAFViolations,
 		WafWindowSeconds: e.WAFWindowSeconds, RateRequests: e.RateRequests, RateWindowSeconds: e.RateWindowSeconds,
+		ErrorRequests: e.ErrorRequests, ErrorWindowSeconds: e.ErrorWindowSeconds,
 		ChallengeExpirySeconds: e.ChallengeExpirySecs, ChallengeMaxFailed: e.ChallengeMaxFailed,
 		CaptchaClearanceHours: e.ClearanceHours, MetersEnabled: e.MetersEnabled,
 		BanFunction: gen.EngineSettingsBanFunction(e.BanFunction), BanBaseSeconds: e.BanBaseSeconds, BanK: float32(e.BanK),
@@ -227,6 +228,7 @@ func (s *Server) PutEngineSettings(ctx context.Context, req gen.PutEngineSetting
 	}
 	e.WAFDefaultMode, e.WAFViolations, e.WAFWindowSeconds = b.WafDefaultMode, b.WafViolations, b.WafWindowSeconds
 	e.RateRequests, e.RateWindowSeconds = b.RateRequests, b.RateWindowSeconds
+	e.ErrorRequests, e.ErrorWindowSeconds = b.ErrorRequests, b.ErrorWindowSeconds
 	e.ChallengeExpirySecs, e.ChallengeMaxFailed, e.ClearanceHours = b.ChallengeExpirySeconds, b.ChallengeMaxFailed, b.CaptchaClearanceHours
 	e.MetersEnabled, e.TCPNewPerMinute, e.TCPBurst, e.TCPMaxConcurrent = b.MetersEnabled, b.TcpNewPerMinute, b.TcpBurst, b.TcpMaxConcurrent
 	e.BanFunction, e.BanBaseSeconds, e.BanK = string(b.BanFunction), b.BanBaseSeconds, float64(b.BanK)

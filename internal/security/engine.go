@@ -23,6 +23,7 @@ import (
 const (
 	SourceRate            = "l7_rate"
 	SourceWAF             = "l7_waf"
+	SourceErrors          = "l7_errors"
 	SourceChallengeFailed = "l7_challenge_failed"
 	SourceMeter           = "l4_meter"
 	SourceManual          = "manual"
@@ -79,6 +80,7 @@ type Engine struct {
 	challenged map[netip.Prefix]*Entry
 	banned     map[netip.Prefix]*Entry
 	rate, waf  map[netip.Prefix]*window
+	errs       map[netip.Prefix]*window // 4xx answers per address, timed by the access-log line (bug 26)
 
 	ev      *events
 	buckets *buckets
@@ -92,7 +94,7 @@ func NewEngine(st *store.Store, log *slog.Logger, now func() time.Time) *Engine 
 		now = time.Now
 	}
 	e := &Engine{st: st, log: log, now: now, challenged: map[netip.Prefix]*Entry{}, banned: map[netip.Prefix]*Entry{},
-		rate: map[netip.Prefix]*window{}, waf: map[netip.Prefix]*window{}}
+		rate: map[netip.Prefix]*window{}, waf: map[netip.Prefix]*window{}, errs: map[netip.Prefix]*window{}}
 	e.ev, e.buckets = newEvents(st, log, now), newBuckets()
 	cfg := settings.DefaultOf[settings.Engine]()
 	e.cfg.Store(&cfg)

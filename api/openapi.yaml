@@ -3478,7 +3478,7 @@ components:
     EngineSettings:
       type: object
       required: [waf_default_mode, waf_violations, waf_window_seconds, rate_requests, rate_window_seconds,
-        challenge_expiry_seconds, challenge_max_failed, captcha_clearance_hours, meters_enabled, tcp_new_per_minute,
+        error_requests, error_window_seconds, challenge_expiry_seconds, challenge_max_failed, captcha_clearance_hours, meters_enabled, tcp_new_per_minute,
         tcp_burst, tcp_max_concurrent, ban_function,
         ban_base_seconds, ban_k, ban_max_seconds, ban_permanent_after, counter_decay_seconds, feed_refresh_seconds,
         feed_stale_seconds]
@@ -3488,6 +3488,8 @@ components:
         waf_window_seconds: { type: integer }
         rate_requests: { type: integer }
         rate_window_seconds: { type: integer }
+        error_requests: { type: integer, description: "4xx answers per address within error_window_seconds that challenge it (06 §3.2)" }
+        error_window_seconds: { type: integer }
         challenge_expiry_seconds: { type: integer }
         challenge_max_failed: { type: integer }
         captcha_clearance_hours: { type: integer }
@@ -3608,7 +3610,7 @@ components:
       properties:
         created: { type: boolean }
         counters: { $ref: "#/components/schemas/CounterRow" }
-    SecuritySource: { type: string, enum: [l7_rate, l7_waf, l7_challenge_failed, l4_meter, manual] }
+    SecuritySource: { type: string, enum: [l7_rate, l7_waf, l7_errors, l7_challenge_failed, l4_meter, manual] }
     CounterRow:
       type: object
       required: [address, country, asn, ban_count, challenge_count, state, failures, max_failures, last_source]

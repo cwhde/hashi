@@ -3550,6 +3550,9 @@ export interface components {
             waf_window_seconds: number;
             rate_requests: number;
             rate_window_seconds: number;
+            /** @description 4xx answers per address within error_window_seconds that challenge it (06 §3.2) */
+            error_requests: number;
+            error_window_seconds: number;
             challenge_expiry_seconds: number;
             challenge_max_failed: number;
             captcha_clearance_hours: number;
@@ -3673,7 +3676,7 @@ export interface components {
             counters: components["schemas"]["CounterRow"];
         };
         /** @enum {string} */
-        SecuritySource: "l7_rate" | "l7_waf" | "l7_challenge_failed" | "l4_meter" | "manual";
+        SecuritySource: "l7_rate" | "l7_waf" | "l7_errors" | "l7_challenge_failed" | "l4_meter" | "manual";
         CounterRow: {
             /** @description An IPv4 address, or an IPv6 /64 */
             address: string;

@@ -72,6 +72,8 @@ var consumerTests = map[string]string{
 	"engine.waf_violations":           "internal/security/settings_consumers_test.go::TestSettingsWAFViolationsAndWindow",
 	"engine.waf_window_seconds":       "internal/security/settings_consumers_test.go::TestSettingsWAFViolationsAndWindow",
 	"engine.rate_requests":            "internal/security/stagea_test.go::TestRateTriggerChallengeAndEscalation",
+	"engine.error_requests":           "internal/security/settings_consumers_test.go::TestSettingsErrorTrigger",
+	"engine.error_window_seconds":     "internal/security/settings_consumers_test.go::TestSettingsErrorTrigger",
 	"engine.rate_window_seconds":      "internal/security/stagea_test.go::TestRateTriggerChallengeAndEscalation",
 	"engine.challenge_expiry_seconds": "internal/security/settings_consumers_test.go::TestSettingsChallengeExpiry",
 	"engine.challenge_max_failed":     "internal/security/stagea_test.go::TestRateTriggerChallengeAndEscalation",

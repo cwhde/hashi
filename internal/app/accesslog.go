@@ -24,13 +24,27 @@ func accessSink(st *store.Store, abuse *security.Engine, log *slog.Logger) traef
 			ids[s.Slug] = s.ID
 		}
 		for _, l := range lines {
+			// An answer to a name no route matches has no router: scanners probe such names, so its errors count
+			// towards the error trigger (06 §3.2, bug 26). Hashi's own routers (forward auth) never count.
+			if l.Router == "" {
+				answer(ctx, abuse, log, security.Response{At: l.Start, Addr: l.Client, Path: l.Path, Status: l.Status})
+				continue
+			}
 			slug, ok := traefik.ServiceSlug(l.Router)
 			if !ok {
 				continue
 			}
 			if id, ok := ids[slug]; ok {
-				abuse.RecordResponse(security.Response{At: l.Start, Addr: l.Client, ServiceID: id, Path: l.Path, Status: l.Status})
+				r := security.Response{At: l.Start, Addr: l.Client, ServiceID: id, Path: l.Path, Status: l.Status}
+				abuse.RecordResponse(r)
+				answer(ctx, abuse, log, r)
 			}
 		}
+	}
+}
+
+func answer(ctx context.Context, abuse *security.Engine, log *slog.Logger, r security.Response) {
+	if err := abuse.Answer(ctx, r); err != nil {
+		log.Warn("access log: error trigger", "err", err)
 	}
 }

@@ -22,7 +22,14 @@
 
 	type Row = Schemas['CounterRow'];
 	type Source = Schemas['SecuritySource'];
-	const sources: Source[] = ['l7_rate', 'l7_waf', 'l7_challenge_failed', 'l4_meter', 'manual'];
+	const sources: Source[] = [
+		'l7_rate',
+		'l7_waf',
+		'l7_errors',
+		'l7_challenge_failed',
+		'l4_meter',
+		'manual'
+	];
 
 	let view = $state<'banned' | 'challenged' | 'active' | 'all'>('all');
 	let search = $state('');

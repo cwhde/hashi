@@ -53,6 +53,13 @@
 					]
 				},
 				{
+					label: 'Error answers',
+					boxes: [
+						{ key: 'error_requests', unit: 'errors' },
+						{ key: 'error_window_seconds', unit: 's', joiner: 'in' }
+					]
+				},
+				{
 					label: 'Web firewall matches',
 					boxes: [
 						{ key: 'waf_violations', unit: 'matches' },
@@ -167,6 +174,10 @@
 						><p>
 							Addresses in the firewall's allow list and signed-in users never trigger the request
 							limit.
+						</p>
+						<p>
+							Error answers are the 4xx answers an address gets, including for names no service has.
+							Scanners collect many; people using their apps collect a few.
 						</p></HelpTip
 					>{/snippet}
 				{#snippet actions()}<Button size="sm" variant="outline" onclick={() => (form = { ...e! })}
@@ -177,6 +188,8 @@
 					<dd class="tnum text-right">
 						{e.rate_requests} requests in {span(e.rate_window_seconds)}
 					</dd>
+					<dt>Error answers</dt>
+					<dd class="tnum text-right">{e.error_requests} in {span(e.error_window_seconds)}</dd>
 					<dt>Web firewall matches</dt>
 					<dd class="tnum text-right">{e.waf_violations} in {span(e.waf_window_seconds)}</dd>
 					<dt>Challenge expires after</dt>

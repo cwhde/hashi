@@ -145,6 +145,8 @@ type Engine struct {
 	WAFWindowSeconds    int    `json:"waf_window_seconds"`
 	RateRequests        int    `json:"rate_requests"`
 	RateWindowSeconds   int    `json:"rate_window_seconds"`
+	ErrorRequests       int    `json:"error_requests"`
+	ErrorWindowSeconds  int    `json:"error_window_seconds"`
 	ChallengeExpirySecs int    `json:"challenge_expiry_seconds"` // 0: a challenge never expires
 	ChallengeMaxFailed  int    `json:"challenge_max_failed"`
 	ClearanceHours      int    `json:"captcha_clearance_hours"`
@@ -227,8 +229,8 @@ func defaults(c Category) Category {
 	case Captcha:
 		return Captcha{VerifyURL: "http://cap:3000", CapPort: 3343, TimeoutSeconds: 5}
 	case Engine:
-		return Engine{WAFDefaultMode: WAFHeadersOnly, WAFViolations: 5, WAFWindowSeconds: 60, RateRequests: 300,
-			RateWindowSeconds: 10, ChallengeExpirySecs: 30 * 60, ChallengeMaxFailed: 15, ClearanceHours: 24,
+		return Engine{WAFDefaultMode: WAFHeadersOnly, WAFViolations: 5, WAFWindowSeconds: 60, RateRequests: 1600,
+			RateWindowSeconds: 10, ErrorRequests: 40, ErrorWindowSeconds: 10, ChallengeExpirySecs: 30 * 60, ChallengeMaxFailed: 15, ClearanceHours: 24,
 			MetersEnabled: true, TCPNewPerMinute: 600, TCPBurst: 120, TCPMaxConcurrent: 1000, UDPNewPerMinute: 200,
 			UDPBurst: 50, UDPPerSecond: 5000, UDPPPSBurst: 1000, StagingSeconds: 5 * 60, PollIntervalSecs: 3,
 			BanFunction: BanExponential, BanBaseSeconds: 15 * 60, BanK: 2, BanMaxSeconds: 30 * 24 * 3600,
@@ -331,6 +333,8 @@ func (e Engine) Validate() error {
 		return invalid("the WAF trigger needs at least one match within a window of up to an hour")
 	case e.RateRequests < 10 || e.RateWindowSeconds < 1 || e.RateWindowSeconds > 3600:
 		return invalid("the rate trigger needs at least 10 requests within a window of up to an hour")
+	case e.ErrorRequests < 1 || e.ErrorWindowSeconds < 1 || e.ErrorWindowSeconds > 3600:
+		return invalid("the error trigger needs at least one error within a window of up to an hour")
 	case e.ChallengeExpirySecs < 0 || e.ChallengeExpirySecs > 30*day:
 		return invalid("a challenge lasts at most 30 days (0 means until solved)")
 	case e.ChallengeMaxFailed < 1 || e.ChallengeMaxFailed > 10000:

@@ -176,6 +176,53 @@ func (e *Engine) WAFMatch(ctx context.Context, a netip.Addr, serviceID string, d
 	return nil
 }
 
+// Answer counts one 4xx answer from the access log towards the error trigger (06 §3.2, bug 26). The line's own time
+// places it in the window, so lines read late still count where they happened; lines older than two windows (a backlog
+// after an outage) never challenge. Allowed, banned and already challenged addresses are left alone; an SSO session
+// does not exempt it (the access log does not know sessions).
+func (e *Engine) Answer(ctx context.Context, r Response) error {
+	if r.Status < 400 || r.Status > 499 {
+		return nil
+	}
+	a := r.Addr.Unmap()
+	if !a.IsValid() || e.Allowed(a) {
+		return nil
+	}
+	cfg := e.Settings()
+	size := time.Duration(cfg.ErrorWindowSeconds) * time.Second
+	k, now := Key(a), e.now()
+	if now.Sub(r.At) > 2*size {
+		return nil
+	}
+	e.mu.Lock()
+	if x, ok := e.challenged[k]; ok && x.live(now) {
+		e.mu.Unlock()
+		return nil
+	}
+	if x, ok := e.banned[k]; ok && x.live(now) {
+		e.mu.Unlock()
+		return nil
+	}
+	w := e.errs[k]
+	if w == nil {
+		w = &window{}
+		e.errs[k] = w
+	}
+	n := w.hit(r.At, size)
+	e.mu.Unlock()
+	if n < float64(cfg.ErrorRequests) {
+		return nil
+	}
+	if _, err := e.Challenge(ctx, a, Cause{Source: SourceErrors, ServiceID: r.ServiceID,
+		Reason: fmt.Sprintf("%d error answers within %d s", cfg.ErrorRequests, cfg.ErrorWindowSeconds)}); err != nil {
+		return err
+	}
+	e.mu.Lock()
+	delete(e.errs, k)
+	e.mu.Unlock()
+	return nil
+}
+
 // Solve ends a's challenge after a verified CAPTCHA (scope global). The ban counter stays (06 §3.3).
 func (e *Engine) Solve(ctx context.Context, a netip.Addr) (bool, error) {
 	k := Key(a)
@@ -233,6 +280,7 @@ func (e *Engine) Sweep(ctx context.Context) (string, error) {
 	cfg := e.Settings()
 	idleRate := 2 * time.Duration(cfg.RateWindowSeconds) * time.Second
 	idleWAF := 2 * time.Duration(cfg.WAFWindowSeconds) * time.Second
+	idleErr := 2 * time.Duration(cfg.ErrorWindowSeconds) * time.Second
 	type fc struct {
 		id string
 		f  int
@@ -267,6 +315,11 @@ func (e *Engine) Sweep(ctx context.Context) (string, error) {
 	for k, w := range e.waf {
 		if now.UnixNano()-w.last > int64(idleWAF) {
 			delete(e.waf, k)
+		}
+	}
+	for k, w := range e.errs {
+		if now.UnixNano()-w.last > int64(idleErr) {
+			delete(e.errs, k)
 		}
 	}
 	e.mu.Unlock()

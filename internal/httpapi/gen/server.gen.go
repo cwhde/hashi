@@ -1642,6 +1642,7 @@ func (e SecurityEventSeverity) Valid() bool {
 const (
 	SecuritySourceL4Meter           SecuritySource = "l4_meter"
 	SecuritySourceL7ChallengeFailed SecuritySource = "l7_challenge_failed"
+	SecuritySourceL7Errors          SecuritySource = "l7_errors"
 	SecuritySourceL7Rate            SecuritySource = "l7_rate"
 	SecuritySourceL7Waf             SecuritySource = "l7_waf"
 	SecuritySourceManual            SecuritySource = "manual"
@@ -1653,6 +1654,8 @@ func (e SecuritySource) Valid() bool {
 	case SecuritySourceL4Meter:
 		return true
 	case SecuritySourceL7ChallengeFailed:
+		return true
+	case SecuritySourceL7Errors:
 		return true
 	case SecuritySourceL7Rate:
 		return true
@@ -3218,12 +3221,16 @@ type EngineSettings struct {
 	ChallengeExpirySeconds int                       `json:"challenge_expiry_seconds"`
 	ChallengeMaxFailed     int                       `json:"challenge_max_failed"`
 	CounterDecaySeconds    int                       `json:"counter_decay_seconds"`
-	FeedRefreshSeconds     int                       `json:"feed_refresh_seconds"`
-	FeedStaleSeconds       int                       `json:"feed_stale_seconds"`
-	MetersEnabled          bool                      `json:"meters_enabled"`
-	RateRequests           int                       `json:"rate_requests"`
-	RateWindowSeconds      int                       `json:"rate_window_seconds"`
-	TcpBurst               int                       `json:"tcp_burst"`
+
+	// ErrorRequests 4xx answers per address within error_window_seconds that challenge it (06 §3.2)
+	ErrorRequests      int  `json:"error_requests"`
+	ErrorWindowSeconds int  `json:"error_window_seconds"`
+	FeedRefreshSeconds int  `json:"feed_refresh_seconds"`
+	FeedStaleSeconds   int  `json:"feed_stale_seconds"`
+	MetersEnabled      bool `json:"meters_enabled"`
+	RateRequests       int  `json:"rate_requests"`
+	RateWindowSeconds  int  `json:"rate_window_seconds"`
+	TcpBurst           int  `json:"tcp_burst"`
 
 	// TcpMaxConcurrent Open TCP connections from one address
 	TcpMaxConcurrent int `json:"tcp_max_concurrent"`

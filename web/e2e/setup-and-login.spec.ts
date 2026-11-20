@@ -1000,7 +1000,9 @@ test('setup with a passkey, then sign in with it', async ({ page, request }) => 
 	expect(fits, 'the page is wider than a phone').toBe(true);
 	await page.screenshot({ path: 'test-results/s10-challenge-phone.png', fullPage: true });
 	await page.setViewportSize({ width: 1280, height: 800 });
-	await expect(page.getByText('300 requests in 10 s')).toBeVisible();
+	// Bug 26: the defaults come from a measurement of real traffic.
+	await expect(page.getByText('1600 requests in 10 s')).toBeVisible();
+	await expect(page.getByText('40 in 10 s', { exact: true })).toBeVisible();
 	await expect(page.getByText('600 new per min, 1000 open per address')).toBeVisible();
 	await page.getByRole('button', { name: 'Edit' }).click();
 	await page.getByLabel('New connections (per min)').fill('700');

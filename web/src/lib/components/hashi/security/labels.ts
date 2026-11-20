@@ -2,6 +2,7 @@
 const sources: Record<string, string> = {
 	l7_rate: 'Request limit',
 	l7_waf: 'WAF',
+	l7_errors: 'Error answers',
 	l7_challenge_failed: 'Ignored challenge',
 	l4_meter: 'Kernel meter',
 	manual: 'By hand'
