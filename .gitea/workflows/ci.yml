@@ -6,6 +6,11 @@ on:
   push:
     branches: [main]
   workflow_dispatch:
+    inputs:
+      proof_base:
+        description: Base commit for testing the PR selector on the disposable proof branch
+        required: true
+        type: string
 
 concurrency:
   group: ci-${{ github.event_name }}-${{ github.ref }}
@@ -34,8 +39,8 @@ jobs:
       - id: s
         name: Select CI checks
         env:
-          EVENT: ${{ github.event_name }}
-          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          EVENT: ${{ github.event_name == 'workflow_dispatch' && 'pull_request' || github.event_name }}
+          BASE_SHA: ${{ inputs.proof_base || github.event.pull_request.base.sha }}
           FULL_PR: ${{ startsWith(github.event.pull_request.title, '[full-ci] ') }}
         run: python3 tools/ci/scope.py
 
