@@ -110,8 +110,11 @@ If the address is in `dynamic-challenge`:
 | --- | --- |
 | Valid CAPTCHA solution submitted (`POST /api/edge-challenge/verify`, scope `global`) | Remove from `dynamic-challenge`, `f ← 0`; the request continues to Stage B. The ban counter is **not** reset |
 | `now ≥ expires_at` | Entry removed (lazy check + cleanup job). `T_exp = 0` means no expiry |
-| Any other request | `f ← f + 1`. If `f < F_max`: browser → `302` to the challenge page; API → `429 challenge_required`. If `f ≥ F_max`: escalate (§3.4), `403` |
+| Any other request | `f ← f + 1`. If `f < F_max`, or the entry is younger than one minute: browser → `302` to the challenge page; API → `429 challenge_required`. If `f ≥ F_max` and the entry is at least one minute old: escalate (§3.4), `403` |
 
+The minute is fixed (bug 153): an app that cannot show the page (a photo app) sends its parallel requests at once and
+used up `F_max` within a second of its challenge, before a person had seen it. A client that ignores the challenge is
+still banned once the minute has passed.
 Requests to the challenge flow itself (challenge page, its assets, verify) never count as failures and stay reachable.
 The request that trips A2 is answered with the challenge and is not a failure itself. Without CAPTCHA (it is optional,
 invariant 11) there is nothing to solve: browsers and API clients both get `429` `{"error":"challenge_required"}` until
