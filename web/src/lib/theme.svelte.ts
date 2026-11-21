@@ -96,6 +96,12 @@ function initial(): ThemeId {
 
 class ThemeState {
 	current = $state<ThemeId>(initial());
+	/** Light or dark, as the page shows it now (public pages load only that mode's logo). */
+	mode = $state<'dark' | 'light'>(
+		typeof document !== 'undefined' && document.documentElement.dataset.mode === 'light'
+			? 'light'
+			: 'dark'
+	);
 	custom = $state<CustomTheme | null>(null);
 	solid = $state(false);
 
@@ -110,6 +116,7 @@ class ThemeState {
 			root.dataset.theme = 'custom';
 			root.dataset.mode = isLight(this.custom) ? 'light' : 'dark';
 			root.style.colorScheme = root.dataset.mode;
+			this.mode = isLight(this.custom) ? 'light' : 'dark';
 			this.current = 'custom';
 			store(KEY, 'custom');
 			store(VARS, JSON.stringify({ vars, mode: root.dataset.mode }));
@@ -122,6 +129,7 @@ class ThemeState {
 		this.current = t.id;
 		root.dataset.theme = t.id;
 		root.dataset.mode = t.mode;
+		this.mode = t.mode;
 		store(KEY, t.id);
 		store(VARS, null);
 		syncThemeColor();
@@ -162,12 +170,17 @@ class ThemeState {
 		}
 	}
 
-	/** Takes the saved appearance, for a browser that last saw another one. */
-	async sync() {
-		const r = await api.GET('/api/settings/appearance');
-		if (r.data) this.apply(r.data);
+	#loading: ReturnType<typeof getAppearance> | undefined;
+
+	/** The saved appearance. Callers that ask while a read is under way share it: the layout and the overview both want
+	 * it as a page loads. A finished read is not kept, so a later call sees a change saved since. */
+	load() {
+		this.#loading ??= getAppearance().finally(() => (this.#loading = undefined));
+		return this.#loading;
 	}
 }
+
+const getAppearance = () => api.GET('/api/settings/appearance');
 
 const fallbackCustom: CustomTheme = {
 	canvas: '#000000',

@@ -1,7 +1,9 @@
 <script lang="ts">
 	// The public pages' own look (07 §9, bug 30): the owner's icon in the tab, their logo in place of the title, and the
 	// background when it is switched on. Each theme mode shows its own logo; without one it shows the title as text, so
-	// a white logo never lands on a light page. Files come from Hashi only (/assets/…).
+	// a white logo never lands on a light page. Only the current mode's logo is loaded. Files come from Hashi only
+	// (/assets/…).
+	import { theme } from '#lib/theme.svelte.ts';
 	import type { Schemas } from '#lib/api/client.ts';
 	import type { Snippet } from 'svelte';
 
@@ -16,6 +18,7 @@
 		suffix?: string;
 		children?: Snippet;
 	} = $props();
+	const logo = $derived(theme.mode === 'light' ? assets?.logo_light : assets?.logo_dark);
 </script>
 
 <svelte:head>
@@ -34,26 +37,11 @@
 {/if}
 
 <h1 class="flex min-w-48 flex-1 items-center gap-3 text-title font-semibold">
-	{#each [['dark', assets?.logo_dark], ['light', assets?.logo_light]] as [mode, src] (mode)}
-		<span class="logo-{mode} items-center gap-3">
-			{#if src}<img
-					{src}
-					alt={title}
-					class="h-10 w-auto max-w-64 object-contain"
-				/>{:else}{title}{/if}
-		</span>
-	{/each}
+	{#if logo}<img
+			src={logo}
+			alt={title}
+			class="h-10 w-auto max-w-64 object-contain"
+		/>{:else}{title}{/if}
 	{#if suffix}<span>{suffix}</span>{/if}
 	{@render children?.()}
 </h1>
-
-<style>
-	.logo-dark,
-	.logo-light {
-		display: none;
-	}
-	:global(:root:not([data-mode='light'])) .logo-dark,
-	:global(:root[data-mode='light']) .logo-light {
-		display: inline-flex;
-	}
-</style>

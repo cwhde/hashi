@@ -12,6 +12,7 @@ import (
 	"git.juzo.io/juzo/hashi/internal/security"
 	"git.juzo.io/juzo/hashi/internal/settings"
 	"git.juzo.io/juzo/hashi/internal/store/db"
+	"golang.org/x/sync/errgroup"
 )
 
 // dashboardRanges maps a period to the width of one series point: 60, 48, 42 and 30 points.
@@ -59,72 +60,77 @@ func (s *Server) GetSecurityDashboard(ctx context.Context, req gen.GetSecurityDa
 	if err != nil {
 		return nil, err
 	}
-	decisions, err := q.SecurityDecisionSeries(ctx, db.SecurityDecisionSeriesParams{Step: step, Since: sp.minutes})
-	if err != nil {
-		return nil, err
-	}
-	if sp.hourly() {
-		hours, err := q.SecurityHourDecisionSeries(ctx, db.SecurityHourDecisionSeriesParams{Step: step, Since: since, Until: sp.until})
+	// The parts fill separate fields and read separately; they run side by side on the read pool (the handler read them
+	// one after another before, and the page waited for the sum).
+	g, gctx := errgroup.WithContext(ctx)
+	g.Go(func() error {
+		ctx := gctx
+		decisions, err := q.SecurityDecisionSeries(ctx, db.SecurityDecisionSeriesParams{Step: step, Since: sp.minutes})
 		if err != nil {
-			return nil, err
+			return err
 		}
-		for _, h := range hours {
-			decisions = append(decisions, db.SecurityDecisionSeriesRow(h))
-		}
-	}
-	for _, d := range decisions {
-		n := int(d.Requests)
-		add(d.At, func(p *gen.SecurityPoint) {
-			switch d.Decision {
-			case security.DecisionAllow:
-				p.Allowed += n
-			case security.DecisionAuth:
-				p.AuthRequired += n
-			case security.DecisionChallenge:
-				p.Challenged += n
-			case security.DecisionDeny, security.DecisionBlocked:
-				p.Denied += n
+		if sp.hourly() {
+			hours, err := q.SecurityHourDecisionSeries(ctx, db.SecurityHourDecisionSeriesParams{Step: step, Since: since, Until: sp.until})
+			if err != nil {
+				return err
 			}
-		})
-	}
-	evs, err := q.SecurityEventSeries(ctx, db.SecurityEventSeriesParams{Step: step, Since: since})
-	if err != nil {
-		return nil, err
-	}
-	for _, e := range evs {
-		n := int(e.Events)
-		switch e.EventType {
-		case "waf_match":
-			add(e.At, func(p *gen.SecurityPoint) { p.WafMatches += n })
-		case "ban_created":
-			add(e.At, func(p *gen.SecurityPoint) { p.Bans += n })
-			if e.Source == security.SourceChallengeFailed {
-				out.Funnel.Banned += n
+			for _, h := range hours {
+				decisions = append(decisions, db.SecurityDecisionSeriesRow(h))
 			}
-		case "challenge_entered":
-			out.Funnel.Challenged += n
-		case "challenge_solved":
-			out.Funnel.Solved += n
 		}
-	}
-
-	if err := s.dashboardAddresses(ctx, since, sp, &out); err != nil {
-		return nil, err
-	}
-	if err := s.dashboardRefused(ctx, since, sp, &out); err != nil {
-		return nil, err
-	}
-	if err := s.dashboardMeters(ctx, since, &out); err != nil {
-		return nil, err
-	}
-	recent, err := q.ListRecentSecurityEvents(ctx, since)
-	if err != nil {
-		return nil, err
-	}
-	for _, e := range recent {
-		out.Events = append(out.Events, s.securityEvent(e))
-	}
-	if err := s.dashboardStaleFeeds(ctx, now, &out); err != nil {
+		for _, d := range decisions {
+			n := int(d.Requests)
+			add(d.At, func(p *gen.SecurityPoint) {
+				switch d.Decision {
+				case security.DecisionAllow:
+					p.Allowed += n
+				case security.DecisionAuth:
+					p.AuthRequired += n
+				case security.DecisionChallenge:
+					p.Challenged += n
+				case security.DecisionDeny, security.DecisionBlocked:
+					p.Denied += n
+				}
+			})
+		}
+		evs, err := q.SecurityEventSeries(ctx, db.SecurityEventSeriesParams{Step: step, Since: since})
+		if err != nil {
+			return err
+		}
+		for _, e := range evs {
+			n := int(e.Events)
+			switch e.EventType {
+			case "waf_match":
+				add(e.At, func(p *gen.SecurityPoint) { p.WafMatches += n })
+			case "ban_created":
+				add(e.At, func(p *gen.SecurityPoint) { p.Bans += n })
+				if e.Source == security.SourceChallengeFailed {
+					out.Funnel.Banned += n
+				}
+			case "challenge_entered":
+				out.Funnel.Challenged += n
+			case "challenge_solved":
+				out.Funnel.Solved += n
+			}
+		}
+		return nil
+	})
+	g.Go(func() error { return s.dashboardAddresses(gctx, since, sp, &out) })
+	g.Go(func() error { return s.dashboardCountries(gctx, since, sp, &out) })
+	g.Go(func() error { return s.dashboardServices(gctx, since, sp, &out) })
+	g.Go(func() error { return s.dashboardMeters(gctx, since, &out) })
+	g.Go(func() error {
+		recent, err := q.ListRecentSecurityEvents(gctx, since)
+		if err != nil {
+			return err
+		}
+		for _, e := range recent {
+			out.Events = append(out.Events, s.securityEvent(e))
+		}
+		return nil
+	})
+	g.Go(func() error { return s.dashboardStaleFeeds(gctx, now, &out) })
+	if err := g.Wait(); err != nil {
 		return nil, err
 	}
 	return gen.GetSecurityDashboard200JSONResponse(out), nil
@@ -155,14 +161,10 @@ func (s *Server) dashboardSplit(ctx context.Context, rng string, since int64, no
 	return p, nil
 }
 
-// dashboardRefused adds up refusals per country and per service, hours and minutes, and keeps the top 8 of each.
-func (s *Server) dashboardRefused(ctx context.Context, since int64, sp split, out *gen.SecurityDashboard) error {
+// dashboardCountries adds up refusals per country, hours and minutes, and keeps the top 8.
+func (s *Server) dashboardCountries(ctx context.Context, since int64, sp split, out *gen.SecurityDashboard) error {
 	q := s.Store.R
 	countries, err := q.SecurityRefusedByCountry(ctx, sp.minutes)
-	if err != nil {
-		return err
-	}
-	svcs, err := q.SecurityRefusedByService(ctx, sp.minutes)
 	if err != nil {
 		return err
 	}
@@ -173,13 +175,6 @@ func (s *Server) dashboardRefused(ctx context.Context, since int64, sp split, ou
 		}
 		for _, c := range hc {
 			countries = append(countries, db.SecurityRefusedByCountryRow(c))
-		}
-		hs, err := q.SecurityHourRefusedByService(ctx, db.SecurityHourRefusedByServiceParams{Since: since, Until: sp.until})
-		if err != nil {
-			return err
-		}
-		for _, v := range hs {
-			svcs = append(svcs, db.SecurityRefusedByServiceRow(v))
 		}
 	}
 	byCountry := map[string]int{}
@@ -194,7 +189,25 @@ func (s *Server) dashboardRefused(ctx context.Context, since int64, sp split, ou
 	}
 	slices.SortStableFunc(out.Countries, func(a, b gen.SecurityCountry) int { return cmp.Compare(b.Refused, a.Refused) })
 	out.Countries = out.Countries[:min(len(out.Countries), 8)]
+	return nil
+}
 
+// dashboardServices adds up refusals per service, hours and minutes, and keeps the top 8.
+func (s *Server) dashboardServices(ctx context.Context, since int64, sp split, out *gen.SecurityDashboard) error {
+	q := s.Store.R
+	svcs, err := q.SecurityRefusedByService(ctx, sp.minutes)
+	if err != nil {
+		return err
+	}
+	if sp.hourly() {
+		hs, err := q.SecurityHourRefusedByService(ctx, db.SecurityHourRefusedByServiceParams{Since: since, Until: sp.until})
+		if err != nil {
+			return err
+		}
+		for _, v := range hs {
+			svcs = append(svcs, db.SecurityRefusedByServiceRow(v))
+		}
+	}
 	bySvc := map[string]int{}
 	for _, v := range svcs {
 		if _, ok := bySvc[v.ServiceID]; !ok {

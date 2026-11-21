@@ -43,8 +43,10 @@ SELECT * FROM monitor_samples WHERE endpoint_id = ? AND check_id = ? AND at >= ?
 -- name: ListMonitorSamplesBetween :many
 SELECT * FROM monitor_samples WHERE at >= ? AND at < ? ORDER BY endpoint_id, check_id, at;
 
+-- Ordered by time only, so SQLite reads the period through the time index; sorting by endpoint first made it read every
+-- sample through the primary key (0.4 s on prod). The caller groups by endpoint.
 -- name: ListRoundsSince :many
-SELECT endpoint_id, at, verdict FROM monitor_samples WHERE check_id = '' AND at >= ? ORDER BY endpoint_id, at;
+SELECT endpoint_id, at, verdict FROM monitor_samples WHERE check_id = '' AND at >= ? ORDER BY at;
 
 -- name: UpsertMonitorRollup :exec
 INSERT OR REPLACE INTO monitor_rollups (endpoint_id, check_id, resolution, bucket, count, ok_count, min_ms, max_ms, avg_ms, p95_ms)

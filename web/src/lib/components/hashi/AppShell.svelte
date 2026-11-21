@@ -33,7 +33,8 @@
 	let { children, live }: { children: Snippet; live?: { onSignOut: () => void } } = $props();
 	const nav = $derived(live ? (setupServices(session.current) ? setupNav : liveNav) : designNav);
 	// The pending-changes count in the live app: on load (the shell mounts after the first navigation has finished), on
-	// every navigation, and every 30 s, because plans also appear from background sync while a page stays open.
+	// every navigation, and every 30 s, because plans also appear from background sync while a page stays open. The (app)
+	// layout applies the saved theme.
 	const refreshPending = () => {
 		if (live) {
 			pendingPlans.refresh().catch(() => {});
@@ -44,7 +45,6 @@
 	let unlockOpen = $state(false);
 	afterNavigate(refreshPending);
 	onMount(() => {
-		void theme.sync();
 		refreshPending();
 		const timer = setInterval(refreshPending, 30_000);
 		return () => clearInterval(timer);

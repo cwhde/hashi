@@ -196,10 +196,11 @@ func (s *Service) save(ctx context.Context, a App, mode, ref string, dark, light
 			}
 			continue
 		}
-		if err := write(s.path(a.Key, f.light), f.in.Data); err != nil {
+		in := shrink(*f.in)
+		if err := write(s.path(a.Key, f.light), in.Data); err != nil {
 			return db.AppIcon{}, fmt.Errorf("store icon: %w", err)
 		}
-		*f.ct, *f.etag = f.in.ContentType, etag(f.in.Data)
+		*f.ct, *f.etag = in.ContentType, etag(in.Data)
 	}
 	if dark != nil {
 		row.Found = dark.From
@@ -310,11 +311,18 @@ func (s *Service) Refresh(ctx context.Context) error {
 func (s *Service) Run(ctx context.Context) error {
 	t := time.NewTimer(30 * time.Second)
 	defer t.Stop()
+	shrunk := false
 	for {
 		select {
 		case <-ctx.Done():
 			return nil
 		case <-t.C:
+		}
+		if !shrunk {
+			if err := s.shrinkStored(ctx); err != nil && ctx.Err() == nil {
+				s.Log.Warn("app icons: shrink stored", "err", err)
+			}
+			shrunk = true
 		}
 		if err := s.Refresh(ctx); err != nil && ctx.Err() == nil {
 			s.Log.Warn("app icons", "err", err)

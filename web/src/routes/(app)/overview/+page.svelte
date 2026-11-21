@@ -15,6 +15,7 @@
 	import { stripHealth, type Endpoint } from '#lib/monitor.ts';
 	import { dateTime } from '#lib/format.ts';
 	import { arrange, widgetNames, type WidgetId } from '#lib/overview.ts';
+	import { theme } from '#lib/theme.svelte.ts';
 	import type { Health } from '#lib/design/mock.ts';
 
 	// The start page (10-ui.md §3, bug 31): what needs the owner first, then the rest, as widgets in the order and
@@ -50,7 +51,7 @@
 	}
 
 	onMount(async () => {
-		const a = await api.GET('/api/settings/appearance');
+		const a = await theme.load();
 		shown = arrange(a.data?.overview_widgets)
 			.filter((w) => w.visible)
 			.map((w) => w.id);

@@ -908,7 +908,7 @@ func (q *Queries) ListNotificationProviders(ctx context.Context) ([]Notification
 }
 
 const listRoundsSince = `-- name: ListRoundsSince :many
-SELECT endpoint_id, at, verdict FROM monitor_samples WHERE check_id = '' AND at >= ? ORDER BY endpoint_id, at
+SELECT endpoint_id, at, verdict FROM monitor_samples WHERE check_id = '' AND at >= ? ORDER BY at
 `
 
 type ListRoundsSinceRow struct {
@@ -917,6 +917,8 @@ type ListRoundsSinceRow struct {
 	Verdict    string
 }
 
+// Ordered by time only, so SQLite reads the period through the time index; sorting by endpoint first made it read every
+// sample through the primary key (0.4 s on prod). The caller groups by endpoint.
 func (q *Queries) ListRoundsSince(ctx context.Context, at int64) ([]ListRoundsSinceRow, error) {
 	rows, err := q.db.QueryContext(ctx, listRoundsSince, at)
 	if err != nil {

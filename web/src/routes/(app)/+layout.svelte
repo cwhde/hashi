@@ -24,10 +24,7 @@
 			}
 			ready = true;
 			// The saved theme and time display follow the admin to every browser (Settings).
-			const [a, g] = await Promise.all([
-				api.GET('/api/settings/appearance'),
-				api.GET('/api/settings/general')
-			]);
+			const [a, g] = await Promise.all([theme.load(), api.GET('/api/settings/general')]);
 			if (a.data) theme.apply(a.data);
 			if (g.data) setTimeDisplay(g.data.time_display ?? 'local');
 		} catch (e) {
