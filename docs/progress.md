@@ -9,6 +9,9 @@ Rules: docs/spec/11-delivery.md §2.
 - The CI speed branch runs the full suite on `main`, supports scoped PR feedback and reports the full-suite PR status
   separately. See 11-delivery §6.1 for the owner-installed branch protection. Timings and the runner proposal are
   tracked in the local CI audit.
+- The first CI speed run reproduced the shared cold Go SDK install race and the existing Edge Settings overflow. Linux
+  Chromium reproduced 398 px of content in a 390 px viewport on unchanged main. Edge protection now has an explicit
+  single grid column at phone widths. Its existing e2e width assertion covers the fix.
 
 ## Current: 0.13 bug round (before 1.0)
 
