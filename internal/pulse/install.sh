@@ -111,7 +111,8 @@ INIT
 /lib/upgrade/keep.d/hashi-pulse
 KEEP
 	/etc/init.d/hashi-pulse enable
-	/etc/init.d/hashi-pulse restart
+	# restart on a first install makes procd report the missing service as a failure
+	if /etc/init.d/hashi-pulse running; then /etc/init.d/hashi-pulse restart; else /etc/init.d/hashi-pulse start; fi
 	echo "Hashi Pulse is running (procd)."
 elif command -v rc-service >/dev/null 2>&1; then
 	cat >/etc/init.d/hashi-pulse <<'INIT'

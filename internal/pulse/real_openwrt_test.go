@@ -64,8 +64,8 @@ func TestRealOpenWrtInstall(t *testing.T) {
 	}
 
 	install := []string{"sh", "/tmp/install.sh", "--url", "http://127.0.0.1:9", "--id", "test-agent", "--token", "test-token", "--from", "http://127.0.0.1/rel"}
-	if out := c.Exec(t, install...); !strings.Contains(out, "(procd)") {
-		t.Fatalf("installer did not take the procd path:\n%s", out)
+	if out := c.Exec(t, install...); !strings.Contains(out, "(procd)") || strings.Contains(out, "failed") {
+		t.Fatalf("installer did not take the procd path cleanly:\n%s", out)
 	}
 	running := func() string {
 		out, _ := c.Try("ubus", "call", "service", "list", `{"name":"hashi-pulse"}`)
@@ -94,7 +94,7 @@ func TestRealOpenWrtInstall(t *testing.T) {
 	}
 
 	// Installing again over the running agent replaces its file and restarts it.
-	if out := c.Exec(t, install...); !strings.Contains(out, "(procd)") {
+	if out := c.Exec(t, install...); !strings.Contains(out, "(procd)") || strings.Contains(out, "failed") {
 		t.Fatalf("second install:\n%s", out)
 	}
 	itest.WaitFor(t, 30*time.Second, "hashi-pulse running after reinstall", func() bool {
