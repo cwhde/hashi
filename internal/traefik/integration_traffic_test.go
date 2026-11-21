@@ -129,6 +129,11 @@ func TestIntegrationTraffic(t *testing.T) {
 		[]string{"host=app.internal.example\n", "req X-Extra=one", "req X-Forwarded-Host=custom.example.test",
 			"resp X-Served-By=edge", "resp X-Frame-Options=DENY"},
 		[]string{"req X-Forwarded-For=", "req X-Real-Ip=", "req X-Remove=", "resp X-Upstream-Secret"})
+	// The compress middleware gzips text but leaves images alone: they are compressed already.
+	gz := "Accept-Encoding=gzip"
+	check("html compressed", get("keep.example.test", "/headers/page.html", gz), []string{"resp Content-Encoding=gzip"}, nil)
+	check("image as is", get("keep.example.test", "/headers/image.webp", gz), []string{"resp Content-Type=image/webp"},
+		[]string{"resp Content-Encoding="})
 	if got := get("slow.example.test", "/slow"); !strings.HasPrefix(got, "status=504") {
 		t.Errorf("slow upstream past the timeout: %q", got)
 	}

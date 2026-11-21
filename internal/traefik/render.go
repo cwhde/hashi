@@ -224,7 +224,12 @@ func Render(o Options) ([]File, error) {
 			CustomRequestHeaders: map[string]string{HeaderUser: ""},
 			ReferrerPolicy:       "strict-origin-when-cross-origin",
 		}},
-		MiddlewareCompress: {Compress: &struct{}{}},
+		// Images, fonts and archives are compressed already: gzip only costs time on them. Event streams must flow as
+		// they are written.
+		MiddlewareCompress: {Compress: &compress{ExcludedContentTypes: []string{
+			"text/event-stream", "image/png", "image/jpeg", "image/gif", "image/webp", "image/avif",
+			"font/woff", "font/woff2", "application/zip", "application/gzip",
+		}}},
 	}}}, ""); err != nil {
 		return nil, err
 	}

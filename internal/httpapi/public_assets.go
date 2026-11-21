@@ -211,9 +211,20 @@ func (s *Server) ServeAsset(w http.ResponseWriter, r *http.Request) {
 	h.Set("Content-Type", v.ContentType)
 	h.Set("X-Content-Type-Options", "nosniff")
 	h.Set("Content-Security-Policy", "default-src 'none'; style-src 'unsafe-inline'; sandbox")
-	h.Set("Cache-Control", "public, max-age=300")
-	h.Set("ETag", `"`+v.ETag+`"`)
+	cacheAsset(h, r, v.ETag)
 	http.ServeContent(w, r, "", time.Time{}, f)
+}
+
+// cacheAsset sets the caching headers for a stored file whose current version is tag. Pages name it as ?v=<tag>, and
+// that URL never changes content, so browsers keep it a year without asking; any other URL is checked after five
+// minutes.
+func cacheAsset(h http.Header, r *http.Request, tag string) {
+	if r.URL.Query().Get("v") == tag {
+		h.Set("Cache-Control", "public, max-age=31536000, immutable")
+	} else {
+		h.Set("Cache-Control", "public, max-age=300")
+	}
+	h.Set("ETag", `"`+tag+`"`)
 }
 
 // PublicIconURL is the owner's uploaded icon for the public pages' HTML (bug 160), or "" when there is none or the

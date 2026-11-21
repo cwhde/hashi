@@ -2,7 +2,18 @@
 http:
   middlewares:
     hashi-compress:
-      compress: {}
+      compress:
+        excludedContentTypes:
+          - text/event-stream
+          - image/png
+          - image/jpeg
+          - image/gif
+          - image/webp
+          - image/avif
+          - font/woff
+          - font/woff2
+          - application/zip
+          - application/gzip
     hashi-headers:
       headers:
         customRequestHeaders:

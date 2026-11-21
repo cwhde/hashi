@@ -143,7 +143,6 @@ func (s *Server) ServeAppIcon(w http.ResponseWriter, r *http.Request) {
 	h.Set("Content-Type", ct)
 	h.Set("X-Content-Type-Options", "nosniff")
 	h.Set("Content-Security-Policy", "default-src 'none'; style-src 'unsafe-inline'; sandbox")
-	h.Set("Cache-Control", "public, max-age=300")
-	h.Set("ETag", `"`+tag+`"`)
+	cacheAsset(h, r, tag)
 	http.ServeContent(w, r, "", time.Time{}, f)
 }

@@ -57,6 +57,14 @@ func main() {
 				defer mu.Unlock()
 				_, _ = fmt.Fprintf(w, "fa-edge=%s\n", lastFA)
 				return
+			case "/headers/page.html", "/headers/image.webp": // 4 KiB to compress, or not (images are compressed already)
+				ct := "text/html; charset=utf-8"
+				if strings.HasSuffix(r.URL.Path, ".webp") {
+					ct = "image/webp"
+				}
+				w.Header().Set("Content-Type", ct)
+				_, _ = w.Write(bytes.Repeat([]byte("a"), 4096))
+				return
 			case "/headers", "/slow": // what the upstream received (traffic options, 04 §1.1a); /slow answers after 3 s
 				if r.URL.Path == "/slow" {
 					time.Sleep(3 * time.Second)

@@ -160,9 +160,14 @@ type routerTLS struct {
 	Options string `yaml:"options,omitempty"`
 }
 
+// compress is Traefik's compress middleware (schema_v3_file_provider.json).
+type compress struct {
+	ExcludedContentTypes []string `yaml:"excludedContentTypes,omitempty"`
+}
+
 type middleware struct {
 	Headers          *headers          `yaml:"headers,omitempty"`
-	Compress         *struct{}         `yaml:"compress,omitempty"`
+	Compress         *compress         `yaml:"compress,omitempty"`
 	ForwardAuth      *forwardAuth      `yaml:"forwardAuth,omitempty"`
 	StripPrefix      *stripPrefix      `yaml:"stripPrefix,omitempty"`
 	ReplacePath      *replacePath      `yaml:"replacePath,omitempty"`

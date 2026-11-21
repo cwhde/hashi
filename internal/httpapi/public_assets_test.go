@@ -97,6 +97,17 @@ func TestPublicAssetsFromTheSource(t *testing.T) {
 			t.Fatalf("serve %d %q", rec.Code, rec.Header())
 		}
 	}
+	// The page names the file with its version, so that URL never changes content: browsers keep it a year. Without
+	// the version, or with an old one, they check again after five minutes.
+	for u, want := range map[string]string{
+		got[0].Url:                   "public, max-age=31536000, immutable",
+		"/assets/logo_dark":          "public, max-age=300",
+		"/assets/logo_dark?v=stale1": "public, max-age=300",
+	} {
+		if cc := get(t, s, u).Header().Get("Cache-Control"); cc != want {
+			t.Errorf("%s: Cache-Control %q, want %q", u, cc, want)
+		}
+	}
 	if fileHits.Load() != 1 {
 		t.Fatalf("the source was asked %d times", fileHits.Load())
 	}
