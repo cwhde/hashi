@@ -43,13 +43,16 @@ and 158 go with it. The approved mocks under `routes/design/` are reported, not 
   cards of different heights (address page, agent page, service traffic tab); Upstream's protocol field has a label.
 - [x] Spec (`docs(spec)` 4d48454f). `make check` green.
 - [x] `make test-e2e` green (one flaky run of the recovery-link test: the sign-in button re-rendered under the click; passed alone).
-- [ ] The owner reviews the open decisions; release with the next push; on prod: the pages look right.
+- [ ] Release with the next push; on prod: the pages look right, the public pages' icons on the dashboard.
 
-Open decisions for the owner (kept for now): the setup consent checkboxes keep "Nothing changes on the host until you
-approve" (it says what the box agrees to); "Saving asks for your passkey. Firewall and Traefik changes then wait under
-Pending changes." on the engine sheet; "A blocklist … blocks nothing until you use it" stays; "0 never bans for good";
-help text count 43 sentences (13.4 aimed below 40). Mocks with old wording: `lib/design` and `security/IpItemEditor`,
-`IpSetPicker`, `RuleEntryList` (only the mocks use them).
+Decided by the owner (2026-11-21): the setup consent boxes lose "Nothing changes on the host until you approve"; the
+engine settings sheet and the Add blocklist sheet lose their description lines; "Permanent after" reads "Leave at 0 to
+never ban permanently"; the help-text counter skips state lines (`data-state`, role="status") and lines that are mostly
+values: 43 → 33. The mocks keep their old wording.
+- [x] Bug 159: the tab icon is drawn in the theme's accent and follows every switch (e2e reproduced it first).
+- [x] Bug 160: the public pages name their icon in the HTML (the owner's upload, else Hashi's mark, now served there), so
+  the dashboard finds one for their own services (prod: both rows "auto", nothing found; `/apple-touch-icon.png` 404).
+  Prod picks it up within a day of the release (auto icons are looked up again every 24 h).
 
 **13.2 done** (2026-11-17, `v0.13.2-beta.1`, PR #69). Gate: the end-to-end run on the release commit walks all 16
 top-level pages at 390 and 1440 px in all four themes with no page wider than the screen, checks every title
