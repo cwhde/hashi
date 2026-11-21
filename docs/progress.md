@@ -33,9 +33,30 @@ first, structure before text, search after the settings regroup.
 | 13.8 | Public page assets | 30, 149 (if the selfh.st index is unclear, see how Pocket ID integrates it) | Public page icon, logo and background replaceable and served from Hashi's own copy; every dashboard app shows its own icon (picked, fetched or a letter) |
 | 13.9 | Pulse on OpenWrt | 21 | Agent installed, started, self-updated and reporting its address on the owner's own OpenWrt router |
 | 13.10 | UI copy pass with unslop-ui | none (the owner, 2026-11-20) | Talk the skill through with the owner (https://github.com/felipebasurto/unslop-ui: an agent skill that cuts AI tells from UI copy and charts, optional visual rules); decide together whether and how to run it (install or follow by hand, which pages, with or without its visual rules, a taste file from 10c); run it as decided; the owner accepts the result |
+| 13.11 | Speed and the last bugs | 150, 151, 152, 153 | Lighthouse and request timings measured before and after; the slow admin requests faster on a copy of prod data; no open bug left |
 
 Next: 13.10 (13.5's gate waits for a real host outage). After 13.10: a last bug sweep, then `v1.0.0`. With 1.0, a better README (the owner, 2026-11-19): what Hashi
 is, screenshots, how to install and run it, what it needs.
+
+**13.11 speed and the last bugs** (2026-11-21, the owner: "easy wins and the medium ones, plus all bugs"). Measured
+first with Lighthouse 12.8.2 (apps page mobile 91 / desktop 99, status page 83 / 100) and against a copy of today's prod
+backup on the laptop (deleted afterwards).
+- [x] Public pages load only the current mode's logo (both 226 KiB logos loaded before).
+- [x] `/assets/{slot}` and `/assets/apps/{name}` named with their current `?v=` are cached a year as immutable; other
+  URLs keep 5 minutes.
+- [x] Traefik's compress middleware leaves images, fonts, archives and event streams alone (`excludedContentTypes`;
+  the real Traefik gzipped a webp before, integration test).
+- [x] Admin: the appearance read once per page load instead of three times (shared while in flight). The second
+  `/api/sync/plans` on the overview stays: it is the overview's own plan list, the other one the top bar's count.
+- [x] Security dashboard: its parts run side by side on the read pool. Prod copy, 24 h 297 → 105 ms, 30 d 259 → 144 ms.
+- [x] Endpoint list: the last hour's strips read through the time index (sorted by time only); it read all 2.2 million
+  samples. Prod copy 152 → 30 ms. Plan test.
+- [x] App icons: PNG and JPEG larger than 128 px are stored at 128 px (area average, stdlib); icons stored earlier are
+  shrunk once when the icon job starts.
+- [x] History strips are one SVG with one path per state (the public status page had 5,506 elements).
+- [x] Bugs 150 (stale `/etc/hosts` line on the VPS removed with the owner's OK, backup `/etc/hosts.bak-2026-11-21`),
+  151 (Recent runs placeholder while loading), 152 (IP set picker search labelled), 153 (a challenge bans no sooner than a
+  minute after it began, 06 §3.3).
 
 **13.10 in progress** (2026-11-21). Decided with the owner: follow the skill's SKILL.md by hand (its scripts not run),
 all product pages, surface rules on, taste file `.unslop-ui/taste.md` from 10c §4 and the owner's text and look bugs; bugs 157
