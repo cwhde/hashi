@@ -30,7 +30,11 @@ lint: ## go vet + golangci-lint (pinned in tools/go.mod) + the agent installer
 	$(TOOL) golangci-lint run ./...
 
 test: ## unit + contract tests
-	go test -race -count=1 ./...
+	@if [ -n "$${CI_GO_PATHS:-}" ]; then \
+	  python3 tools/ci/go-test.py; \
+	else \
+	  go test -race -count=1 ./...; \
+	fi
 
 generate: ## regenerate sqlc and OpenAPI code
 	@if [ -f sqlc.yaml ]; then $(TOOL) sqlc generate; fi

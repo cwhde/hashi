@@ -1,20 +1,14 @@
 name: CI
 
-# Docs-only changes never run. Every other run first decides in `scope` which jobs the change can affect.
 on:
   pull_request:
-    paths-ignore:
-      - "docs/**"
-      - "**/*.md"
+    types: [opened, synchronize, reopened, edited]
   push:
     branches: [main]
-    paths-ignore:
-      - "docs/**"
-      - "**/*.md"
   workflow_dispatch:
 
 concurrency:
-  group: ci-${{ github.ref }}
+  group: ci-${{ github.event_name }}-${{ github.ref }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
@@ -26,26 +20,21 @@ jobs:
       web: ${{ steps.s.outputs.web }}
       integration: ${{ steps.s.outputs.integration }}
       e2e: ${{ steps.s.outputs.e2e }}
+      full: ${{ steps.s.outputs.full }}
+      go_paths: ${{ steps.s.outputs.go_paths }}
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
-          fetch-depth: 0
+          filter: blob:none
+          persist-credentials: false
 
       - id: s
+        name: Select CI checks
         env:
           EVENT: ${{ github.event_name }}
-          BASE: ${{ github.base_ref }}
-        run: |
-          set_all() { for k in go web integration e2e; do echo "$k=$1" >> "$GITHUB_OUTPUT"; done; }
-          if [ "$EVENT" != pull_request ]; then set_all true; exit 0; fi
-          changed=$(git diff --name-only "origin/$BASE...HEAD")
-          flag() { if grep -qE "$2" <<<"$changed"; then echo "$1=true"; else echo "$1=false"; fi >> "$GITHUB_OUTPUT"; }
-          always='|^Makefile$|^\.gitea/workflows/ci\.yml$'
-          flag go "^(cmd|internal|agents|api|tools|testdata|deploy)/|^go\.(mod|sum)\$|^sqlc\.yaml\$|^\.golangci\.yml\$$always"
-          flag web "^(web|api|tools|internal/store|internal/httpapi)/|^sqlc\.yaml\$$always"
-          flag integration "^(cmd|internal|agents|tools|testdata|deploy/docker)/|^go\.(mod|sum)\$$always"
-          flag e2e "^(web|api|internal|cmd)/|^go\.mod\$$always"
-          cat "$GITHUB_OUTPUT"
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          FULL_PR: ${{ startsWith(github.event.pull_request.title, '[full-ci] ') }}
+        run: python3 tools/ci/scope.py
 
   # Go: format, vet, lint, unit and contract tests with -race, deploy bookkeeping, agent size, govulncheck.
   go:
@@ -69,6 +58,8 @@ jobs:
           key: golangci-${{ runner.os }}-${{ hashFiles('tools/go.sum', '.golangci.yml') }}
 
       - name: make check-go
+        env:
+          CI_GO_PATHS: ${{ needs.scope.outputs.go_paths }}
         run: make check-go
 
       # Threat model §7: known vulnerabilities in Go modules (reachable code).
@@ -165,3 +156,20 @@ jobs:
       - name: Hashi's log from the e2e run
         if: failure()
         run: tail -n 400 web/e2e/.hashi.log || echo "no log written"
+
+  # Require this exact PR status in Gitea branch protection. Selective feedback leaves it skipped.
+  full-suite:
+    needs: [scope, go, web, integration, e2e]
+    if: always() && needs.scope.outputs.full == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Require success from every job
+        env:
+          SCOPE: ${{ needs.scope.result }}
+          GO: ${{ needs.go.result }}
+          WEB: ${{ needs.web.result }}
+          INTEGRATION: ${{ needs.integration.result }}
+          E2E: ${{ needs.e2e.result }}
+        run: |
+          printf '%s\n' "scope=$SCOPE" "go=$GO" "web=$WEB" "integration=$INTEGRATION" "e2e=$E2E"
+          test "$SCOPE/$GO/$WEB/$INTEGRATION/$E2E" = success/success/success/success/success
