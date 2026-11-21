@@ -37,6 +37,10 @@ runs:
         printf '%s\n' "version=$version" "prefix=$prefix" "key=$prefix$(date -u +%G%V)" "legacy=$old" >> "$GITHUB_OUTPUT"
 
     - uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5.6.0
+      # Both Gitea runners mount the same tool cache. Concurrent cold installs can
+      # remove each other's Go binary; keep the SDK install inside this job container.
+      env:
+        RUNNER_TOOL_CACHE: ${{ runner.temp }}/hashi-go-sdk
       with:
         go-version: ${{ steps.key.outputs.version }}
         cache: false
