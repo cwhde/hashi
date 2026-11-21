@@ -3,6 +3,13 @@
 The single place that says where the project stands. Updated at the end of every working session.
 Rules: docs/spec/11-delivery.md §2.
 
+## CI speed work (2026-11-21)
+
+- Gitea run 1227 passed with Go and integration skipped. Its identical-tree merge (run 1228) skipped every check.
+- The CI speed branch runs the full suite on `main`, supports scoped PR feedback and reports the full-suite PR status
+  separately. See 11-delivery §6.1 for the owner-installed branch protection. Timings and the runner proposal are
+  tracked in the local CI audit.
+
 ## Current: 0.13 bug round (before 1.0)
 
 Decided with the owner 2026-11-16: one round fixes **every** bug in `docs/bugs.md` (82 open, features included),
