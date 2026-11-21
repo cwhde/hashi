@@ -18,7 +18,6 @@ All open entries are planned into the 0.13 bug round (slices 13.1 onwards in `do
 | # | Kind | Status | Where | What | Reported |
 | --- | --- | --- | --- | --- | --- |
 | 150 | function | seen | The VPS's `/etc/hosts` | The pin line for the NetBird server's name holds a DNS error message (";; communications error to …#53: timed out") where the address should be; probably written by the old firewall script before the takeover. Seen read-only 2026-11-19; harmless (a line starting with `;` is not an address) but stale. Remove with the owner's OK. | 2026-11-19 |
-| 153 | function | seen | Abuse engine → challenge to ban | An app that cannot show a CAPTCHA (the owner's photo app) is banned one second after its challenge: its parallel requests use up `challenge.max_failed` (15) at once. Seen on prod 2026-11-20 08:15:44–45 UTC (request limit still 300; the phone tripped it). The challenge-to-ban step needs time, not only a count, before it bans. | 2026-11-20 |
 
 ## Details
 

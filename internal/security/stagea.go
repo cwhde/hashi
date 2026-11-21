@@ -127,9 +127,9 @@ func (e *Engine) StageA(ctx context.Context, r Request) (Outcome, error) {
 	}
 	ch.Failures++
 	ch.dirty = true
-	f, exp := ch.Failures, ch.Expires
+	f, exp, age := ch.Failures, ch.Expires, now.Sub(ch.Created)
 	e.mu.Unlock()
-	if f >= cfg.ChallengeMaxFailed {
+	if f >= cfg.ChallengeMaxFailed && age >= ChallengeGrace {
 		if _, err := e.Ban(ctx, a, Cause{Source: SourceChallengeFailed, ServiceID: r.ServiceID,
 			Reason: fmt.Sprintf("%d requests without solving the challenge", f)}); err != nil {
 			return Outcome{}, err
@@ -138,6 +138,10 @@ func (e *Engine) StageA(ctx context.Context, r Request) (Outcome, error) {
 	}
 	return Outcome{Step: Challenged, Stage: "A3", Failures: f, MaxFailed: cfg.ChallengeMaxFailed, Expires: exp}, nil
 }
+
+// ChallengeGrace is how old a challenge must be before its failures ban (06 §3.3, bug 153): an app's parallel requests
+// can use up F_max within a second, before a person has seen the page.
+const ChallengeGrace = time.Minute
 
 // WAFMatch counts one WAF match from the access log (06 §3.2); SSO sessions do not exempt it.
 // WAFDetail is what a WAF refusal records: the request line and the rules that scored, for finding false positives.

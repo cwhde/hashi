@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"net/http"
 	"path/filepath"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -12,6 +13,7 @@ import (
 	"git.juzo.io/juzo/hashi/internal/dns/hetzner"
 	"git.juzo.io/juzo/hashi/internal/dns/hetzner/hetznertest"
 	"git.juzo.io/juzo/hashi/internal/secrets"
+	"git.juzo.io/juzo/hashi/internal/security"
 	"git.juzo.io/juzo/hashi/internal/settings"
 	"git.juzo.io/juzo/hashi/internal/store/storetest"
 )
@@ -148,8 +150,10 @@ func TestForwardAuthStageA(t *testing.T) {
 		return hetzner.New(token, hetzner.WithBaseURL(srv.URL+"/v1")), nil
 	}
 	// One frozen instant: the 318 requests fall in one 10 s window however slow the runner is (CI took 9.6 s).
-	at := time.Now()
-	cfg.abuseNow = func() time.Time { return at }
+	// It moves once, by the minute a challenge must last before it bans (bug 153).
+	var at atomic.Int64
+	at.Store(time.Now().UnixNano())
+	cfg.abuseNow = func() time.Time { return time.Unix(0, at.Load()) }
 	// The limit this test counts against is set here, not taken from the default (1600 since bug 26).
 	st := storetest.Open(t, cfg.DBPath())
 	eng := settings.DefaultOf[settings.Engine]()
@@ -186,15 +190,19 @@ func TestForwardAuthStageA(t *testing.T) {
 	}
 	seen := map[int]int{}
 	first429 := -1
-	for i := range 300 + 15 + 3 {
+	for i := range 300 + 20 + 3 {
+		if i == 300+20 {
+			at.Add(int64(security.ChallengeGrace))
+		}
 		code := forward()
 		seen[code]++
 		if code == 429 && first429 < 0 {
 			first429 = i
 		}
 	}
-	// 300 within 10 s pass, the 301st is challenged, 14 more are challenged and the 15th unsolved request bans.
-	if seen[204] != 300 || first429 != 300 || seen[429] != 15 || seen[403] != 3 {
+	// 300 within 10 s pass, the 301st is challenged; 19 unsolved requests in the same instant, past F_max = 15, are still
+	// only challenged (the challenge is too young to ban), and the first one a minute later bans.
+	if seen[204] != 300 || first429 != 300 || seen[429] != 20 || seen[403] != 3 {
 		t.Fatalf("answers %v, first 429 at %d", seen, first429)
 	}
 }

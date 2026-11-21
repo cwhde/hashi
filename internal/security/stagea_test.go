@@ -50,7 +50,7 @@ var bad = netip.MustParseAddr("198.51.100.7")
 
 func TestRateTriggerChallengeAndEscalation(t *testing.T) {
 	ctx := context.Background()
-	e, _ := testEngine(t)
+	e, clk := testEngine(t)
 	for i := range 10 {
 		if o := run(t, e, Request{Addr: bad}); o.Step != Pass {
 			t.Fatalf("request %d: %+v", i, o)
@@ -70,6 +70,7 @@ func TestRateTriggerChallengeAndEscalation(t *testing.T) {
 			t.Fatalf("failure %d: %+v", f, o)
 		}
 	}
+	clk.add(ChallengeGrace)
 	if o := run(t, e, Request{Addr: bad}); o.Step != BannedNow {
 		t.Fatalf("F_max: %+v", o)
 	}
@@ -87,6 +88,29 @@ func TestRateTriggerChallengeAndEscalation(t *testing.T) {
 	b := e.Bans()[0]
 	if got := b.Expires.Sub(b.Created); got != 15*time.Minute {
 		t.Fatalf("first ban lasts %v", got)
+	}
+}
+
+// Bug 153: an app that cannot show the CAPTCHA (a photo app) sends its parallel requests at once and used up F_max in
+// a second. Failures count from the start, but the ban waits until the challenge is a minute old: time for a person to
+// see the page, while a client that ignores it is still banned after a minute.
+func TestChallengeBansOnlyAfterAMinute(t *testing.T) {
+	e, c := testEngine(t)
+	for range 11 {
+		run(t, e, Request{Addr: bad})
+	}
+	for f := 1; f <= 20; f++ {
+		if o := run(t, e, Request{Addr: bad}); o.Step != Challenged || o.Failures != f {
+			t.Fatalf("failure %d within the first second: %+v", f, o)
+		}
+	}
+	c.add(59 * time.Second)
+	if o := run(t, e, Request{Addr: bad}); o.Step != Challenged {
+		t.Fatalf("at 59 s: %+v", o)
+	}
+	c.add(time.Second)
+	if o := run(t, e, Request{Addr: bad}); o.Step != BannedNow {
+		t.Fatalf("at 60 s with 22 failures: %+v", o)
 	}
 }
 

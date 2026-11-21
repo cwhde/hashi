@@ -73,7 +73,8 @@
 				},
 				{
 					label: 'Attempts before a ban',
-					boxes: [{ key: 'challenge_max_failed', unit: 'attempts' }]
+					boxes: [{ key: 'challenge_max_failed', unit: 'attempts' }],
+					note: 'Never within a minute of the challenge'
 				},
 				{
 					label: 'CAPTCHA pass lasts',
