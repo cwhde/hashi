@@ -183,6 +183,27 @@ export const theme = new ThemeState();
 
 /** The phone browser bar takes the shell colour of the theme in use (bug 44). */
 function syncThemeColor() {
-	const shell = getComputedStyle(document.documentElement).getPropertyValue('--h-shell').trim();
+	const css = getComputedStyle(document.documentElement);
+	const shell = css.getPropertyValue('--h-shell').trim();
 	if (shell) document.querySelector('meta[name="theme-color"]')?.setAttribute('content', shell);
+	syncIcon(css);
+}
+
+/** The 橋 mark as an SVG data address, in the given fill and glyph colours (lib/assets/favicon.svg's drawing). */
+export function markIcon(fill: string, glyph: string): string {
+	const svg =
+		`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><rect width="64" height="64" rx="14" fill="${fill}"/>` +
+		`<text x="32" y="45.5" text-anchor="middle" font-size="40" font-weight="600" fill="${glyph}" ` +
+		`font-family="'Hiragino Sans','Hiragino Kaku Gothic ProN','Yu Gothic','Noto Sans CJK JP','Noto Sans JP',sans-serif">橋</text></svg>`;
+	return 'data:image/svg+xml,' + encodeURIComponent(svg);
+}
+
+/** Draws the tab icon in the theme's accent (bug 159). Only Hashi's own icon link: an owner's uploaded one stays. */
+export function syncIcon(css = getComputedStyle(document.documentElement)) {
+	const fill = css.getPropertyValue('--h-accent').trim();
+	const glyph = css.getPropertyValue('--h-accent-text').trim();
+	if (fill && glyph)
+		document
+			.querySelector('link[rel="icon"][data-hashi]')
+			?.setAttribute('href', markIcon(fill, glyph));
 }

@@ -593,7 +593,10 @@
 											{:else if !openRun.error}<p class="text-sm text-muted-foreground">
 													{openRun.status === 'running' ? 'Running…' : 'No output.'}
 												</p>{/if}
-											{#if openRun.truncated}<p class="mt-1 text-xs text-muted-foreground">
+											{#if openRun.truncated}<p
+													data-state
+													class="mt-1 text-xs text-muted-foreground"
+												>
 													Output cut at 1 MB.
 												</p>{/if}
 										</div>

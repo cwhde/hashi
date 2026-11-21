@@ -108,7 +108,7 @@
 				{
 					label: 'Permanent after',
 					boxes: [{ key: 'ban_permanent_after', unit: 'bans' }],
-					note: '0 never bans for good'
+					note: 'Leave at 0 to never ban permanently'
 				},
 				{
 					label: 'Forget one offence after',
@@ -251,9 +251,6 @@
 	<Sheet.Content class="w-full sm:max-w-xl">
 		<Sheet.Header>
 			<Sheet.Title>Abuse engine</Sheet.Title>
-			<Sheet.Description
-				>Saving asks for your passkey. Firewall and Traefik changes then wait under Pending changes.</Sheet.Description
-			>
 		</Sheet.Header>
 		{#if form}
 			<div class="space-y-6 overflow-y-auto px-4 pb-4">

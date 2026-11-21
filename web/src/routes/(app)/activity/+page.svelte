@@ -180,7 +180,7 @@
 						aria-label="Filter audit entries"
 					/>
 				</div>
-				{#if only}<p class="mt-2 text-sm text-muted-foreground">
+				{#if only}<p data-state class="mt-2 text-sm text-muted-foreground">
 						Only entries for <Mono>{only}</Mono>.
 						<a href="/activity" class="text-foreground underline underline-offset-2">Show all</a>
 					</p>{/if}

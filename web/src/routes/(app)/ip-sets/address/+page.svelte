@@ -262,7 +262,8 @@
 						<p class="flex flex-wrap items-center gap-2 text-md">
 							{#if counter.state === 'banned'}<Tag tone="bad">banned</Tag
 								>{:else if counter.state === 'challenged'}<Tag tone="warn">challenged</Tag
-								>{:else}<span class="text-muted-foreground">Not banned or challenged now.</span
+								>{:else}<span data-state class="text-muted-foreground"
+									>Not banned or challenged now.</span
 								>{/if}
 							{#if stateDetail}<span class="text-muted-foreground">{stateDetail}</span>{/if}
 						</p>
@@ -284,7 +285,10 @@
 							{#if counter.last_source}<dt class="text-muted-foreground">Last cause</dt>
 								<dd>{sourceLabel(counter.last_source)}</dd>{/if}
 						</dl>
-						{#if counter.address !== lookup.address}<p class="mt-2 text-sm text-muted-foreground">
+						{#if counter.address !== lookup.address}<p
+								data-state
+								class="mt-2 text-sm text-muted-foreground"
+							>
 								Counted for the whole network <Mono>{counter.address}</Mono>.
 							</p>{/if}
 						<p class="mt-3 text-sm">

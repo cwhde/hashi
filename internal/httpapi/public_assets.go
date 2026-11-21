@@ -215,3 +215,16 @@ func (s *Server) ServeAsset(w http.ResponseWriter, r *http.Request) {
 	h.Set("ETag", `"`+v.ETag+`"`)
 	http.ServeContent(w, r, "", time.Time{}, f)
 }
+
+// PublicIconURL is the owner's uploaded icon for the public pages' HTML (bug 160), or "" when there is none or the
+// settings can't be read (the page then names Hashi's mark).
+func (s *Server) PublicIconURL(r *http.Request) string {
+	a, err := settings.Get[settings.PublicAssets](r.Context(), s.Store.R)
+	if err != nil {
+		return ""
+	}
+	if v, ok := a.Slots[string(assets.Icon)]; ok {
+		return assetURL(string(assets.Icon), v.ETag)
+	}
+	return ""
+}

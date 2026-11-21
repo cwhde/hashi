@@ -3,11 +3,18 @@ package web
 
 import (
 	"embed"
+	htmlpkg "html"
 	"io/fs"
 	"net/http"
 	"path"
+	"regexp"
 	"strings"
 )
+
+// markFile is Hashi's own icon (web/static), which every page links as its apple-touch-icon.
+const markFile = "apple-touch-icon.png"
+
+var markLink = regexp.MustCompile(`<link rel="apple-touch-icon" href="/` + regexp.QuoteMeta(markFile) + `"\s*/?>`)
 
 //go:embed all:dist
 var dist embed.FS
@@ -24,20 +31,21 @@ func Handler() http.Handler {
 
 // Public serves the same SPA for a public listener. index.html names the page, so the SPA shows it at the root path
 // (07 §7, §8); every other path is a static asset or a 404: public listeners have no client-side routes.
-func Public(page string) http.Handler {
+// icon names the owner's uploaded icon ("/assets/icon?v=…"), or "" when there is none.
+func Public(page string, icon func(*http.Request) string) http.Handler {
 	root, err := fs.Sub(dist, "dist")
 	if err != nil {
 		panic(err)
 	}
-	return publicHandler(root, page)
+	return publicHandler(root, page, icon)
 }
 
-func publicHandler(root fs.FS, page string) http.Handler {
+func publicHandler(root fs.FS, page string, icon func(*http.Request) string) http.Handler {
 	files := http.FileServerFS(root)
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path != "/" {
 			name := strings.TrimPrefix(path.Clean(r.URL.Path), "/")
-			if strings.HasPrefix(name, "_app/") {
+			if strings.HasPrefix(name, "_app/") || name == markFile {
 				if st, err := fs.Stat(root, name); err == nil && !st.IsDir() {
 					if strings.HasPrefix(name, "_app/immutable/") {
 						w.Header().Set("Cache-Control", "public, max-age=31536000, immutable")
@@ -55,9 +63,17 @@ func publicHandler(root fs.FS, page string) http.Handler {
 			return
 		}
 		meta := `<meta name="hashi-public" content="` + page + `"><meta name="robots" content="noindex">`
+		html := string(index)
+		// The icon is named in the HTML, not only by the page's script, so whatever reads the page without running it
+		// (the app dashboard's icon finder, bug 160) finds the owner's icon, or Hashi's mark without one.
+		if u := icon(r); u != "" {
+			u = htmlpkg.EscapeString(u)
+			meta += `<link rel="icon" href="` + u + `"><link rel="apple-touch-icon" href="` + u + `">`
+			html = markLink.ReplaceAllString(html, "")
+		}
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
 		w.Header().Set("Cache-Control", "no-cache")
-		_, _ = w.Write([]byte(strings.Replace(string(index), "<head>", "<head>"+meta, 1)))
+		_, _ = w.Write([]byte(strings.Replace(html, "<head>", "<head>"+meta, 1)))
 	})
 }
 

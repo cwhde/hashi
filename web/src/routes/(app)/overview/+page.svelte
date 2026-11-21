@@ -387,7 +387,7 @@
 		{#each [0, 1, 2] as i (i)}<Skeleton class="h-48 rounded-2xl" />{/each}
 	</div>
 {:else if shown.length === 0}
-	<p class="text-md text-muted-foreground">
+	<p data-state class="text-md text-muted-foreground">
 		Every widget is hidden. <a href="/settings?category=appearance" class="underline"
 			>Show some in Appearance</a
 		>

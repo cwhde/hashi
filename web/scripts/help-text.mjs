@@ -1,5 +1,7 @@
 // Counts the help sentences in the admin UI (10c §4, bug 93): page and panel descriptions and muted text. Empty-state
-// lines ("No scripts yet.") and text inside a HelpTip popover are not help text on the page, so they don't count.
+// lines ("No scripts yet.") and text inside a HelpTip popover are not help text on the page, so they don't count; nor do
+// status and empty-state lines marked `data-state` or role="status" ("Every widget is hidden.", "Your session ended."),
+// nor lines that are mostly values (an address's location, "x, from x up to x") (13.10).
 // Report only: `node scripts/help-text.mjs [--files]`. The 13.4 gate is below 40.
 import { readdirSync, readFileSync, statSync } from 'node:fs';
 import { join, relative } from 'node:path';
@@ -40,6 +42,7 @@ function mutedTexts(markup) {
 	let m;
 	while ((m = open.exec(markup))) {
 		const tag = m[1];
+		const state = /\sdata-state\b|role="status"/.test(m[0]);
 		let depth = 1;
 		let i = open.lastIndex;
 		const re = new RegExp(`<(/?)${tag.replace('.', '\\.')}\\b[^>]*?(/?)>`, 'g');
@@ -50,7 +53,7 @@ function mutedTexts(markup) {
 			depth += t[1] ? -1 : 1;
 			i = t.index;
 		}
-		out.push(visible(markup.slice(open.lastIndex, i)));
+		if (!state) out.push(visible(markup.slice(open.lastIndex, i)));
 		open.lastIndex = i;
 	}
 	return out;
@@ -77,7 +80,11 @@ const sentences = ({ t, explicit }) =>
 	t
 		.split(/(?<=[.!?])\s+/)
 		.filter((s) => s.split(' ').length >= 3 && (explicit || /[.!?]$/.test(s)))
-		.filter((s) => !/^(No|Nothing|None)\b/.test(s));
+		.filter((s) => !/^(No|Nothing|None)\b/.test(s))
+		.filter((s) => {
+			const words = s.split(' ');
+			return words.filter((w) => /^x\W*$/.test(w)).length * 2 < words.length; // mostly values: data, not help
+		});
 
 const counts = [];
 for (const f of svelteFiles(root)) {

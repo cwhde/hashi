@@ -173,10 +173,7 @@
 			{:else}
 				<label class="mt-2 flex max-w-[70ch] items-start gap-2.5 text-md">
 					<input type="checkbox" bind:checked={agreed} class="mt-0.5 accent-primary" />
-					<span
-						>Hashi may manage its own firewall table on {host.name}. Nothing changes on the host
-						until you approve a plan.</span
-					>
+					<span>Hashi may manage its own firewall table on {host.name}.</span>
 				</label>
 				<Button class="mt-3" onclick={confirm} disabled={!agreed || !!busy}>Confirm</Button>
 			{/if}

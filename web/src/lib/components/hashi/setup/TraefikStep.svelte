@@ -354,7 +354,6 @@
 					{#if conn.existing_configs.length}The config in <Mono
 							>{conn.existing_configs.join(', ')}</Mono
 						> is copied to <Mono>/var/lib/hashi/traefik/backup</Mono> first.{/if}
-					Nothing changes on the host until you approve the install plan.
 				</span>
 			</label>
 			<Button class="mt-3" onclick={confirm} disabled={!takeover || !!busy}>Confirm</Button>

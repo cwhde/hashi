@@ -177,9 +177,7 @@ test('setup with a passkey, then sign in with it', async ({ page, request }) => 
 	await expect(page.getByText('traefik binary')).toBeVisible();
 	await page.getByRole('button', { name: 'Approve and run' }).click();
 	await expect(page.getByText('Installed and verified')).toBeVisible();
-	await expect(
-		page.getByText(/certificates? served with the expected fingerprint/)
-	).toBeVisible();
+	await expect(page.getByText(/certificates? served with the expected fingerprint/)).toBeVisible();
 	await page.getByRole('button', { name: 'Continue' }).click();
 
 	// Step 6: the firewall host (fake answering the captured probe): key compared and pinned, validation only reads, the
@@ -1032,6 +1030,8 @@ test('setup with a passkey, then sign in with it', async ({ page, request }) => 
 	await page.evaluate(() => localStorage.removeItem('hashi.theme'));
 	await page.reload();
 	await expect(page.locator('html')).toHaveAttribute('data-theme', 'violet');
+	// The tab icon is drawn in the theme's accent, here Violet Night's (bug 159).
+	await expect(page.locator('link[rel="icon"][data-hashi]')).toHaveAttribute('href', /%23e6cf62/i);
 	await page.goto(`${state.baseURL}/app-display`);
 	await expect(page.getByRole('switch', { name: 'Show E2E port publicly' })).toBeChecked();
 

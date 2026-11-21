@@ -99,10 +99,6 @@
 	<Sheet.Content class="w-full sm:max-w-xl">
 		<Sheet.Header>
 			<Sheet.Title>Add blocklist</Sheet.Title>
-			<Sheet.Description
-				>A blocklist becomes an IP set that refreshes itself. It blocks nothing until you use it,
-				for example in Firewall → global block.</Sheet.Description
-			>
 		</Sheet.Header>
 		<div class="space-y-5 overflow-y-auto px-4 pb-4">
 			<ul class="space-y-2">

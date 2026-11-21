@@ -605,7 +605,7 @@
 							>{yaml}</code
 						></pre>
 				{:else}
-					<p class="px-4 py-3 text-md text-muted-foreground">
+					<p data-state class="px-4 py-3 text-md text-muted-foreground">
 						Traefik gets nothing for this service until it is valid.
 					</p>
 				{/if}
