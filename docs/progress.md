@@ -24,7 +24,7 @@ first, structure before text, search after the settings regroup.
 | 13.9 | Pulse on OpenWrt | 21 | Agent installed, started, self-updated and reporting its address on the owner's own OpenWrt router |
 | 13.10 | UI copy pass with unslop-ui | none (the owner, 2026-11-20) | Talk the skill through with the owner (https://github.com/felipebasurto/unslop-ui: an agent skill that cuts AI tells from UI copy and charts, optional visual rules); decide together whether and how to run it (install or follow by hand, which pages, with or without its visual rules, a taste file from 10c); run it as decided; the owner accepts the result |
 
-Next: 13.8; 13.7 and its held fixes ship with it (13.5's gate waits for a real host outage). After 13.10: a last bug sweep, then `v1.0.0`. With 1.0, a better README (the owner, 2026-11-19): what Hashi
+Next: 13.9 (13.5's gate waits for a real host outage). After 13.10: a last bug sweep, then `v1.0.0`. With 1.0, a better README (the owner, 2026-11-19): what Hashi
 is, screenshots, how to install and run it, what it needs.
 
 **13.2 done** (2026-11-17, `v0.13.2-beta.1`, PR #69). Gate: the end-to-end run on the release commit walks all 16
@@ -47,6 +47,11 @@ another reported address moved the service's upstream and the agent's internal A
 and the service deleted (its hidden set went with it). Found: "Let the agent choose" kept the pinned address as long
 as the agent still reported it (the beat keeps the current address); fixed with a reproducing test, ships with the next
 release. Not done on prod: adding a Traefik or firewall host from Connections (no spare machine; covered by e2e).
+
+**13.8 done** (2026-11-21, `v0.13.8-beta.1`). The owner picked an icon and both logos on the public page settings;
+both public listeners serve them from Hashi's own copy (`/assets/icon` x-icon, `/assets/logo_dark` and `logo_light`
+webp, 200 on both ports) and the public page data points at those paths only. No background set (optional, 404 as
+intended). Dashboard: 39 of 54 apps show an icon Hashi found, the other 15 their letter.
 
 ### 13.8 checklist (two PRs)
 
