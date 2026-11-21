@@ -37,7 +37,7 @@
 		{/snippet}
 	</Popover.Trigger>
 	<Popover.Content class="w-[min(26rem,calc(100vw-2rem))] p-0" align="start">
-		<Command.Root>
+		<Command.Root label="Find a set">
 			<Command.Input placeholder="Find a set" />
 			<Command.List>
 				<Command.Empty>No set matches.</Command.Empty>

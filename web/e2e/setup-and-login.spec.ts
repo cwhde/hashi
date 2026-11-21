@@ -365,8 +365,19 @@ test('setup with a passkey, then sign in with it', async ({ page, request }) => 
 	await expect(page.getByRole('status')).toContainText(
 		'b._hashi-test A saved. Applied: 1 created, verified'
 	);
+	// Bug 151: while the plans load, Recent runs claims nothing; "No plan has finished yet" only once loaded.
+	let releasePlans = () => {};
+	const plansHeld = new Promise<void>((r) => (releasePlans = r));
+	await page.route('**/api/sync/plans', async (route) => {
+		await plansHeld;
+		await route.continue();
+	});
 	await page.getByRole('link', { name: /1 pending change/ }).click();
 	await expect(page).toHaveURL(/\/changes$/);
+	await expect(page.getByRole('heading', { name: 'Recent runs' })).toBeVisible();
+	await expect(page.getByText('No plan has finished yet.')).toHaveCount(0);
+	releasePlans();
+	await page.unroute('**/api/sync/plans');
 	await expect(page.getByText('Delete DNS records in example.com')).toBeVisible();
 	await expect(page.getByText('192.0.2.10  TTL zone')).toBeVisible();
 	await page.getByRole('button', { name: 'Approve and apply' }).click();
@@ -461,6 +472,8 @@ test('setup with a passkey, then sign in with it', async ({ page, request }) => 
 	await page.getByLabel('Name', { exact: true }).fill('office');
 	await page.getByRole('radio', { name: 'Other set' }).click();
 	await page.getByLabel('Set to include').click();
+	// Bug 152: the picker's search field has a name.
+	await expect(page.getByLabel('Find a set')).toBeVisible();
 	await page.getByRole('option', { name: /^home/ }).click();
 	await page.getByRole('button', { name: 'Create set' }).click();
 	await expect(page.getByRole('heading', { name: 'office' })).toBeVisible();

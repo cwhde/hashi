@@ -133,7 +133,9 @@
 		{/each}
 	</div>
 	<Panel title="Recent runs">
-		{#if recent.length === 0}
+		{#if !loaded}
+			<Skeleton class="h-16 rounded-xl" />
+		{:else if recent.length === 0}
 			<p class="text-md text-muted-foreground">No plan has finished yet.</p>
 		{/if}
 		<ul class="space-y-3">
