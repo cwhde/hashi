@@ -1,6 +1,6 @@
 name: CI
 
-# Docs-only changes never run. Every other run first decides in `scope` which jobs the change can affect.
+# Docs-only changes never run. A pull request runs the checks its files can reach; main always runs everything.
 on:
   pull_request:
     paths-ignore:
@@ -14,12 +14,14 @@ on:
   workflow_dispatch:
 
 concurrency:
-  group: ci-${{ github.ref }}
-  cancel-in-progress: true
+  group: ci-${{ github.event_name }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+env:
+  GOTOOLCHAIN: local
 
 jobs:
-  # A pull request runs the jobs whose files it touches. A push to main runs everything, except a merge whose files are
-  # exactly those of a pull request commit that already passed CI: that would only repeat the same run.
+  # A successful PR can have skipped jobs. Always run the full suite on main.
   scope:
     runs-on: ubuntu-latest
     outputs:
@@ -27,34 +29,19 @@ jobs:
       web: ${{ steps.s.outputs.web }}
       integration: ${{ steps.s.outputs.integration }}
       e2e: ${{ steps.s.outputs.e2e }}
+      go_paths: ${{ steps.s.outputs.go_paths }}
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
-          fetch-depth: 0
+          filter: blob:none
+          persist-credentials: false
 
       - id: s
+        name: Select CI checks
         env:
           EVENT: ${{ github.event_name }}
-          BASE: ${{ github.base_ref }}
-          API: ${{ github.server_url }}/api/v1/repos/${{ github.repository }}
-        run: |
-          set_all() { for k in go web integration e2e; do echo "$k=$1" >> "$GITHUB_OUTPUT"; done; }
-          if [ "$EVENT" = push ]; then
-            if pr=$(git rev-parse -q --verify 'HEAD^2') && [ "$(git rev-parse 'HEAD^{tree}')" = "$(git rev-parse "$pr^{tree}")" ] &&
-              [ "$(curl -fsS "$API/commits/$pr/status" | jq -r .state)" = success ]; then
-              echo "merge of $pr, which passed CI with exactly these files: nothing to run"; set_all false; exit 0
-            fi
-            set_all true; exit 0
-          fi
-          if [ "$EVENT" != pull_request ]; then set_all true; exit 0; fi
-          changed=$(git diff --name-only "origin/$BASE...HEAD")
-          flag() { if grep -qE "$2" <<<"$changed"; then echo "$1=true"; else echo "$1=false"; fi >> "$GITHUB_OUTPUT"; }
-          always='|^Makefile$|^\.gitea/workflows/ci\.yml$'
-          flag go "^(cmd|internal|agents|api|tools|testdata|deploy)/|^go\.(mod|sum)\$|^sqlc\.yaml\$|^\.golangci\.yml\$$always"
-          flag web "^(web|api|tools|internal/store|internal/httpapi)/|^sqlc\.yaml\$$always"
-          flag integration "^(cmd|internal|agents|tools|testdata|deploy/docker)/|^go\.(mod|sum)\$$always"
-          flag e2e "^(web|api|internal|cmd)/|^go\.mod\$$always"
-          cat "$GITHUB_OUTPUT"
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        run: python3 tools/ci/scope.py
 
   # Go: format, vet, lint, unit and contract tests with -race, deploy bookkeeping, agent size, govulncheck.
   go:
@@ -63,13 +50,14 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
-
-      - uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5.6.0
         with:
-          go-version-file: go.mod
-          cache-dependency-path: |
-            go.sum
-            tools/go.sum
+          filter: blob:none
+          persist-credentials: false
+
+      - id: go-cache
+        uses: ./.gitea/actions/go-cache
+        with:
+          profile: race
 
       - name: Cache golangci-lint analysis
         uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
@@ -78,11 +66,16 @@ jobs:
           key: golangci-${{ runner.os }}-${{ hashFiles('tools/go.sum', '.golangci.yml') }}
 
       - name: make check-go
-        run: make check-go
+        env:
+          CI_GO_PATHS: ${{ needs.scope.outputs.go_paths }}
+        run: make -k check-go scan-go
 
-      # Threat model §7: known vulnerabilities in Go modules (reachable code).
-      - name: make scan-go
-        run: make scan-go
+      - name: Seed Go cache from main
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main' && steps.go-cache.outputs.hit != 'true'
+        uses: actions/cache/save@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
+        with:
+          path: ${{ steps.go-cache.outputs.paths }}
+          key: ${{ steps.go-cache.outputs.key }}
 
   # Web: generated code current, prettier, eslint, svelte-check, vitest, audit of shipped web packages.
   web:
@@ -91,29 +84,34 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
-
-      - uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5.6.0
         with:
-          go-version-file: go.mod
-          cache-dependency-path: |
-            go.sum
-            tools/go.sum
+          filter: blob:none
+          persist-credentials: false
 
-      - uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1 # v4.3.0
+      - id: go-cache
+        uses: ./.gitea/actions/go-cache
         with:
-          package_json_file: web/package.json
+          profile: generator
 
-      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
-        with:
-          node-version: 24
-          cache: pnpm
-          cache-dependency-path: web/pnpm-lock.yaml
+      - id: node-cache
+        uses: ./.gitea/actions/node-cache
 
       - name: make check-web
-        run: make check-web
+        run: make -k check-web scan-web
 
-      - name: make scan-web
-        run: make scan-web
+      - name: Seed pnpm cache from main
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main' && steps.node-cache.outputs.hit != 'true'
+        uses: actions/cache/save@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
+        with:
+          path: ${{ steps.node-cache.outputs.path }}
+          key: ${{ steps.node-cache.outputs.key }}
+
+      - name: Seed Go cache from main
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main' && steps.go-cache.outputs.hit != 'true'
+        uses: actions/cache/save@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
+        with:
+          path: ${{ steps.go-cache.outputs.paths }}
+          key: ${{ steps.go-cache.outputs.key }}
 
   # 11-delivery.md §4: real binaries (sshd, Traefik, Pebble) in containers on the runner's Docker.
   integration:
@@ -122,16 +120,24 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
-
-      - uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5.6.0
         with:
-          go-version-file: go.mod
-          cache-dependency-path: go.sum
+          filter: blob:none
+          persist-credentials: false
+
+      - id: go-cache
+        uses: ./.gitea/actions/go-cache
+        with:
+          profile: integration
 
       - name: make test-integration
-        run: make test-integration
-      - name: Agent image size
-        run: make pulse-image-size
+        run: make -k test-integration pulse-image-size
+
+      - name: Seed Go cache from main
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main' && steps.go-cache.outputs.hit != 'true'
+        uses: actions/cache/save@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
+        with:
+          path: ${{ steps.go-cache.outputs.paths }}
+          key: ${{ steps.go-cache.outputs.key }}
 
   # 11-delivery.md §4: E2E when the UI or the API behind it changed.
   e2e:
@@ -140,21 +146,17 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
-
-      - uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5.6.0
         with:
-          go-version-file: go.mod
-          cache-dependency-path: go.sum
+          filter: blob:none
+          persist-credentials: false
 
-      - uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1 # v4.3.0
+      - id: go-cache
+        uses: ./.gitea/actions/go-cache
         with:
-          package_json_file: web/package.json
+          profile: dev
 
-      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
-        with:
-          node-version: 24
-          cache: pnpm
-          cache-dependency-path: web/pnpm-lock.yaml
+      - id: node-cache
+        uses: ./.gitea/actions/node-cache
 
       - name: Cache Playwright browsers
         uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
@@ -165,12 +167,20 @@ jobs:
           # download from the CI network (which timed out repeatedly, docs/bugs.md).
           restore-keys: playwright-${{ runner.os }}-
 
-      - name: Install Chromium for Playwright
-        run: cd web && pnpm install --frozen-lockfile --silent && pnpm exec playwright install --with-deps chromium
+      - name: Install web packages and Chromium for Playwright
+        run: make chromium-install
 
       - name: make test-e2e
-        run: make test-e2e
+        # The preceding step installed all dependencies, including the frozen pnpm lockfile.
+        run: make -o web-install test-e2e
 
       - name: Hashi's log from the e2e run
         if: failure()
         run: tail -n 400 web/e2e/.hashi.log || echo "no log written"
+
+      - name: Seed Go cache from main
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main' && steps.go-cache.outputs.hit != 'true'
+        uses: actions/cache/save@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
+        with:
+          path: ${{ steps.go-cache.outputs.paths }}
+          key: ${{ steps.go-cache.outputs.key }}

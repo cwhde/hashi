@@ -9,7 +9,7 @@ VERSION   ?= $(shell git describe --tags --always --dirty 2>/dev/null || echo de
 COMMIT    ?= $(shell git rev-parse --short HEAD 2>/dev/null || echo unknown)
 LDFLAGS   := -s -w -X git.juzo.io/juzo/hashi/internal/app.Version=$(VERSION) -X git.juzo.io/juzo/hashi/internal/app.Commit=$(COMMIT)
 
-.PHONY: check-go check-web scan scan-go scan-web pulse-sign pulse-sleeper pulse-image-size pulse-size pulse-dist test-integration test-e2e contract-capture contract-drift deploy-test build-config-check help image deploy rollback smoke check fmt-check lint test generate generate-check web-install web-check help-text build-web build dev clean
+.PHONY: chromium-install web-lint web-types web-test help-text-summary check-go check-web scan scan-go scan-web pulse-sign pulse-sleeper pulse-image-size pulse-size pulse-dist test-integration test-e2e contract-capture contract-drift deploy-test build-config-check help image deploy rollback smoke check fmt-check lint test generate generate-check web-install web-check help-text build-web build dev clean
 
 help: ## list targets
 	@awk 'BEGIN{FS=":.*## "} /^[a-z-]+:.*## /{printf "  %-18s %s\n",$$1,$$2}' $(MAKEFILE_LIST)
@@ -30,7 +30,11 @@ lint: ## go vet + golangci-lint (pinned in tools/go.mod) + the agent installer
 	$(TOOL) golangci-lint run ./...
 
 test: ## unit + contract tests
-	go test -race -count=1 ./...
+	@if [ -n "$${CI_GO_PATHS:-}" ]; then \
+	  python3 tools/ci/go-test.py; \
+	else \
+	  go test -race -count=1 ./...; \
+	fi
 
 generate: ## regenerate sqlc and OpenAPI code
 	@if [ -f sqlc.yaml ]; then $(TOOL) sqlc generate; fi
@@ -40,7 +44,7 @@ generate: ## regenerate sqlc and OpenAPI code
 
 GENERATED := $(wildcard internal/store/db internal/httpapi/gen/server.gen.go internal/httpapi/gen/scopes.gen.go web/src/lib/api/schema.gen.ts)
 
-generate-check: ## fail if generated code is stale (compares checksums before/after regenerating)
+generate-check: web-install ## fail if generated code is stale (compares checksums before/after regenerating)
 	@[ -n "$(GENERATED)" ] || exit 0; \
 	  before="$$(find $(GENERATED) -type f -print0 | sort -z | xargs -0 cksum | cksum)"; \
 	  $(MAKE) --no-print-directory generate >/dev/null; \
@@ -60,9 +64,22 @@ build-config-check: ## Dockerfile cross-compiles on $$BUILDPLATFORM; release kee
 web-install:
 	cd web && pnpm install --frozen-lockfile --silent
 
-web-check: web-install ## prettier + eslint + svelte-check + vitest, and the help-text report
-	cd web && pnpm run --silent lint && pnpm run --silent check && pnpm run --silent test
+web-check: web-lint web-types web-test help-text-summary ## prettier + eslint + svelte-check + vitest, and the help-text report
+
+web-lint: web-install
+	cd web && pnpm run --silent lint
+
+web-types: web-install
+	cd web && pnpm run --silent check
+
+web-test: web-install
+	cd web && pnpm run --silent test
+
+help-text-summary: web-install
 	@cd web && node scripts/help-text.mjs
+
+chromium-install: web-install
+	cd web && pnpm exec playwright install --with-deps chromium
 
 help-text: ## every help sentence in the admin UI, by file (10c §4)
 	@cd web && node scripts/help-text.mjs --files --text
@@ -79,7 +96,7 @@ scan: scan-go scan-web ## known vulnerabilities: govulncheck (Go) and pnpm audit
 scan-go:
 	$(TOOL) govulncheck ./...
 
-scan-web:
+scan-web: web-install
 	cd web && pnpm audit --prod
 
 test-integration: ## real sshd, Traefik and Pebble in Docker containers (-tags integration)

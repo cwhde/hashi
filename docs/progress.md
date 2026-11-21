@@ -3,6 +3,16 @@
 The single place that says where the project stands. Updated at the end of every working session.
 Rules: docs/spec/11-delivery.md §2.
 
+## CI speed work (2026-11-21)
+
+- Gitea run 1227 passed with Go and integration skipped. Its identical-tree merge (run 1228) skipped every check.
+- CI now runs the full suite on every non-docs push to `main` and scoped checks on PRs (11-delivery §6.1). PR setup no
+  longer re-uploads the Go cache. Full runs stay ~14 min: Go race tests need ~20 CPU-minutes on 4 shared cores, so the
+  1-2 min goal needs more hardware (third runner on the home server first). Timings are in the local CI audit.
+- The first CI speed run reproduced the shared cold Go SDK install race and the existing Edge Settings overflow. Linux
+  Chromium reproduced 398 px of content in a 390 px viewport on unchanged main. Edge protection now has an explicit
+  single grid column at phone widths. Its existing e2e width assertion covers the fix.
+
 ## Current: 0.13 bug round (before 1.0)
 
 Decided with the owner 2026-11-16: one round fixes **every** bug in `docs/bugs.md` (82 open, features included),

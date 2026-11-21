@@ -1,0 +1,66 @@
+name: Set up and restore Go
+description: Use the declared toolchain and restore the Go module and build cache
+inputs:
+  profile:
+    description: Type of build (race, generator, integration, or dev)
+    required: true
+outputs:
+  key:
+    description: Key used to save this profile from main
+    value: ${{ steps.key.outputs.key }}
+  paths:
+    description: Paths that were restored
+    value: ${{ steps.paths.outputs.paths }}
+  hit:
+    description: Whether the current key was an exact hit
+    value: ${{ steps.cache.outputs.cache-hit }}
+runs:
+  using: composite
+  steps:
+    - id: key
+      shell: bash
+      env:
+        PROFILE: ${{ inputs.profile }}
+        SUMS: ${{ hashFiles('go.sum', 'tools/go.sum') }}
+        APP_SUM: ${{ hashFiles('go.sum') }}
+      run: |
+        version=$(awk '$1 == "toolchain" && $2 ~ /^go[0-9]/ {sub(/^go/, "", $2); print $2; next}
+                       $1 == "go" {print $2}' go.mod tools/go.mod | sort -V | tail -n 1)
+        test -n "$version"
+        prefix="hashi-go-v1-$(uname -m)-${ImageOS:-linux}-$version-$PROFILE-$SUMS-"
+        # Bootstrap from the previous setup-go archives until main has seeded this profile.
+        case "$PROFILE" in
+          race|generator) legacy_sum=$SUMS ;;
+          integration|dev) legacy_sum=$APP_SUM ;;
+        esac
+        old="setup-go-${RUNNER_OS,,}-$(node -p process.arch)-${ImageOS:+$ImageOS-}go-$version-$legacy_sum"
+        printf '%s\n' "version=$version" "prefix=$prefix" "key=$prefix$(date -u +%G%V)" "legacy=$old" >> "$GITHUB_OUTPUT"
+
+    - uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5.6.0
+      # Both Gitea runners mount the same tool cache. Concurrent cold installs can
+      # remove each other's Go binary; keep the SDK install inside this job container.
+      env:
+        RUNNER_TOOL_CACHE: ${{ runner.temp }}/hashi-go-sdk
+      with:
+        go-version: ${{ steps.key.outputs.version }}
+        cache: false
+
+    - id: paths
+      shell: bash
+      run: |
+        go version
+        {
+          echo 'paths<<END'
+          go env GOMODCACHE GOCACHE
+          echo END
+        } >> "$GITHUB_OUTPUT"
+
+    - id: cache
+      # Restore is read-only on PRs. The main job saves explicitly on an exact miss.
+      uses: actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
+      with:
+        path: ${{ steps.paths.outputs.paths }}
+        key: ${{ steps.key.outputs.key }}
+        restore-keys: |
+          ${{ steps.key.outputs.prefix }}
+          ${{ steps.key.outputs.legacy }}

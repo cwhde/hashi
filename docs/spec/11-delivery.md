@@ -81,7 +81,7 @@ A slice may span several PRs (rule 7); the gate stays at the slice level.
 | Visual | Playwright screenshots of key pages per theme and width (10-ui.md §4) | `make test-visual` |
 | Prod-proof | manual/semi-automated checklist on the real deployment | `docs/progress.md` |
 
-Invariant tests (`TestInvariant_*`) run in every CI run. Safety tests from V2 are kept: NS/SOA deletion impossible;
+Invariant tests (`TestInvariant_*`) run in the full suite and whenever their Go package is selected for PR feedback. Safety tests from V2 are kept: NS/SOA deletion impossible;
 unowned records untouched; identical Traefik file not rewritten; firewall does not flush unrelated rules (any backend); NetBird rules
 preserved and access survives apply; manual allow beats dynamic bans; unresolved targets keep applied state; Pulse IPs matching hosts produce CNAMEs; secrets redacted in logs and API responses;
 passive sync runs without a session; high-risk passive plans wait for approval.
@@ -107,7 +107,10 @@ Tokens, IDs that embed account data, IPs and domains are replaced deterministica
 
 ### 6.1 Workflows
 
-- `ci.yml` — on PR and push: path-filtered jobs; `make check`; integration tests (Docker); E2E only when `web/` or API changed; Pulse vet/test/build.
+- `ci.yml` skips docs-only changes. It runs the full suite on `main` and on manual dispatch; PR runs give scoped
+  feedback. Go race tests include changed packages and their transitive importers, including test-only imports. Shared
+  inputs and uncertain diffs run all checks. The full suite includes `make check`, Docker integration tests, browser E2E
+  and Pulse vet/test/build. A red `main` run is the signal to fix before the next release.
 - Scans (threat model §7): `make scan` (govulncheck, `pnpm audit --prod`) runs in `ci.yml` after `make check`; the
   release job scans both pushed images with Trivy and fails on a fixable HIGH or CRITICAL finding. Secrets are kept out
   by the local secret guard (pre-commit and pre-push). The separate `security.yml` planned here was never needed.
@@ -124,7 +127,8 @@ are pre-releases. The V1 cutover releases as a patch of S9. Both images carry th
   `GOOS=$TARGETOS GOARCH=$TARGETARCH CGO_ENABLED=0` (pure-Go SQLite makes this trivial) — no QEMU-emulated toolchains.
 - Node SPA build runs once on `$BUILDPLATFORM` (architecture-independent output).
 - Caches: Go build + module cache, pnpm store, Playwright browsers (only installed when E2E runs). Registry build cache on.
-- Cache misses never fail builds; logs state hit/miss.
+- Cache misses never fail builds; logs state hit/miss. Go cache profiles and the pnpm store are seeded by successful
+  jobs on `main`. PR jobs restore them without uploading replacements.
 - Scan the release digest rather than rebuilding for scanning.
 - A CI check asserts Dockerfiles use `$BUILDPLATFORM`/`TARGETARCH` and workflows keep both platforms.
 
