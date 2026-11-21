@@ -17,6 +17,7 @@ All open entries are planned into the 0.13 bug round (slices 13.1 onwards in `do
 
 | # | Kind | Status | Where | What | Reported |
 | --- | --- | --- | --- | --- | --- |
+| 161 | function | reported | Monitoring, DNS | The Hashi container's lookups to the local AdGuard time out about 5,400 times a day (seen in Docker's DNS log, mostly monitored names, A and AAAA). Likely AdGuard's rate limit of 20 queries a second, counted per /24, so every container on the bridge shares it when a check round bursts. Checks still pass today; it can turn into false "down" alerts. Not proven: count the queries per check round first | Claude, 2026-11-21 |
 
 ## Details
 

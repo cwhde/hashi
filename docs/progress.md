@@ -35,7 +35,8 @@ first, structure before text, search after the settings regroup.
 | 13.10 | UI copy pass with unslop-ui | none (the owner, 2026-11-20) | Talk the skill through with the owner (https://github.com/felipebasurto/unslop-ui: an agent skill that cuts AI tells from UI copy and charts, optional visual rules); decide together whether and how to run it (install or follow by hand, which pages, with or without its visual rules, a taste file from 10c); run it as decided; the owner accepts the result |
 | 13.11 | Speed and the last bugs | 150, 151, 152, 153 | Lighthouse and request timings measured before and after; the slow admin requests faster on a copy of prod data; no open bug left |
 
-Next: 13.10 (13.5's gate waits for a real host outage). After 13.10: a last bug sweep, then `v1.0.0`. With 1.0, a better README (the owner, 2026-11-19): what Hashi
+Next: the public pages work decided 2026-11-21 (Agenda: spec, approved mocks, drag-library ADR, build, Codex bug hunt).
+13.5's gate still waits for a real host outage. Then a last bug sweep, then `v1.0.0`. With 1.0, a better README (the owner, 2026-11-19): what Hashi
 is, screenshots, how to install and run it, what it needs.
 
 **13.11 speed and the last bugs** (2026-11-21, the owner: "easy wins and the medium ones, plus all bugs"). Measured
@@ -74,7 +75,9 @@ and 158 go with it. The approved mocks under `routes/design/` are reported, not 
   cards of different heights (address page, agent page, service traffic tab); Upstream's protocol field has a label.
 - [x] Spec (`docs(spec)` 4d48454f). `make check` green.
 - [x] `make test-e2e` green (one flaky run of the recovery-link test: the sign-in button re-rendered under the click; passed alone).
-- [ ] Release with the next push; on prod: the pages look right, the public pages' icons on the dashboard.
+- [x] Released `v0.13.11-beta.1` and deployed 2026-11-21 (the owner's OK). On prod both public pages fit 375 px and
+  1024 px, all 86 app icons load. Lighthouse 12.8.2 after: apps mobile 93 / desktop 100 (1,270 → 680 KiB), status
+  92 / 100 (678 → 453 KiB, 5,506 → 1,095 elements). Gate passed.
 
 Decided by the owner (2026-11-21): the setup consent boxes lose "Nothing changes on the host until you approve"; the
 engine settings sheet and the Add blocklist sheet lose their description lines; "Permanent after" reads "Leave at 0 to
@@ -1767,3 +1770,4 @@ Decisions made in S0:
 - 2026-10-27 — Restart. V2 attempt removed from history (backup bundle kept off-repo). New spec in `docs/spec/`.
 - 2026-11-19 · deploy `v0.13.4-beta.5` (`ce2a833`, the owner's OK) · smoke ok (readyz, version, SPA, both public pages). Checked in Chrome on prod: apps page draws all 54 cards with no console error after a fresh reload and in every sort order (139); status page draws 75 checks in 6 categories; Overview security card fills its height (142); Settings → Public pages shows the Status page panel with the six real categories (138); alert settings read "10 minutes" and "15 seconds" on one line each (143, 144). CI: integration job flaked on Pocket ID (bug 16), green on rerun.
 - 2026-11-19 · deploy `v0.13.5-beta.1` (`c0e08c9`, the owner's OK) · smoke ok (readyz, version, SPA, both public pages). CI and release green on the first push (local make check, e2e and the firewall/edge integration packages first). Checked in Chrome on prod: 63 services all carry the waiting flag, none waiting, all "Published" (77); no plan open, Changes says "Nothing waits for approval"; apps page shows the search field from the start and no up/down counts (146, 147); status banner reads "6 services are down, 9 slow." with "Updated" inside it (145). Gate still open: a real host outage for one grouped alert.
+- 2026-11-21 · deploy `v0.13.11-beta.1` (`281496e`, the owner's OK) · smoke ok (readyz, version, SPA, both public pages). Release build green. CI on main (runs 1277, 1278) red for host reasons, not code: the Docker host's image auto-updater stopped two job containers when it pulled a newer runner image, then the runner host's disk ran full during the go job (`no space left on device`; the runner container at 90 %, the VPS storage pool at 93 %). Local make check, e2e and integration were green on the same commit. CI speed work (PR #74) merged before: full suite on every non-docs push to main, scoped PR checks, no Go cache re-upload.
