@@ -6,7 +6,9 @@ Pulse lets a host report its current addresses without holding any provider cred
 
 - Go, static binary (`CGO_ENABLED=0`), linux/amd64 + linux/arm64; Docker image on distroless/scratch, < 10 MB compressed.
 - Linux install: one-line command (shown in UI): Hashi serves the installer, which downloads the binary from the Gitea release this Hashi version names (checksum verified). The Hashi image does not carry the agent,
-  writes root-owned `/etc/hashi-pulse/config.yaml` (0600), installs a long-running systemd or OpenRC service, or a cron `@reboot` fallback.
+  writes root-owned `/etc/hashi-pulse/config.yaml` (0600), installs a long-running systemd, procd (OpenWrt) or OpenRC service, or a cron `@reboot` fallback.
+  It downloads with curl, or wget where curl is missing (OpenWrt has only uclient-fetch), and needs no install(1). On OpenWrt
+  it also writes `/lib/upgrade/keep.d/hashi-pulse`, so a firmware upgrade keeps the binary, config, service and its boot link.
 - Docker install: generated Compose snippet (`network_mode: host` recommended for interface discovery).
 - Config: Hashi URL, agent ID, token, interval, optional interface selector.
 - Heartbeat: agent version, hostname, private IPv4/IPv6 candidates (per interface), optional user-selected interface,
