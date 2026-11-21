@@ -39,6 +39,7 @@ host-A firewall script. Their current configuration is reference material only, 
 | Asset source (any web server with a folder listing; the owner's is Apache 2 autoindex) | public page icon, logos, background (07 §9) | 2026-11-20 read-only: `testdata/contracts/assets/` |
 | selfh.st icons via jsDelivr | app icon picker (07 §9.1) | 2026-11-20 read-only: `testdata/contracts/selfhst/` (index subset, file paths) |
 | Dashboard apps' own pages | automatic app icons (07 §9.1) | 2026-11-20 read-only, 54 apps: `testdata/contracts/appicons/` |
+| OpenWrt 25.12 (procd, uclient-fetch, sysupgrade keep lists) | Pulse agent on routers (08 §1, bug 21) | 2026-11-21 read-only on the owner's router: `testdata/contracts/openwrt/` |
 
 ## Constraints discovered
 

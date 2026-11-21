@@ -1,0 +1,28 @@
+Usage: wget [options] <URL>
+Options:
+	-4				Use IPv4 only
+	-6				Use IPv6 only
+	-O <file>			Redirect output to file (use "-" for stdout)
+	-P <dir>			Set directory for output files
+	--quiet | -q			Turn off status messages
+	--continue | -c			Continue a partially-downloaded file
+	--header='Header: value'	Add HTTP header. Multiple allowed
+	--user=<user>			HTTP authentication username
+	--password=<password>		HTTP authentication password
+	--user-agent | -U <str>		Set HTTP user agent
+	--post-data=STRING		use the POST method; send STRING as the data
+	--post-file=FILE		use the POST method; send FILE as the data
+	--method=METHOD		use the HTTP method e.g. PUT
+	--body-data=STRING		with --method send the STRING in body
+	--body-file=FILE		with --method send the FILE content in body
+	--spider | -s			Spider mode - only check file existence
+	--timeout=N | -T N		Set connect/request timeout to N seconds
+	--proxy=on | -Y on		Enable interpretation of proxy env vars (default)
+	--proxy=off | -Y off |
+	--no-proxy           		Disable interpretation of proxy env vars
+
+HTTPS options:
+	--ca-certificate=<cert>		Load CA certificates from file <cert>
+	--no-check-certificate		don't validate the server's certificate
+	--ciphers=<cipherlist>		Set the cipher list string
+
