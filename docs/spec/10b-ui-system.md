@@ -92,6 +92,10 @@ a rule uses them.
 
 - **Panel** (`Panel.svelte`) is the only container: 1 px border, `bg-card`, 16 px radius, no shadow, optional header row
   (title, actions right; a muted line only as 10c §4 allows). No card per number; numbers sit inside the panel that explains them.
+  The header is one line at a fixed height, a muted line sits beside the title, so cards side by side start their
+  first rows at the same height; fields in neighbouring cards use the same spacing and every field has a visible label.
+  Three or more cards of different heights side by side go into `CardColumns`: each column stacks on its own, so a
+  short card never leaves a hole beside a tall one (bug 158). Equal cards in a list (hosts, endpoints) keep the grid.
 - **Page header**: 22 px title, actions right; a description only as 10c §4 allows. Never a hero.
 - Where things live, progressive disclosure, help text and save behaviour: [10c-ui-rules.md](10c-ui-rules.md), which wins
   over this file where they disagree.
@@ -117,6 +121,8 @@ a rule uses them.
 Sentence case everywhere, no all-caps labels. Buttons say what happens ("Save and review plan", "Approve and apply", "Plan
 deletion"); the same verb carries through the flow. Remote changes show "Applying…" until the API confirms, never "done"
 before. Errors never apologise and never hide the cause.
+Counts and units are words: "1 change", "3 changes", never "change(s)"; "seconds", never "(s)" or "180 s". No exclamation
+marks. Generated text (plan results, job summaries) follows the same rules at its source.
 
 ## 6. Accessibility and responsiveness
 

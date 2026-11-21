@@ -110,6 +110,9 @@ Test for every sentence: delete it. Would someone now make a real mistake or be 
 7. **Concepts that need explaining** (rule order, ban counters) get one help icon per panel with at most three sentences
    in a popover, not a paragraph on the page.
 8. **One name per thing** across pages, buttons, toasts and plans: IP set, rule set, agent, plan, apply, approve.
+9. **Checked with `unslop-ui`** (13.10): the repo's `.unslop-ui/taste.md` lists this section's bans and what stays on
+   purpose (" · " between real values, "<Page> · Hashi" titles). A text change runs it; where it and this section
+   disagree, both change in the same commit.
 
 ## 5. Saving and flows
 
