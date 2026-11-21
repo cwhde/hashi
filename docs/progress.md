@@ -1266,6 +1266,23 @@ Decisions made in S0:
 
 ## Agenda with the user
 
+- Decided 2026-11-21 (owner, from the rough mocks under `/design/ideas/*`, not approved designs): the public status page
+  takes from idea B the row of group tiles on top ("x of n up" per group), its denser rows, and the service's own page
+  as the detail (tiles, 90-day strip, response chart, recent downtimes, badges); from idea A each group in its own panel
+  that folds, and the service icon in each row, with a setting to show or hide icons on the status page. No signed-in
+  state on the public pages: no admin detection, no "Edit layout" link. One shared order for both public pages, each
+  entry with its own apps and status switches. Editor: idea B (dense outline + live preview) where cards can also be
+  dragged in the preview itself, the outline following; on a phone the outline only, with a Preview button. Idea C
+  (columns) is out. It lives in "Public pages" (renamed from App display) with Layout, Look and Settings tabs. The mock
+  texts are drafts; final copy goes through 10c §7 like every page.
+- Decided 2026-11-21 (owner): every new part after 13.11 (public page groups and ordering, status page service detail,
+  badges) gets the same Codex bug hunt as the app did on 2026-11-14/15, limited to the new pages and the code they touch.
+  Reuse `bug-hunt/ROUND2.md` (the round that worked: code map first, journeys, consistency, then findings; round 1's
+  40-minute pass was too shallow) with `CODEX-BRIEF.md`'s safety rules. `bug-hunt/` is local only (`.git/info/exclude`).
+  Findings are checked against code and app before they go into bugs.md, as then. The new parts also go through the
+  checks run by hand in 13.10/13.11 (Lighthouse, accessibility, request counts, light/dark/mobile screenshots), to be
+  written into 10c first.
+
 - Decided 2026-11-11 (owner, S12): no automation may break, so operational keys stay stable through rotation and strict
   mode; strict mode unlocks with the owner's sign-in passkey (PRF support still to check) or the recovery key; strict
   mode is proven on a test container only, prod stays in service mode; `hashi vault rotate` is built for 1.0.
