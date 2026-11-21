@@ -24,8 +24,32 @@ first, structure before text, search after the settings regroup.
 | 13.9 | Pulse on OpenWrt | 21 | Agent installed, started, self-updated and reporting its address on the owner's own OpenWrt router |
 | 13.10 | UI copy pass with unslop-ui | none (the owner, 2026-11-20) | Talk the skill through with the owner (https://github.com/felipebasurto/unslop-ui: an agent skill that cuts AI tells from UI copy and charts, optional visual rules); decide together whether and how to run it (install or follow by hand, which pages, with or without its visual rules, a taste file from 10c); run it as decided; the owner accepts the result |
 
-Next: 13.10 (13.5's gate waits for a real host outage). 13.9's installer change ships with the next release. After 13.10: a last bug sweep, then `v1.0.0`. With 1.0, a better README (the owner, 2026-11-19): what Hashi
+Next: 13.10 (13.5's gate waits for a real host outage). After 13.10: a last bug sweep, then `v1.0.0`. With 1.0, a better README (the owner, 2026-11-19): what Hashi
 is, screenshots, how to install and run it, what it needs.
+
+**13.10 in progress** (2026-11-21). Decided with the owner: follow the skill's SKILL.md by hand (its scripts not run),
+all product pages, surface rules on, taste file `.unslop-ui/taste.md` from 10c §4 and the owner's text and look bugs; bugs 157
+and 158 go with it. The approved mocks under `routes/design/` are reported, not edited.
+- [x] Taste file; counts with the skill's patterns before and after (own `rg`). U18: 1 → 0 (shell bar `h-13 px-4.5`).
+  U6, U10, U2, T1, T2 hits left on purpose (real values joined with " · ", pulsing skeletons, setup steps, TypeScript `!`,
+  the recovery key input). 664 visible strings read.
+- [x] Copy: reassurance and how-it-works lines cut (firewall host sheet, new IP set, new script, "stored encrypted", "Hashi
+  asks for your passkey" in delete dialogs), units in words (seconds instead of "(s)", the rescue timer "3 minutes"),
+  "Brief spikes up to", "Stale after this many missed heartbeats", no "change(s)"/"plan(s)" in the UI or in Go plan and
+  job summaries (`internal/words`), "Saved. Traefik has a new plan for when Hashi is unreachable.", "N apps" on the app
+  display, no "yet" promise for unmanaged record types.
+- [x] Bug 157: the challenge bars are a share of the largest count (`security/funnel.ts`, test reproduced 117 %).
+- [x] Bug 158: Panel header one line at fixed height, description beside the title; `CardColumns` for three or more
+  cards of different heights (address page, agent page, service traffic tab); Upstream's protocol field has a label.
+- [x] Spec (`docs(spec)` 4d48454f). `make check` green.
+- [x] `make test-e2e` green (one flaky run of the recovery-link test: the sign-in button re-rendered under the click; passed alone).
+- [ ] The owner reviews the open decisions; release with the next push; on prod: the pages look right.
+
+Open decisions for the owner (kept for now): the setup consent checkboxes keep "Nothing changes on the host until you
+approve" (it says what the box agrees to); "Saving asks for your passkey. Firewall and Traefik changes then wait under
+Pending changes." on the engine sheet; "A blocklist … blocks nothing until you use it" stays; "0 never bans for good";
+help text count 43 sentences (13.4 aimed below 40). Mocks with old wording: `lib/design` and `security/IpItemEditor`,
+`IpSetPicker`, `RuleEntryList` (only the mocks use them).
 
 **13.2 done** (2026-11-17, `v0.13.2-beta.1`, PR #69). Gate: the end-to-end run on the release commit walks all 16
 top-level pages at 390 and 1440 px in all four themes with no page wider than the screen, checks every title
