@@ -1,0 +1,39 @@
+name: Set up Node and pnpm
+description: Restore the store that pnpm uses in the web workspace
+outputs:
+  path:
+    description: The pnpm store path
+    value: ${{ steps.store.outputs.path }}
+  key:
+    description: The pnpm cache key
+    value: ${{ steps.store.outputs.key }}
+  hit:
+    description: Whether the current key was an exact hit
+    value: ${{ steps.cache.outputs.cache-hit }}
+runs:
+  using: composite
+  steps:
+    - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+      with:
+        node-version: 24
+
+    - uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1 # v4.3.0
+      with:
+        package_json_file: web/package.json
+
+    - id: store
+      shell: bash
+      working-directory: web
+      env:
+        LOCK_HASH: ${{ hashFiles('web/pnpm-lock.yaml', 'web/package.json') }}
+      run: |
+        path=$(pnpm store path --silent)
+        prefix="hashi-pnpm-v1-$(uname -m)-$(node -p 'process.versions.node.split(".")[0]')-$(pnpm --version)-"
+        printf '%s\n' "path=$path" "prefix=$prefix" "key=$prefix$LOCK_HASH" >> "$GITHUB_OUTPUT"
+
+    - id: cache
+      uses: actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
+      with:
+        path: ${{ steps.store.outputs.path }}
+        key: ${{ steps.store.outputs.key }}
+        restore-keys: ${{ steps.store.outputs.prefix }}
