@@ -14,6 +14,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"runtime"
 )
 
 // Message is what a signature vouches for; agents/pulse checks the same text.
@@ -45,6 +46,9 @@ func run(args []string) error {
 		}
 		key := ed25519.NewKeyFromSeed(seed)
 		for _, arch := range []string{"amd64", "arm64"} {
+			if runtime.GOOS == "linux" && arch == "arm64" {
+				continue
+			}
 			file := filepath.Join(args[1], "hashi-pulse-linux-"+arch)
 			b, err := os.ReadFile(file) //nolint:gosec // the release's own build output
 			if err != nil {
