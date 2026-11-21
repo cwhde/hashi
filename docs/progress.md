@@ -24,7 +24,7 @@ first, structure before text, search after the settings regroup.
 | 13.9 | Pulse on OpenWrt | 21 | Agent installed, started, self-updated and reporting its address on the owner's own OpenWrt router |
 | 13.10 | UI copy pass with unslop-ui | none (the owner, 2026-11-20) | Talk the skill through with the owner (https://github.com/felipebasurto/unslop-ui: an agent skill that cuts AI tells from UI copy and charts, optional visual rules); decide together whether and how to run it (install or follow by hand, which pages, with or without its visual rules, a taste file from 10c); run it as decided; the owner accepts the result |
 
-Next: 13.9 (13.5's gate waits for a real host outage). After 13.10: a last bug sweep, then `v1.0.0`. With 1.0, a better README (the owner, 2026-11-19): what Hashi
+Next: 13.10 (13.5's gate waits for a real host outage). 13.9's installer change ships with the next release. After 13.10: a last bug sweep, then `v1.0.0`. With 1.0, a better README (the owner, 2026-11-19): what Hashi
 is, screenshots, how to install and run it, what it needs.
 
 **13.2 done** (2026-11-17, `v0.13.2-beta.1`, PR #69). Gate: the end-to-end run on the release commit walks all 16
@@ -53,21 +53,31 @@ both public listeners serve them from Hashi's own copy (`/assets/icon` x-icon, `
 webp, 200 on both ports) and the public page data points at those paths only. No background set (optional, 404 as
 intended). Dashboard: 39 of 54 apps show an icon Hashi found, the other 15 their letter.
 
+**13.9 done** (2026-11-21, on the owner's OpenWrt 25.12.6 router; installer from `main`, agent from the releases).
+With the owner's OK: agent "router" added in Hashi; the new installer, run over SSH with `--from` the 0.13.7 release,
+downloaded through uclient-fetch, set up the procd service and the keep list ("running (procd)", enabled at boot).
+The agent beat at once and updated itself to v0.13.8-beta.1 one minute later (logread: "updated to v0.13.8-beta.1"),
+same PID under procd; Hashi lists it "current", fresh every 60 s, with its public address from the connection and six
+interface addresses (main address picked automatically: the WAN side). `/etc/init.d/hashi-pulse restart` brought it back
+on a new PID. A second install over the running agent was clean, and `sysupgrade -l` on the router lists all five files.
+Found on the way: a first install printed procd's "Command failed" (restart of a service that did not exist yet);
+reproduced in the OpenWrt container test and fixed (start when not running).
+
 ### 13.9 checklist (one PR)
 
 Contract: `testdata/contracts/openwrt/` (2026-11-21, read-only on the owner's router). The agent binary needs no change
 (static, memfd sleeper works on kernel 6.12, CA bundle present); the installer does.
 
-- [ ] Probe (owner's OK): the current release agent copied to the router's /tmp runs `version` there; removed after.
-- [ ] `install.sh`: download with curl, or wget when curl is missing (`-q -O`); copy with `cp` + `chmod` instead of
+- [x] Probe (owner's OK): the current release agent copied to the router's /tmp runs `version` there; removed after.
+- [x] `install.sh`: download with curl, or wget when curl is missing (`-q -O`); copy with `cp` + `chmod` instead of
       `install`; create the binary's directory. A procd branch (`/sbin/procd` and `/etc/rc.common`): `/etc/init.d/hashi-pulse`
       with `USE_PROCD=1`, `respawn`, output to logread, then `enable` and `restart`. A keep list
       `/lib/upgrade/keep.d/hashi-pulse` naming the binary, `/etc/hashi-pulse/`, the init script, its rc.d link and itself, so
       a firmware upgrade keeps the agent.
-- [ ] Tests: shellcheck; an installer test that runs the procd branch in a container with stub `wget`, `procd` and an
+- [x] Tests: shellcheck; an installer test that runs the procd branch in a container with stub `wget`, `procd` and an
       `rc.common` stand-in, checks the files written and that no curl or install is needed; the existing branches unchanged.
-- [ ] Spec 08 §1: procd and wget named (separate `docs(spec):` commit).
-- [ ] Gate on the owner's router (owner's OK): run the new installer from the laptop with `--from` the 0.13.7 release, so
+- [x] Spec 08 §1: procd and wget named (separate `docs(spec):` commit).
+- [x] Gate on the owner's router (owner's OK): run the new installer from the laptop with `--from` the 0.13.7 release, so
       the agent starts old; it beats, self-updates to 0.13.8 within a beat, reports its addresses, survives
       `/etc/init.d/hashi-pulse restart`; the main address picked or pinned in Hashi. Then bug 21 removed.
 
