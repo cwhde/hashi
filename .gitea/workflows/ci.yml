@@ -15,11 +15,10 @@ on:
 
 concurrency:
   group: ci-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
-  # A pull request runs the jobs whose files it touches. A push to main runs everything, except a merge whose files are
-  # exactly those of a pull request commit that already passed CI: that would only repeat the same run.
+  # A successful PR can have skipped jobs. Always run the full suite on main.
   scope:
     runs-on: ubuntu-latest
     outputs:
@@ -36,16 +35,8 @@ jobs:
         env:
           EVENT: ${{ github.event_name }}
           BASE: ${{ github.base_ref }}
-          API: ${{ github.server_url }}/api/v1/repos/${{ github.repository }}
         run: |
           set_all() { for k in go web integration e2e; do echo "$k=$1" >> "$GITHUB_OUTPUT"; done; }
-          if [ "$EVENT" = push ]; then
-            if pr=$(git rev-parse -q --verify 'HEAD^2') && [ "$(git rev-parse 'HEAD^{tree}')" = "$(git rev-parse "$pr^{tree}")" ] &&
-              [ "$(curl -fsS "$API/commits/$pr/status" | jq -r .state)" = success ]; then
-              echo "merge of $pr, which passed CI with exactly these files: nothing to run"; set_all false; exit 0
-            fi
-            set_all true; exit 0
-          fi
           if [ "$EVENT" != pull_request ]; then set_all true; exit 0; fi
           changed=$(git diff --name-only "origin/$BASE...HEAD")
           flag() { if grep -qE "$2" <<<"$changed"; then echo "$1=true"; else echo "$1=false"; fi >> "$GITHUB_OUTPUT"; }
