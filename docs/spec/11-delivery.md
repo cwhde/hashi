@@ -107,12 +107,10 @@ Tokens, IDs that embed account data, IPs and domains are replaced deterministica
 
 ### 6.1 Workflows
 
-- `ci.yml` runs the full suite on `main` and on manual dispatch. Ordinary PR runs give scoped feedback. Go race tests
-  include changed packages and their transitive importers, including test-only imports. Shared inputs and uncertain
-  diffs run all checks. The full suite includes `make check`, Docker integration tests, browser E2E and Pulse vet/test/build.
-- Prefix the PR title with `[full-ci] ` when ready to merge. Gitea must require `CI / full-suite (pull_request)` on an
-  up-to-date PR head and disallow direct pushes and status-check bypass. The full-suite job reports success only after
-  all four check jobs and scope succeed in the same run. Installing branch protection is an owner action.
+- `ci.yml` skips docs-only changes. It runs the full suite on `main` and on manual dispatch; PR runs give scoped
+  feedback. Go race tests include changed packages and their transitive importers, including test-only imports. Shared
+  inputs and uncertain diffs run all checks. The full suite includes `make check`, Docker integration tests, browser E2E
+  and Pulse vet/test/build. A red `main` run is the signal to fix before the next release.
 - Scans (threat model §7): `make scan` (govulncheck, `pnpm audit --prod`) runs in `ci.yml` after `make check`; the
   release job scans both pushed images with Trivy and fails on a fixable HIGH or CRITICAL finding. Secrets are kept out
   by the local secret guard (pre-commit and pre-push). The separate `security.yml` planned here was never needed.

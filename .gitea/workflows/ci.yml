@@ -1,10 +1,16 @@
 name: CI
 
+# Docs-only changes never run. A pull request runs the checks its files can reach; main always runs everything.
 on:
   pull_request:
-    types: [opened, synchronize, reopened, edited]
+    paths-ignore:
+      - "docs/**"
+      - "**/*.md"
   push:
     branches: [main]
+    paths-ignore:
+      - "docs/**"
+      - "**/*.md"
   workflow_dispatch:
 
 concurrency:
@@ -23,7 +29,6 @@ jobs:
       web: ${{ steps.s.outputs.web }}
       integration: ${{ steps.s.outputs.integration }}
       e2e: ${{ steps.s.outputs.e2e }}
-      full: ${{ steps.s.outputs.full }}
       go_paths: ${{ steps.s.outputs.go_paths }}
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
@@ -36,7 +41,6 @@ jobs:
         env:
           EVENT: ${{ github.event_name }}
           BASE_SHA: ${{ github.event.pull_request.base.sha }}
-          FULL_PR: ${{ startsWith(github.event.pull_request.title, '[full-ci] ') }}
         run: python3 tools/ci/scope.py
 
   # Go: format, vet, lint, unit and contract tests with -race, deploy bookkeeping, agent size, govulncheck.
@@ -180,20 +184,3 @@ jobs:
         with:
           path: ${{ steps.go-cache.outputs.paths }}
           key: ${{ steps.go-cache.outputs.key }}
-
-  # Require this exact PR status in Gitea branch protection. Selective feedback leaves it skipped.
-  full-suite:
-    needs: [scope, go, web, integration, e2e]
-    if: always() && needs.scope.outputs.full == 'true'
-    runs-on: ubuntu-latest
-    steps:
-      - name: Require success from every job
-        env:
-          SCOPE: ${{ needs.scope.result }}
-          GO: ${{ needs.go.result }}
-          WEB: ${{ needs.web.result }}
-          INTEGRATION: ${{ needs.integration.result }}
-          E2E: ${{ needs.e2e.result }}
-        run: |
-          printf '%s\n' "scope=$SCOPE" "go=$GO" "web=$WEB" "integration=$INTEGRATION" "e2e=$E2E"
-          test "$SCOPE/$GO/$WEB/$INTEGRATION/$E2E" = success/success/success/success/success

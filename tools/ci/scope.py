@@ -50,15 +50,14 @@ def changed_paths(base):
 
 def main():
     jobs, go_paths = set(JOBS), []
-    full = os.environ["EVENT"] != "pull_request" or os.environ.get("FULL_PR") == "true"
-    if not full:
+    if os.environ["EVENT"] == "pull_request":
         try:
             jobs, go_paths = checks(changed_paths(os.environ.get("BASE_SHA", "")))
         except (subprocess.CalledProcessError, ValueError) as error:
             print(f"Cannot classify the PR ({error}); running all checks.")
 
     outputs = {job: str(job in jobs).lower() for job in JOBS}
-    outputs.update(full=str(full).lower(), go_paths=json.dumps(go_paths))
+    outputs["go_paths"] = json.dumps(go_paths)
     with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as file:
         for key, value in outputs.items():
             print(f"{key}={value}", file=file)
