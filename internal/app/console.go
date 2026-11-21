@@ -18,6 +18,7 @@ import (
 	"git.juzo.io/juzo/hashi/internal/store"
 	"git.juzo.io/juzo/hashi/internal/store/db"
 	"git.juzo.io/juzo/hashi/internal/vault"
+	"git.juzo.io/juzo/hashi/internal/words"
 )
 
 // Console commands run inside the container (`docker exec hashi-v3 hashi …`) against the same database. They never
@@ -238,7 +239,7 @@ func VaultCheck(ctx context.Context, cfg Config, out io.Writer) error {
 	}
 	_, _ = fmt.Fprintf(out, "%d of %d secrets open with this master key (key version %d)\n", len(all)-len(failed), len(all), v.KeyVersion())
 	if len(failed) > 0 {
-		return fmt.Errorf("%d secret(s) don't open: %s", len(failed), strings.Join(failed, ", "))
+		return fmt.Errorf("%s not opening: %s", words.Count(len(failed), "secret", "secrets"), strings.Join(failed, ", "))
 	}
 	return nil
 }

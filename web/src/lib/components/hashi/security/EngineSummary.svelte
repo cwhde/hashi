@@ -89,7 +89,7 @@
 					label: 'New connections',
 					boxes: [{ key: 'tcp_new_per_minute', unit: 'per min' }]
 				},
-				{ label: 'Short bursts up to', boxes: [{ key: 'tcp_burst', unit: 'connections' }] },
+				{ label: 'Brief spikes up to', boxes: [{ key: 'tcp_burst', unit: 'connections' }] },
 				{
 					label: 'Open connections',
 					boxes: [{ key: 'tcp_max_concurrent', unit: 'at once' }]

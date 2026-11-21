@@ -215,7 +215,7 @@ export const settings: SettingEntry[] = [
 		words: 'agent'
 	},
 	{
-		label: 'Stale after missing (heartbeats)',
+		label: 'Stale after this many missed heartbeats',
 		category: 'pulse',
 		component: 'pulse/PulseSettings',
 		words: 'agent'

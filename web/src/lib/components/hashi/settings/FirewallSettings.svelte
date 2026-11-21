@@ -33,7 +33,7 @@
 				if (!r.data) throw r.error;
 				f = r.data;
 			},
-			'Saved. A changed MSS setting reaches each host as a plan on Pending changes.',
+			'Saved. Each host gets the change as a plan on Pending changes.',
 			draft
 		);
 </script>

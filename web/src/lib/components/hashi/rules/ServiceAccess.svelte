@@ -73,7 +73,7 @@
 		adopt(r.data.access);
 		trace = null;
 		if (r.data.plans.length) {
-			notice = 'What this service does while Hashi is away changed: Traefik got a new plan.';
+			notice = 'Saved. Traefik has a new plan for when Hashi is unreachable.';
 			await pendingPlans.refresh();
 		}
 	}

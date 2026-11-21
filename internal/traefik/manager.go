@@ -24,6 +24,7 @@ import (
 	hsync "git.juzo.io/juzo/hashi/internal/sync"
 	"git.juzo.io/juzo/hashi/internal/usermw"
 	"git.juzo.io/juzo/hashi/internal/vault"
+	"git.juzo.io/juzo/hashi/internal/words"
 )
 
 // Subsystem is the sync subsystem (sync_plans.subsystem): install, files and certificate distribution per Traefik
@@ -296,9 +297,9 @@ func (s traefikSub) Apply(ctx context.Context, connID string, items []hsync.Item
 		return "", m.health(ctx, connID, err)
 	}
 	_ = m.health(ctx, connID, nil)
-	sum := fmt.Sprintf("%d change(s) applied on %s and verified through the Traefik API", len(items), row.Name)
+	sum := fmt.Sprintf("%s applied on %s and verified through the Traefik API", words.Count(len(items), "change", "changes"), row.Name)
 	if len(checks) > 0 {
-		sum += fmt.Sprintf("; %d certificate(s) served with the expected fingerprint", len(checks))
+		sum += fmt.Sprintf("; %s served with the expected fingerprint", words.Count(len(checks), "certificate", "certificates"))
 	}
 	if out.Restarted {
 		sum += "; Traefik restarted"

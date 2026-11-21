@@ -19,6 +19,7 @@ import (
 
 	"git.juzo.io/juzo/hashi/internal/sshx"
 	hsync "git.juzo.io/juzo/hashi/internal/sync"
+	"git.juzo.io/juzo/hashi/internal/words"
 )
 
 // Files on the host (05 §3.1).
@@ -343,7 +344,7 @@ func Apply(ctx context.Context, h Host, d Desired, diff Diff, rescue Rescue) err
 	if takeover {
 		left, err := ObserveTakeover(ctx, h, d.Takeover)
 		if err == nil && !left.Empty() {
-			err = fmt.Errorf("%d object(s) of the old firewall script are still there", len(left.items))
+			err = fmt.Errorf("%s of the old firewall script still there", words.Count(len(left.items), "object", "objects"))
 		}
 		if err != nil {
 			return fmt.Errorf("%w (%w)", ErrRescuePending, err)

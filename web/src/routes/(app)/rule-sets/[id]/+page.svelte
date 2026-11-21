@@ -217,7 +217,7 @@
 {#if rs}<ConfirmDelete
 		bind:open={confirming}
 		title="Delete {rs.slug}?"
-		body="Its rules are deleted with it; this cannot be undone. Hashi asks for your passkey."
+		body="Its rules are deleted with it; this cannot be undone."
 		verb="Delete rule set"
 		onconfirm={remove}
 	/>{/if}

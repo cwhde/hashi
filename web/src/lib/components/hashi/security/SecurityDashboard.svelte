@@ -2,6 +2,7 @@
 	// Security → Dashboard (06 §13): what was let through, challenged and banned in a period, and why.
 	import Panel from '#lib/components/hashi/Panel.svelte';
 	import Tag from '#lib/components/hashi/Tag.svelte';
+	import { challengeFunnel } from '#lib/components/hashi/security/funnel.ts';
 	import Sparkline from '#lib/components/hashi/Sparkline.svelte';
 	import * as ToggleGroup from '#lib/components/ui/toggle-group/index.ts';
 	import AddressLink from '#lib/components/hashi/ipsets/AddressLink.svelte';
@@ -52,20 +53,7 @@
 		{ k: 'WAF matches', key: 'waf_matches', tone: 'text-info-text' }
 	];
 	const countryMax = $derived(Math.max(1, ...(d?.countries.map((c) => c.refused) ?? [])));
-	const funnel = $derived(
-		d
-			? [
-					{ k: 'Challenged', n: d.funnel.challenged, tone: 'bg-warn/70' },
-					{ k: 'Solved', n: d.funnel.solved, tone: 'bg-ok/70' },
-					{
-						k: 'Not solved yet',
-						n: Math.max(0, d.funnel.challenged - d.funnel.solved - d.funnel.banned),
-						tone: 'bg-idle'
-					},
-					{ k: 'Banned', n: d.funnel.banned, tone: 'bg-bad/70' }
-				]
-			: []
-	);
+	const funnel = $derived(d ? challengeFunnel(d.funnel) : []);
 	const sev = { info: 'ok', warning: 'warn', critical: 'bad' } as const;
 	const ago = (iso?: string) => {
 		if (!iso) return 'never';
@@ -197,9 +185,7 @@
 						{#each funnel as s (s.k)}
 							<li class="grid grid-cols-[8.5rem_1fr_3.5rem] items-center gap-2">
 								<span>{s.k}</span><span class="h-1.5 rounded-full bg-surface-2"
-									><span
-										class="block h-full rounded-full {s.tone}"
-										style="width:{(s.n / Math.max(1, d.funnel.challenged)) * 100}%"
+									><span class="block h-full rounded-full {s.tone}" style="width:{s.width}%"
 									></span></span
 								><span class="tnum text-right">{n(s.n)}</span>
 							</li>

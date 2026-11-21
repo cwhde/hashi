@@ -430,15 +430,16 @@
 								bind:checked={edit!.advanced_routes}
 							/>
 						</div>{/if}{/snippet}
-				<fieldset class="space-y-3" disabled={system}>
-					<Select.Root type="single" bind:value={edit.kind}>
-						<Select.Trigger aria-label="Protocol" class="w-full"
-							>{kindText[edit.kind]}</Select.Trigger
-						>
-						<Select.Content>
-							{#each kinds as k (k)}<Select.Item value={k}>{kindText[k]}</Select.Item>{/each}
-						</Select.Content>
-					</Select.Root>
+				<fieldset class="space-y-4" disabled={system}>
+					<div class="space-y-1.5">
+						<Label for="svc-kind">Protocol</Label>
+						<Select.Root type="single" bind:value={edit.kind}>
+							<Select.Trigger id="svc-kind" class="w-full">{kindText[edit.kind]}</Select.Trigger>
+							<Select.Content>
+								{#each kinds as k (k)}<Select.Item value={k}>{kindText[k]}</Select.Item>{/each}
+							</Select.Content>
+						</Select.Root>
+					</div>
 					<UpstreamTarget bind:value={extra.upstream} id="svc-upstream">
 						{#snippet port()}<Input
 								bind:value={edit!.target.port}
@@ -605,7 +606,7 @@
 						></pre>
 				{:else}
 					<p class="px-4 py-3 text-md text-muted-foreground">
-						Nothing is rendered while the service is invalid.
+						Traefik gets nothing for this service until it is valid.
 					</p>
 				{/if}
 			</Panel>
@@ -617,7 +618,7 @@
 			<AlertDialog.Header>
 				<AlertDialog.Title>Delete {svc.name}?</AlertDialog.Title>
 				<AlertDialog.Description
-					>It disappears from every Traefik host right away. Hashi asks for your passkey to confirm.</AlertDialog.Description
+					>It disappears from every Traefik host right away.</AlertDialog.Description
 				>
 			</AlertDialog.Header>
 			<AlertDialog.Footer>

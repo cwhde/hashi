@@ -14,6 +14,7 @@ import (
 	"git.juzo.io/juzo/hashi/internal/settings"
 	"git.juzo.io/juzo/hashi/internal/store/db"
 	hsync "git.juzo.io/juzo/hashi/internal/sync"
+	"git.juzo.io/juzo/hashi/internal/words"
 )
 
 // ---- plan / apply ----
@@ -231,7 +232,7 @@ func (s fwSub) Apply(ctx context.Context, id string, items []hsync.Item) (string
 		LastAppliedAt: sql.NullInt64{Int64: now, Valid: true}, UpdatedAt: now, ID: id}); err != nil {
 		return "", err
 	}
-	summary := fmt.Sprintf("%d change(s) applied on %s; table verified", len(items), row.Name)
+	summary := fmt.Sprintf("%s applied on %s; table verified", words.Count(len(items), "change", "changes"), row.Name)
 	if diff.Risk == hsync.High {
 		summary += "; confirmed over a new SSH connection, rescue timer disarmed"
 	}

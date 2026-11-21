@@ -458,7 +458,7 @@
 								></span
 							>
 							<span class="tnum text-muted-foreground"
-								>{dnsZone.rrset_count} records · default TTL {setup.dns?.provider?.default_ttl} s</span
+								>{dnsZone.rrset_count} records · default TTL {setup.dns?.provider?.default_ttl} seconds</span
 							>
 							<Button
 								variant="ghost"
@@ -487,7 +487,7 @@
 								/>
 							</div>
 							<div class="space-y-1.5">
-								<Label for="dttl">Default TTL (s)</Label><Input
+								<Label for="dttl">Default TTL (seconds)</Label><Input
 									id="dttl"
 									type="number"
 									min="60"

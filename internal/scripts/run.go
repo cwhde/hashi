@@ -16,6 +16,7 @@ import (
 	"git.juzo.io/juzo/hashi/internal/audit"
 	"git.juzo.io/juzo/hashi/internal/sshx"
 	"git.juzo.io/juzo/hashi/internal/store/db"
+	"git.juzo.io/juzo/hashi/internal/words"
 )
 
 // Run statuses.
@@ -278,7 +279,7 @@ func (s *Service) Collect(ctx context.Context) (string, error) {
 			errs = append(errs, fmt.Errorf("%s: %w", h.Name, err))
 		}
 	}
-	return fmt.Sprintf("%d scheduled run(s) collected", total), errors.Join(errs...)
+	return words.Count(total, "scheduled run", "scheduled runs") + " collected", errors.Join(errs...)
 }
 
 func (s *Service) collectHost(ctx context.Context, hostID string, bySlug map[string]Script) (int, error) {

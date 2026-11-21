@@ -86,7 +86,7 @@
 			if (!p) outcome = { text: `${c.name} already matches. Nothing to change.`, review: false };
 			else if (p.status === 'pending')
 				outcome = {
-					text: `${p.title}: ${p.items.length} change(s) need your approval.`,
+					text: `${p.title}: ${p.items.length} ${p.items.length === 1 ? 'change needs' : 'changes need'} your approval.`,
 					review: true
 				};
 			else outcome = { text: outcomeText(p), review: false, bad: p.status === 'failed' };

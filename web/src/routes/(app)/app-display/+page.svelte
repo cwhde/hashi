@@ -123,9 +123,7 @@
 <div class="grid gap-4 lg:grid-cols-2">
 	<Panel
 		title="App dashboard"
-		description={loaded
-			? `${services.filter((r) => r.dashboard_visible).length} apps · cards link to the public address`
-			: 'Loading…'}
+		description={loaded ? `${services.filter((r) => r.dashboard_visible).length} apps` : 'Loading…'}
 		flush
 	>
 		{#snippet actions()}{#if look}{@render pageState(look.public_dashboard_enabled)}{/if}{/snippet}

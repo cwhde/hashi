@@ -298,11 +298,9 @@
 	<Sheet.Content class="w-full sm:max-w-md">
 		<Sheet.Header>
 			<Sheet.Title>{editing ? 'Edit provider' : 'Add provider'}</Sheet.Title>
-			<Sheet.Description
-				>{editing
-					? 'Leave the secret empty to keep the stored one.'
-					: 'Its secret is stored encrypted and never shown again.'}</Sheet.Description
-			>
+			{#if editing}<Sheet.Description
+					>Leave the secret empty to keep the stored one.</Sheet.Description
+				>{/if}
 		</Sheet.Header>
 		<div class="space-y-4 overflow-y-auto px-4">
 			<div class="space-y-1.5">

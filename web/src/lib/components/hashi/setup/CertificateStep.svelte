@@ -217,7 +217,7 @@
 						/>
 					</div>
 					<div class="space-y-1.5">
-						<Label for="cdelay">Extra wait (s)</Label><Input
+						<Label for="cdelay">Extra wait (seconds)</Label><Input
 							id="cdelay"
 							type="number"
 							min="0"

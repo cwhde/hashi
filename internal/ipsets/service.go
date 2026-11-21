@@ -17,6 +17,7 @@ import (
 	"git.juzo.io/juzo/hashi/internal/audit"
 	"git.juzo.io/juzo/hashi/internal/store"
 	"git.juzo.io/juzo/hashi/internal/store/db"
+	"git.juzo.io/juzo/hashi/internal/words"
 )
 
 // DNSRefresh is how long a dns item's answers are kept. The standard library resolver does not expose record TTLs;
@@ -356,7 +357,7 @@ func (s *Service) Refresh(ctx context.Context) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	return fmt.Sprintf("%d dns name(s) refreshed, %d element(s) expired, %d set(s) changed", len(stale), expired, len(changed)), nil
+	return words.Count(len(stale), "DNS name", "DNS names") + " refreshed, " + words.Count(expired, "item", "items") + " expired, " + words.Count(len(changed), "set", "sets") + " changed", nil
 }
 
 func sortedIDs(g Graph) []string {

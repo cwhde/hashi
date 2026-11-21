@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
 	import { page } from '$app/state';
+	import CardColumns from '#lib/components/hashi/CardColumns.svelte';
 	import Panel from '#lib/components/hashi/Panel.svelte';
 	import Tag from '#lib/components/hashi/Tag.svelte';
 	import Mono from '#lib/components/hashi/Mono.svelte';
@@ -207,89 +208,96 @@
 		{/if}
 	</div>
 
-	<div class="grid gap-4 lg:grid-cols-2">
-		<Panel title="Member of">
-			{#if memberOf.length}
-				<ul class="space-y-2.5 text-md">
-					{#each memberOf as m (m.set.id)}
-						<li>
-							<SetBadge set={m.set} />
-							{#each m.matches as x (x.element_id + x.path.join())}
-								<span class="block truncate text-sm text-muted-foreground">{leaf(x)}</span>
-							{/each}
-						</li>
-					{/each}
-				</ul>
-			{:else}
-				<p class="text-md text-muted-foreground">
-					No set of yours contains it, only <span class="font-medium text-foreground">all</span>.
-				</p>
-			{/if}
-		</Panel>
-
-		<Panel title="Firewall">
-			{#if lookup.firewall.length === 0}
-				<p class="text-md text-muted-foreground">No firewall host managed by Hashi.</p>
-			{:else}
-				<ul class="space-y-2 text-md" aria-label="Firewall verdicts">
-					{#each lookup.firewall as v (v.host_id)}
-						<li class="flex flex-wrap items-center gap-x-2 gap-y-1">
-							<a href="/firewall/{v.host_id}" class="font-medium hover:underline">{v.host_name}</a>
-							<Tag tone={verdictTone[v.verdict]}>{verdictText[v.verdict]}</Tag>
-							{#if v.set_id}<span class="text-muted-foreground"
-									>by <a href="/ip-sets/{v.set_id}" class="hover:underline">{v.set_name}</a>
-									<Mono>{v.prefix}</Mono></span
-								>{/if}
-							{#if v.host_access}<Tag tone="info">may reach the host</Tag>{/if}
-						</li>
-					{/each}
-				</ul>
-			{/if}
-			{#if memberOf.some((m) => m.set.system_key === 'private_networks')}<p class="mt-2">
-					<Tag>private address</Tag>
-				</p>{/if}
-		</Panel>
-
-		{#if counter}
-			<Panel title="Abuse engine">
-				<p class="flex flex-wrap items-center gap-2 text-md">
-					{#if counter.state === 'banned'}<Tag tone="bad">banned</Tag
-						>{:else if counter.state === 'challenged'}<Tag tone="warn">challenged</Tag>{:else}<span
-							class="text-muted-foreground">Not banned or challenged now.</span
-						>{/if}
-					{#if stateDetail}<span class="text-muted-foreground">{stateDetail}</span>{/if}
-				</p>
-				<dl class="mt-3 grid grid-cols-[auto_1fr] gap-x-4 gap-y-1.5 text-md">
-					<dt class="text-muted-foreground">Ban counter</dt>
-					<dd class="tnum">
-						{counter.ban_count}{#if counter.last_ban}{' '}<span class="text-muted-foreground">
-								· last ban {dateTime(counter.last_ban)}</span
-							>{/if}
-					</dd>
-					<dt class="text-muted-foreground">Challenge counter</dt>
-					<dd class="tnum">
-						{counter.challenge_count}{#if counter.last_challenge}{' '}<span
-								class="text-muted-foreground"
-							>
-								· last challenge {dateTime(counter.last_challenge)}</span
-							>{/if}
-					</dd>
-					{#if counter.last_source}<dt class="text-muted-foreground">Last cause</dt>
-						<dd>{sourceLabel(counter.last_source)}</dd>{/if}
-				</dl>
-				{#if counter.address !== lookup.address}<p class="mt-2 text-sm text-muted-foreground">
-						Counted for the whole network <Mono>{counter.address}</Mono>.
+	{#snippet firewall()}{#if lookup}
+			<Panel title="Firewall">
+				{#if lookup.firewall.length === 0}
+					<p class="text-md text-muted-foreground">No firewall host managed by Hashi.</p>
+				{:else}
+					<ul class="space-y-2 text-md" aria-label="Firewall verdicts">
+						{#each lookup.firewall as v (v.host_id)}
+							<li class="flex flex-wrap items-center gap-x-2 gap-y-1">
+								<a href="/firewall/{v.host_id}" class="font-medium hover:underline">{v.host_name}</a
+								>
+								<Tag tone={verdictTone[v.verdict]}>{verdictText[v.verdict]}</Tag>
+								{#if v.set_id}<span class="text-muted-foreground"
+										>by <a href="/ip-sets/{v.set_id}" class="hover:underline">{v.set_name}</a>
+										<Mono>{v.prefix}</Mono></span
+									>{/if}
+								{#if v.host_access}<Tag tone="info">may reach the host</Tag>{/if}
+							</li>
+						{/each}
+					</ul>
+				{/if}
+				{#if memberOf.some((m) => m.set.system_key === 'private_networks')}<p class="mt-2">
+						<Tag>private address</Tag>
 					</p>{/if}
-				<p class="mt-3 text-sm">
-					<a
-						href="/security?tab=counters"
-						class="text-muted-foreground hover:text-foreground hover:underline"
-						>Edit or reset counters on the Security page</a
-					>
-				</p>
 			</Panel>
-		{/if}
-	</div>
+		{/if}{/snippet}
+	<!-- The tall abuse card gets a column of its own; without it, the two short cards share the row (bug 158). -->
+	<CardColumns>
+		{#snippet left()}
+			<Panel title="Member of">
+				{#if memberOf.length}
+					<ul class="space-y-2.5 text-md">
+						{#each memberOf as m (m.set.id)}
+							<li>
+								<SetBadge set={m.set} />
+								{#each m.matches as x (x.element_id + x.path.join())}
+									<span class="block truncate text-sm text-muted-foreground">{leaf(x)}</span>
+								{/each}
+							</li>
+						{/each}
+					</ul>
+				{:else}
+					<p class="text-md text-muted-foreground">
+						No set of yours contains it, only <span class="font-medium text-foreground">all</span>.
+					</p>
+				{/if}
+			</Panel>
+			{#if counter}{@render firewall()}{/if}
+		{/snippet}
+		{#snippet right()}{#if lookup}
+				{#if counter}
+					<Panel title="Abuse engine">
+						<p class="flex flex-wrap items-center gap-2 text-md">
+							{#if counter.state === 'banned'}<Tag tone="bad">banned</Tag
+								>{:else if counter.state === 'challenged'}<Tag tone="warn">challenged</Tag
+								>{:else}<span class="text-muted-foreground">Not banned or challenged now.</span
+								>{/if}
+							{#if stateDetail}<span class="text-muted-foreground">{stateDetail}</span>{/if}
+						</p>
+						<dl class="mt-3 grid grid-cols-[auto_1fr] gap-x-4 gap-y-1.5 text-md">
+							<dt class="text-muted-foreground">Ban counter</dt>
+							<dd class="tnum">
+								{counter.ban_count}{#if counter.last_ban}{' '}<span class="text-muted-foreground">
+										· last ban {dateTime(counter.last_ban)}</span
+									>{/if}
+							</dd>
+							<dt class="text-muted-foreground">Challenge counter</dt>
+							<dd class="tnum">
+								{counter.challenge_count}{#if counter.last_challenge}{' '}<span
+										class="text-muted-foreground"
+									>
+										· last challenge {dateTime(counter.last_challenge)}</span
+									>{/if}
+							</dd>
+							{#if counter.last_source}<dt class="text-muted-foreground">Last cause</dt>
+								<dd>{sourceLabel(counter.last_source)}</dd>{/if}
+						</dl>
+						{#if counter.address !== lookup.address}<p class="mt-2 text-sm text-muted-foreground">
+								Counted for the whole network <Mono>{counter.address}</Mono>.
+							</p>{/if}
+						<p class="mt-3 text-sm">
+							<a
+								href="/security?tab=counters"
+								class="text-muted-foreground hover:text-foreground hover:underline"
+								>Edit or reset counters on the Security page</a
+							>
+						</p>
+					</Panel>
+				{:else}{@render firewall()}{/if}
+			{/if}{/snippet}
+	</CardColumns>
 
 	<Panel title="Recent events" flush class="mt-4">
 		<ul class="divide-y text-md" aria-label="Recent events">

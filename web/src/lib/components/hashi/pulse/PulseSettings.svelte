@@ -49,7 +49,7 @@
 					/>
 				</div>
 				<div class="space-y-1.5">
-					<Label for="ps-stale">Stale after missing (heartbeats)</Label><Input
+					<Label for="ps-stale">Stale after this many missed heartbeats</Label><Input
 						id="ps-stale"
 						type="number"
 						min="2"

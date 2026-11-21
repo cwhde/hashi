@@ -11,6 +11,7 @@ import (
 
 	"git.juzo.io/juzo/hashi/internal/sshx"
 	hsync "git.juzo.io/juzo/hashi/internal/sync"
+	"git.juzo.io/juzo/hashi/internal/words"
 )
 
 // Subsystem is the sync engine's name for scripts; a plan's target is a firewall host id.
@@ -204,7 +205,7 @@ func planItems(ds []Desired, files []File, o observed) hsync.Draft {
 		items = append(items, hsync.Item{Action: hsync.ActionDelete, Object: "script " + slug,
 			Before: raw(itemState{Body: string(o.files[Dir+"/"+slug+".sh"]), Hash: groupHash(have[slug])}), Risk: hsync.High})
 	}
-	return hsync.Draft{Title: fmt.Sprintf("Scripts: %d change(s)", len(items)), Items: items}
+	return hsync.Draft{Title: "Scripts: " + words.Count(len(items), "change", "changes"), Items: items}
 }
 
 func actionFor(exists bool) string {
@@ -325,7 +326,7 @@ func (x sub) Apply(ctx context.Context, hostID string, items []hsync.Item) (stri
 	if err := verify(ctx, h, man); err != nil {
 		return "", err
 	}
-	return fmt.Sprintf("%d script change(s) applied", len(items)), nil
+	return words.Count(len(items), "script change", "script changes") + " applied", nil
 }
 
 // removeAfterDisable stops and disables the timers first, then removes the files, so a schedule never fires a removed

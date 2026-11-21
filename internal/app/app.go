@@ -55,6 +55,7 @@ import (
 	"git.juzo.io/juzo/hashi/internal/vault"
 	"git.juzo.io/juzo/hashi/internal/waf"
 	"git.juzo.io/juzo/hashi/internal/web"
+	"git.juzo.io/juzo/hashi/internal/words"
 )
 
 // Build information, set with -ldflags "-X git.juzo.io/juzo/hashi/internal/app.Version=…".
@@ -310,7 +311,7 @@ func Run(ctx context.Context, cfg Config, log *slog.Logger, ready func(adminAddr
 	// flush by hand) comes back through a plan (invariants 15, 16).
 	if err := runner.Register(ctx, jobs.Job{Kind: "firewall.reconcile", Interval: time.Hour, Run: func(ctx context.Context) (string, error) {
 		plans, err := fwMgr.PlanAll(ctx, syncEngine, audit.System)
-		return fmt.Sprintf("%d firewall plan(s)", len(plans)), err
+		return words.Count(len(plans), "firewall plan", "firewall plans"), err
 	}}); err != nil {
 		return err
 	}

@@ -239,9 +239,6 @@
 	<Sheet.Content class="w-full sm:max-w-xl">
 		<Sheet.Header>
 			<Sheet.Title>Add IP set</Sheet.Title>
-			<Sheet.Description
-				>A new set is used nowhere until you pick it in a rule, the firewall, DNS or a service.</Sheet.Description
-			>
 		</Sheet.Header>
 		<div class="space-y-5 overflow-y-auto px-4 pb-4">
 			<div class="space-y-1.5">

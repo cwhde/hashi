@@ -334,7 +334,7 @@
 {#if d}<ConfirmDelete
 		bind:open={confirming}
 		title="Delete {d.endpoint.name}?"
-		body="The check and all its history are deleted; this cannot be undone. Hashi asks for your passkey."
+		body="The check and all its history are deleted; this cannot be undone."
 		verb="Delete check"
 		onconfirm={remove}
 	/>{/if}

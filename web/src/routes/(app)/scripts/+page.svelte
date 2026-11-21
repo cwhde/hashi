@@ -358,7 +358,7 @@
 						? current.targets.length
 							? `Runs on ${current.targets.map((t) => t.name).join(', ')}`
 							: 'Runs on no host'
-						: 'Saving puts it on the hosts after you approve the change.'}
+						: undefined}
 					flush
 				>
 					{#snippet actions()}

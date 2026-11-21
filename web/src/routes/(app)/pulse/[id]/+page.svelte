@@ -3,6 +3,7 @@
 	// and what follows it. Its token and install live on Connections, with every other outside system.
 	import { onMount } from 'svelte';
 	import { page } from '$app/state';
+	import CardColumns from '#lib/components/hashi/CardColumns.svelte';
 	import Panel from '#lib/components/hashi/Panel.svelte';
 	import Mono from '#lib/components/hashi/Mono.svelte';
 	import Tag from '#lib/components/hashi/Tag.svelte';
@@ -141,129 +142,132 @@
 	</div>
 	{#if notice}<p role="status" class="mb-4 text-md text-ok-text">{notice}</p>{/if}
 
-	<div class="grid gap-4 lg:grid-cols-2">
-		<Panel title="Main address">
-			{#if agent.addresses.length === 0}
-				<p class="text-md text-muted-foreground">No address reported yet.</p>
-			{:else}
-				<RadioGroup.Root
-					value={main}
-					onValueChange={(v) => {
-						main = v;
-						void pin(v);
-					}}
-					class="gap-2 text-md"
-					aria-label="Main address"
-					disabled={busy}
-				>
-					<label class="flex items-center gap-3">
-						<RadioGroup.Item value="" />
-						<span>Let the agent choose</span>
-						{#if !agent.pinned_ip}<Mono class="text-muted-foreground">{agent.selected_ip}</Mono
-							>{/if}
-					</label>
-					{#each agent.addresses as a (a.address)}
-						<label class="flex items-center gap-3">
-							<RadioGroup.Item value={a.address} />
-							<Mono>{a.address}</Mono>
-							<span class="text-muted-foreground">{a.interface}</span>
-							{#if a.address === agent.selected_ip}<Tag tone="info">in use</Tag>{/if}
+	<CardColumns>
+		{#snippet left()}{#if agent}
+				<Panel title="Main address">
+					{#if agent.addresses.length === 0}
+						<p class="text-md text-muted-foreground">No address reported yet.</p>
+					{:else}
+						<RadioGroup.Root
+							value={main}
+							onValueChange={(v) => {
+								main = v;
+								void pin(v);
+							}}
+							class="gap-2 text-md"
+							aria-label="Main address"
+							disabled={busy}
+						>
+							<label class="flex items-center gap-3">
+								<RadioGroup.Item value="" />
+								<span>Let the agent choose</span>
+								{#if !agent.pinned_ip}<Mono class="text-muted-foreground">{agent.selected_ip}</Mono
+									>{/if}
+							</label>
+							{#each agent.addresses as a (a.address)}
+								<label class="flex items-center gap-3">
+									<RadioGroup.Item value={a.address} />
+									<Mono>{a.address}</Mono>
+									<span class="text-muted-foreground">{a.interface}</span>
+									{#if a.address === agent.selected_ip}<Tag tone="info">in use</Tag>{/if}
+								</label>
+							{/each}
+						</RadioGroup.Root>
+						{#if pinGone}<p class="mt-3 text-sm text-warn-text">
+								The agent no longer reports <Mono>{agent.pinned_ip}</Mono>, so it uses <Mono
+									>{agent.selected_ip}</Mono
+								> until it does.
+							</p>{/if}
+					{/if}
+					<dl class="mt-4 grid grid-cols-[9rem_minmax(0,1fr)] gap-y-1.5 text-md">
+						<dt class="text-muted-foreground">Public address</dt>
+						<dd>
+							<Mono>{agent.public_ip || '—'}</Mono>{#if agent.public_ip_source === 'reported'}{' '}
+								<Tag>self-reported</Tag>{/if}
+						</dd>
+						{#if agent.reach_port}
+							<dt class="text-muted-foreground">From Hashi</dt>
+							<dd>
+								{agent.reachable === true
+									? `port ${agent.reach_port} answers`
+									: agent.reachable === false
+										? `port ${agent.reach_port} does not answer`
+										: 'not checked yet'}
+							</dd>
+						{/if}
+					</dl>
+				</Panel>
+				<Panel title="Used by">
+					{#if uses && (uses.set_refs.length || uses.direct.length)}
+						<ul class="space-y-1 text-md">
+							{#each uses.direct as c (c.type + c.id)}
+								{@const l = consumerOf(c)}
+								<li>
+									<span class="text-muted-foreground">{l.kind}</span>
+									{#if l.href}<a href={l.href} class="hover:underline">{c.name}</a
+										>{:else}{c.name}{/if}
+								</li>
+							{/each}
+							{#each uses.set_refs as s (s.id)}
+								<li>
+									<span class="text-muted-foreground">IP set</span>
+									<a href="/ip-sets/{s.id}" class="hover:underline">{s.name}</a>
+								</li>
+							{/each}
+						</ul>
+					{:else}
+						<p class="text-md text-muted-foreground">Nothing follows this agent yet.</p>
+					{/if}
+				</Panel>
+			{/if}{/snippet}
+		{#snippet right()}{#if agent}
+				<Panel title="Settings">
+					<div class="space-y-4 text-md">
+						<div class="space-y-1.5">
+							<Label for="pa-name">Name</Label><Input id="pa-name" bind:value={form.name} />
+						</div>
+						<label class="flex items-center justify-between gap-3">
+							<span>Give it an internal DNS name</span><Switch
+								bind:checked={form.dns_enabled}
+								aria-label="Give it an internal DNS name"
+							/>
 						</label>
-					{/each}
-				</RadioGroup.Root>
-				{#if pinGone}<p class="mt-3 text-sm text-warn-text">
-						The agent no longer reports <Mono>{agent.pinned_ip}</Mono>, so it uses <Mono
-							>{agent.selected_ip}</Mono
-						> until it does.
-					</p>{/if}
-			{/if}
-			<dl class="mt-4 grid grid-cols-[9rem_minmax(0,1fr)] gap-y-1.5 text-md">
-				<dt class="text-muted-foreground">Public address</dt>
-				<dd>
-					<Mono>{agent.public_ip || '—'}</Mono>{#if agent.public_ip_source === 'reported'}{' '}
-						<Tag>self-reported</Tag>{/if}
-				</dd>
-				{#if agent.reach_port}
-					<dt class="text-muted-foreground">From Hashi</dt>
-					<dd>
-						{agent.reachable === true
-							? `port ${agent.reach_port} answers`
-							: agent.reachable === false
-								? `port ${agent.reach_port} does not answer`
-								: 'not checked yet'}
-					</dd>
-				{/if}
-			</dl>
-		</Panel>
-
-		<Panel title="Settings">
-			<div class="space-y-4 text-md">
-				<div class="space-y-1.5">
-					<Label for="pa-name">Name</Label><Input id="pa-name" bind:value={form.name} />
-				</div>
-				<label class="flex items-center justify-between gap-3">
-					<span>Give it an internal DNS name</span><Switch
-						bind:checked={form.dns_enabled}
-						aria-label="Give it an internal DNS name"
-					/>
-				</label>
-				{#if form.dns_enabled}
-					<div class="space-y-1.5">
-						<Label for="pa-dns">DNS name</Label><Input
-							id="pa-dns"
-							bind:value={form.dns_name}
-							placeholder="Uses the agent's name"
-						/>
+						{#if form.dns_enabled}
+							<div class="space-y-1.5">
+								<Label for="pa-dns">DNS name</Label><Input
+									id="pa-dns"
+									bind:value={form.dns_name}
+									placeholder="Uses the agent's name"
+								/>
+							</div>
+						{/if}
+						<div class="space-y-1.5">
+							<Label for="pa-reach">Port to test from Hashi</Label><Input
+								id="pa-reach"
+								inputmode="numeric"
+								value={form.reach_port || ''}
+								oninput={(e) => (form.reach_port = Number(e.currentTarget.value.trim()) || 0)}
+								placeholder="off"
+								class="max-w-32"
+							/>
+						</div>
+						<label class="flex items-center justify-between gap-3">
+							<span>Trust its own report of its public address</span><Switch
+								bind:checked={form.trust_reported_ip}
+								aria-label="Trust its own report of its public address"
+							/>
+						</label>
+						{#if form.trust_reported_ip}<p class="text-xs text-warn-text">
+								Only for a machine that reaches Hashi over a private path. With its token, someone
+								could name any public address here.
+							</p>{/if}
+						<div class="flex justify-end">
+							<Button size="sm" onclick={save} disabled={busy || !form.name.trim() || !draft.dirty}
+								>Save</Button
+							>
+						</div>
 					</div>
-				{/if}
-				<div class="space-y-1.5">
-					<Label for="pa-reach">Port to test from Hashi</Label><Input
-						id="pa-reach"
-						inputmode="numeric"
-						value={form.reach_port || ''}
-						oninput={(e) => (form.reach_port = Number(e.currentTarget.value.trim()) || 0)}
-						placeholder="off"
-						class="max-w-32"
-					/>
-				</div>
-				<label class="flex items-center justify-between gap-3">
-					<span>Trust its own report of its public address</span><Switch
-						bind:checked={form.trust_reported_ip}
-						aria-label="Trust its own report of its public address"
-					/>
-				</label>
-				{#if form.trust_reported_ip}<p class="text-xs text-warn-text">
-						Only for a machine that reaches Hashi over a private path. With its token, someone could
-						name any public address here.
-					</p>{/if}
-				<div class="flex justify-end">
-					<Button size="sm" onclick={save} disabled={busy || !form.name.trim() || !draft.dirty}
-						>Save</Button
-					>
-				</div>
-			</div>
-		</Panel>
-
-		<Panel title="Used by">
-			{#if uses && (uses.set_refs.length || uses.direct.length)}
-				<ul class="space-y-1 text-md">
-					{#each uses.direct as c (c.type + c.id)}
-						{@const l = consumerOf(c)}
-						<li>
-							<span class="text-muted-foreground">{l.kind}</span>
-							{#if l.href}<a href={l.href} class="hover:underline">{c.name}</a>{:else}{c.name}{/if}
-						</li>
-					{/each}
-					{#each uses.set_refs as s (s.id)}
-						<li>
-							<span class="text-muted-foreground">IP set</span>
-							<a href="/ip-sets/{s.id}" class="hover:underline">{s.name}</a>
-						</li>
-					{/each}
-				</ul>
-			{:else}
-				<p class="text-md text-muted-foreground">Nothing follows this agent yet.</p>
-			{/if}
-		</Panel>
-	</div>
+				</Panel>
+			{/if}{/snippet}
+	</CardColumns>
 {/if}

@@ -1,4 +1,5 @@
 <script lang="ts">
+	import CardColumns from '#lib/components/hashi/CardColumns.svelte';
 	import Panel from '#lib/components/hashi/Panel.svelte';
 	import Mono from '#lib/components/hashi/Mono.svelte';
 	import MiddlewarePicker from './MiddlewarePicker.svelte';
@@ -59,9 +60,9 @@
 		traffic[k] = v.trim() && Number.isFinite(n) ? n : undefined;
 	}
 	const timeouts = [
-		['dial_timeout', 'Connect (s)'],
-		['response_header_timeout', 'Wait for an answer (s)'],
-		['idle_timeout', 'Keep idle connections (s)']
+		['dial_timeout', 'Connect within (seconds)'],
+		['response_header_timeout', 'Wait for an answer (seconds)'],
+		['idle_timeout', 'Keep idle connections (seconds)']
 	] as const;
 </script>
 
@@ -99,111 +100,113 @@
 	<Button variant="outline" size="sm" onclick={() => addHeader(which)}><Plus />Add header</Button>
 {/snippet}
 
-<fieldset class="grid gap-4 lg:grid-cols-2" {disabled}>
-	<Panel title="Host header">
-		<RadioGroup.Root
-			value={hostMode}
-			onValueChange={setHost}
-			class="gap-2"
-			aria-label="Host header"
-		>
-			{#each hostModes as m (m.v)}
-				<label
-					class="flex cursor-pointer gap-3 rounded-xl border p-3 hover:bg-surface-2/50 {hostMode ===
-					m.v
-						? 'border-primary/60'
-						: ''}"
+<fieldset {disabled}>
+	<CardColumns>
+		{#snippet left()}
+			<Panel title="Host header">
+				<RadioGroup.Root
+					value={hostMode}
+					onValueChange={setHost}
+					class="gap-2"
+					aria-label="Host header"
 				>
-					<RadioGroup.Item value={m.v} class="mt-0.5" />
-					<span class="min-w-0"
-						><span class="block text-md font-medium">{m.label}</span>{#if m.help()}<span
-								class="block text-sm break-all text-muted-foreground">{m.help()}</span
-							>{/if}</span
-					>
-				</label>
-			{/each}
-		</RadioGroup.Root>
-		{#if hostMode === 'custom'}
-			<div class="mt-3 space-y-1.5">
-				<Label for="hostv">Name sent to the app</Label>
-				<Input
-					id="hostv"
-					bind:value={traffic.host_value}
-					class="font-mono"
-					placeholder="app.internal.example"
-				/>
-			</div>
-		{/if}
-	</Panel>
-
-	<Panel title="Visitor address">
-		<div class="space-y-3">
-			<div class="flex items-center justify-between gap-3">
-				<Label for="xff">Send <Mono>X-Forwarded-For</Mono></Label>
-				<Switch
-					id="xff"
-					checked={!traffic.drop_forwarded_for}
-					onCheckedChange={(on) => (traffic.drop_forwarded_for = !on || undefined)}
-				/>
-			</div>
-			<div class="flex items-center justify-between gap-3">
-				<Label for="xri">Send <Mono>X-Real-IP</Mono></Label>
-				<Switch
-					id="xri"
-					checked={!traffic.drop_real_ip}
-					onCheckedChange={(on) => (traffic.drop_real_ip = !on || undefined)}
-				/>
-			</div>
-		</div>
-	</Panel>
-
-	<Panel title="Extra headers to the app">
-		<div class="space-y-3">
-			{@render headerList('request_headers', traffic.request_headers ?? [])}
-		</div>
-	</Panel>
-
-	<Panel title="Extra headers to the visitor">
-		<div class="space-y-3">
-			{@render headerList('response_headers', traffic.response_headers ?? [])}
-		</div>
-	</Panel>
-
-	<Panel title="Timeouts">
-		<div class="grid gap-3 sm:grid-cols-3">
-			{#each timeouts as [k, label] (k)}
-				<div class="space-y-1.5">
-					<Label for={k}>{label}</Label>
-					<Input
-						id={k}
-						inputmode="numeric"
-						value={seconds(traffic[k])}
-						oninput={(e) => setSeconds(k, e.currentTarget.value)}
-						placeholder="default"
-					/>
+					{#each hostModes as m (m.v)}
+						<label
+							class="flex cursor-pointer gap-3 rounded-xl border p-3 hover:bg-surface-2/50 {hostMode ===
+							m.v
+								? 'border-primary/60'
+								: ''}"
+						>
+							<RadioGroup.Item value={m.v} class="mt-0.5" />
+							<span class="min-w-0"
+								><span class="block text-md font-medium">{m.label}</span>{#if m.help()}<span
+										class="block text-sm break-all text-muted-foreground">{m.help()}</span
+									>{/if}</span
+							>
+						</label>
+					{/each}
+				</RadioGroup.Root>
+				{#if hostMode === 'custom'}
+					<div class="mt-3 space-y-1.5">
+						<Label for="hostv">Name sent to the app</Label>
+						<Input
+							id="hostv"
+							bind:value={traffic.host_value}
+							class="font-mono"
+							placeholder="app.internal.example"
+						/>
+					</div>
+				{/if}
+			</Panel>
+			<Panel title="Extra headers to the app">
+				<div class="space-y-3">
+					{@render headerList('request_headers', traffic.request_headers ?? [])}
 				</div>
-			{/each}
-		</div>
-	</Panel>
-
-	<Panel title="Extra middlewares">
-		<div class="space-y-3">
-			{#if names.length || middlewares.length}
-				<MiddlewarePicker
-					{names}
-					bind:selected={middlewares}
-					label="Extra middlewares"
-					{disabled}
-				/>
-			{/if}
-			{#if every.length}
-				<p class="text-sm text-muted-foreground">
-					Already on every service: {#each every as n, i (n)}{i ? ', ' : ''}<Mono>{n}</Mono>{/each}
-				</p>
-			{/if}
-			<Button size="sm" variant="outline" href="/traefik?tab=middlewares"
-				><Plus />Add middleware</Button
-			>
-		</div>
-	</Panel>
+			</Panel>
+			<Panel title="Timeouts">
+				<div class="grid gap-3 sm:grid-cols-3">
+					{#each timeouts as [k, label] (k)}
+						<div class="space-y-1.5">
+							<Label for={k}>{label}</Label>
+							<Input
+								id={k}
+								inputmode="numeric"
+								value={seconds(traffic[k])}
+								oninput={(e) => setSeconds(k, e.currentTarget.value)}
+								placeholder="default"
+							/>
+						</div>
+					{/each}
+				</div>
+			</Panel>
+		{/snippet}
+		{#snippet right()}
+			<Panel title="Visitor address">
+				<div class="space-y-3">
+					<div class="flex items-center justify-between gap-3">
+						<Label for="xff">Send <Mono>X-Forwarded-For</Mono></Label>
+						<Switch
+							id="xff"
+							checked={!traffic.drop_forwarded_for}
+							onCheckedChange={(on) => (traffic.drop_forwarded_for = !on || undefined)}
+						/>
+					</div>
+					<div class="flex items-center justify-between gap-3">
+						<Label for="xri">Send <Mono>X-Real-IP</Mono></Label>
+						<Switch
+							id="xri"
+							checked={!traffic.drop_real_ip}
+							onCheckedChange={(on) => (traffic.drop_real_ip = !on || undefined)}
+						/>
+					</div>
+				</div>
+			</Panel>
+			<Panel title="Extra headers to the visitor">
+				<div class="space-y-3">
+					{@render headerList('response_headers', traffic.response_headers ?? [])}
+				</div>
+			</Panel>
+			<Panel title="Extra middlewares">
+				<div class="space-y-3">
+					{#if names.length || middlewares.length}
+						<MiddlewarePicker
+							{names}
+							bind:selected={middlewares}
+							label="Extra middlewares"
+							{disabled}
+						/>
+					{/if}
+					{#if every.length}
+						<p class="text-sm text-muted-foreground">
+							Already on every service: {#each every as n, i (n)}{i ? ', ' : ''}<Mono>{n}</Mono
+								>{/each}
+						</p>
+					{/if}
+					<Button size="sm" variant="outline" href="/traefik?tab=middlewares"
+						><Plus />Add middleware</Button
+					>
+				</div>
+			</Panel>
+		{/snippet}
+	</CardColumns>
 </fieldset>

@@ -26,12 +26,14 @@
 <!-- A column: the body fills a card stretched by its grid row, so widgets can use the height (bug 142). -->
 <section class={cn('flex min-w-0 flex-col rounded-2xl border bg-card', className)}>
 	{#if title || actions}
-		<header class="flex min-h-12 items-center gap-3 px-4 py-2.5 {flush ? 'border-b' : ''}">
-			<div class="min-w-0 flex-1">
-				{#if title}<h2 class="flex items-center gap-1 text-base font-semibold">
+		<!-- One line at a fixed height, the description beside the title: the first rows of cards side by side start at
+		     the same height (bug 158). -->
+		<header class="flex h-12 items-center gap-3 px-4 {flush ? 'border-b' : ''}">
+			<div class="flex min-w-0 flex-1 items-baseline gap-2">
+				{#if title}<h2 class="flex min-w-0 items-center gap-1 text-base font-semibold">
 						<span class="truncate">{title}</span>{@render help?.()}
 					</h2>{/if}
-				{#if description}<p class="truncate text-sm text-muted-foreground">
+				{#if description}<p class="min-w-0 flex-1 basis-0 truncate text-sm text-muted-foreground">
 						{description}
 					</p>{/if}
 			</div>

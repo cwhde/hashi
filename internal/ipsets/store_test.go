@@ -207,7 +207,7 @@ func TestRecompileNotifiesOnlyChangedSets(t *testing.T) {
 	slices.Sort(last)
 	want := []string{home.ID, parent.ID}
 	slices.Sort(want)
-	if !slices.Equal(last, want) || !strings.Contains(sum, "1 dns name(s) refreshed") {
+	if !slices.Equal(last, want) || !strings.Contains(sum, "1 DNS name refreshed") {
 		t.Fatalf("changed %v want %v (%s)", last, want, sum)
 	}
 	row, err := q.GetIPSet(ctx, parent.ID)
@@ -227,7 +227,7 @@ func TestRefreshDropsExpiredWithAudit(t *testing.T) {
 	mustAdd(t, ed, q, s.ID, mustItem(t, "192.0.2.2"))
 	svc.now = func() time.Time { return soon }
 	sum, err := svc.Refresh(ctx)
-	if err != nil || !strings.Contains(sum, "1 element(s) expired") {
+	if err != nil || !strings.Contains(sum, "1 item expired") {
 		t.Fatalf("%s %v", sum, err)
 	}
 	got, _ := GetSet(ctx, q, s.ID)

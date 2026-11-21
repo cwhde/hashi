@@ -112,7 +112,6 @@
 	<Sheet.Content class="w-full sm:max-w-2xl">
 		<Sheet.Header>
 			<Sheet.Title>{host ? `Edit ${host.name}` : 'Add a firewall host'}</Sheet.Title>
-			<Sheet.Description>Nothing changes on the host until you approve a plan.</Sheet.Description>
 		</Sheet.Header>
 		<div class="space-y-3 overflow-y-auto px-4 pb-4 text-md">
 			{#if error}<p role="alert" class="text-bad-text">{error}</p>{/if}

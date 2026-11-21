@@ -178,7 +178,7 @@ test('setup with a passkey, then sign in with it', async ({ page, request }) => 
 	await page.getByRole('button', { name: 'Approve and run' }).click();
 	await expect(page.getByText('Installed and verified')).toBeVisible();
 	await expect(
-		page.getByText(/certificate\(s\) served with the expected fingerprint/)
+		page.getByText(/certificates? served with the expected fingerprint/)
 	).toBeVisible();
 	await page.getByRole('button', { name: 'Continue' }).click();
 
@@ -399,7 +399,7 @@ test('setup with a passkey, then sign in with it', async ({ page, request }) => 
 	await page.getByRole('tab', { name: 'Hosts' }).click();
 	await page.getByRole('button', { name: 'Check and sync' }).click();
 	await expect(page.getByRole('status')).toContainText(
-		'certificate(s) served with the expected fingerprint'
+		'1 certificate served with the expected fingerprint'
 	);
 	await page.getByRole('tab', { name: 'Certificates' }).click();
 	await expect(certs).toContainText('served by 1 of 1 host');

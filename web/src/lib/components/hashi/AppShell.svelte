@@ -140,7 +140,7 @@
 {#snippet brand(full: boolean)}
 	<a
 		href={live ? '/' : '/design'}
-		class="flex h-[52px] shrink-0 items-center gap-2.5 px-[18px]"
+		class="flex h-13 shrink-0 items-center gap-2.5 px-4.5"
 		aria-label={live ? 'Hashi home' : 'Hashi design index'}
 	>
 		<span
@@ -190,7 +190,7 @@
 		)}
 	>
 		<header
-			class="sticky top-0 z-30 flex h-[52px] items-center gap-2 border-b bg-background/90 px-3 backdrop-blur-sm md:px-5"
+			class="sticky top-0 z-30 flex h-13 items-center gap-2 border-b bg-background/90 px-3 backdrop-blur-sm md:px-5"
 		>
 			<Sheet.Root bind:open={mobileOpen}>
 				<Sheet.Trigger>

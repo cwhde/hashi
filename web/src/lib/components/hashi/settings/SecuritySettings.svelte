@@ -233,7 +233,7 @@
 	<ConfirmDelete
 		bind:open={confirmOpen}
 		title="Delete passkey “{deleting?.name}”?"
-		body="Sessions signed in with it end at once. Hashi asks for a passkey to confirm."
+		body="Sessions signed in with it end at once."
 		verb="Delete passkey"
 		onconfirm={() => deleting && void removeKey(deleting)}
 	/>

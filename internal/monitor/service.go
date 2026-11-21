@@ -20,6 +20,7 @@ import (
 	"git.juzo.io/juzo/hashi/internal/settings"
 	"git.juzo.io/juzo/hashi/internal/store"
 	"git.juzo.io/juzo/hashi/internal/store/db"
+	"git.juzo.io/juzo/hashi/internal/words"
 )
 
 // Job kinds and intervals (invariant 15).
@@ -444,7 +445,7 @@ func (s *Service) RunChecks(ctx context.Context) (string, error) {
 		}()
 	}
 	wg.Wait()
-	return fmt.Sprintf("%d endpoint(s) checked", n), errors.Join(syncErr, firstErr)
+	return words.Count(n, "endpoint", "endpoints") + " checked", errors.Join(syncErr, firstErr)
 }
 
 // runEndpoint does one round. A round cut short by shutdown records nothing: it says nothing about the endpoint.
@@ -549,11 +550,11 @@ func transitionMessage(checks []db.MonitorCheck, results []Result, from, to stri
 // Rollup is the rollup job.
 func (s *Service) Rollup(ctx context.Context) (string, error) {
 	n, err := s.rollup(ctx)
-	return fmt.Sprintf("%d bucket(s) written", n), err
+	return words.Count(n, "bucket", "buckets") + " written", err
 }
 
 // Retain is the retention job.
 func (s *Service) Retain(ctx context.Context) (string, error) {
 	n, err := s.retain(ctx)
-	return fmt.Sprintf("%d row(s) removed", n), err
+	return words.Count(int(n), "row", "rows") + " removed", err
 }

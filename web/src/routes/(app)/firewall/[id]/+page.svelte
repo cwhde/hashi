@@ -201,8 +201,8 @@
 					state={healthState(host)}
 				/>{#if host.edge_mode === 'managed'}<HelpTip topic="the rescue timer"
 						><p>
-							Every high-risk apply arms a 180 s timer that restores Hashi’s table unless a new SSH
-							login and NetBird check succeed.
+							After a high-risk apply the host puts its previous rules back by itself after 3
+							minutes, unless Hashi can log in again over SSH and NetBird still works.
 						</p></HelpTip
 					>{/if}
 			</h1>

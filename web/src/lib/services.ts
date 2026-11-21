@@ -164,7 +164,10 @@ export function saveText(r: { plans: Schemas['SyncPlan'][]; certificate_pending:
 	if (onHosts) parts.push(`applied on ${onHosts} Traefik host${onHosts === 1 ? '' : 's'}`);
 	if (applied.some((p) => p.subsystem.startsWith('dns-'))) parts.push('DNS record updated');
 	if (applied.some((p) => p.subsystem === 'firewall')) parts.push('firewall updated');
-	if (waiting.length) parts.push(`${waiting.length} plan(s) need your approval`);
+	if (waiting.length)
+		parts.push(
+			`${waiting.length} ${waiting.length === 1 ? 'plan needs' : 'plans need'} your approval`
+		);
 	if (failed.length) parts.push(`failed on ${failed.length}: ${failed[0]?.error}`);
 	if (!r.plans.length) parts.push('nothing to change on the Traefik hosts');
 	if (r.certificate_pending)
