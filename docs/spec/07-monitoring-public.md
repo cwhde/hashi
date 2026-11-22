@@ -114,6 +114,10 @@ word, then the dot, in the state's colour, the dot ending on the right. The word
 Paused, No data. Every state has its word, Up included, so no state rests on colour alone and none reads differently
 (the owner, 2026-11-22). Group summaries keep their own words ("x of n up") with the dot after them.
 
+The same words reach screen readers: a strip is read as what it holds ("90 days: 1 down, 2 slow", "60 checks, all up"),
+never the admin's words. Times are the visitor's local time in 24 hours, with the date when it is not today
+("20 Nov, 09:05"), the same on every public page.
+
 ### 7.1 Status page (port 8082, root path)
 
 Enabled by default (setting). Only entries with Status on; never internal hostnames, IPs, ports, protocols, status codes,
