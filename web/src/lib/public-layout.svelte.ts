@@ -5,6 +5,7 @@
 // per drag, at release.
 import type { Schemas } from '#lib/api/client.ts';
 import type { DragHost, Hit, Kind } from '#lib/sortable.ts';
+import { UNREACHABLE } from '#lib/api/unreachable.ts';
 
 export type Layout = Schemas['PublicLayout'];
 export type Entry = Schemas['PublicLayoutEntry'];
@@ -41,6 +42,10 @@ export class LayoutState implements DragHost {
 	private fresh = 0;
 	/** Each group's id by its editor key, once the server gave one (a snapshot taken earlier may lack it). */
 	private ids: Record<string, string> = {};
+	/** The group ids the server holds now: a group Undo brings back after a delete is sent as a new one (bug 163). */
+	private known = new Set<string>();
+	/** The layout as last saved, for a save that fails while the server can't be read either (bug 174). */
+	private savedSnap: Snap = { groups: [], sw: {} };
 
 	constructor(
 		layout: Layout,
@@ -66,6 +71,8 @@ export class LayoutState implements DragHost {
 		this.items = items;
 		this.savedSw = this.switches();
 		this.selected = this.selected.filter((k) => k in items);
+		this.known = new Set(l.groups.flatMap((g) => (g.id ? [g.id] : [])));
+		this.savedSnap = this.snap();
 	}
 
 	private switches(): Switches {
@@ -87,7 +94,11 @@ export class LayoutState implements DragHost {
 			version: this.version,
 			groups: this.groups
 				.filter((g) => g.key !== OTHER_KEY)
-				.map((g) => ({ ...(g.id ? { id: g.id } : {}), name: g.name, entries: [...g.ids] })),
+				.map((g) => ({
+					...(g.id && this.known.has(g.id) ? { id: g.id } : {}),
+					name: g.name,
+					entries: [...g.ids]
+				})),
 			other: [...(this.groups.find((g) => g.key === OTHER_KEY)?.ids ?? [])],
 			switches: Object.entries(sw)
 				.filter(
@@ -126,7 +137,12 @@ export class LayoutState implements DragHost {
 				const body = this.body();
 				// The keys of the named groups, in the order sent: the answer lists them in the same order.
 				const keys = this.groups.filter((g) => g.key !== OTHER_KEY).map((g) => g.key);
-				const r = await this.io.put(body);
+				let r: Answer;
+				try {
+					r = await this.io.put(body);
+				} catch {
+					r = { error: { detail: UNREACHABLE } };
+				}
 				if (!r.data) {
 					await this.failed(r);
 					return;
@@ -141,14 +157,28 @@ export class LayoutState implements DragHost {
 		this.version = l.version;
 		for (const s of sent.switches ?? [])
 			this.savedSw[s.entry] = { apps: !!s.apps, status: !!s.status };
-		// New groups get their id from the answer, by place: the group may have been renamed since it was sent.
+		// New groups get their id from the answer, by place: the group may have been renamed since it was sent. A group
+		// Undo brought back was sent without its old id and gets the new one.
 		sent.groups.forEach((g, i) => {
 			const id = l.groups[i]?.id;
 			if (g.id || !id) return;
 			this.ids[keys[i]!] = id;
 			const mine = this.group(keys[i]!);
-			if (mine && !mine.id) mine.id = id;
+			if (mine) mine.id = id;
 		});
+		this.known = new Set(l.groups.flatMap((g) => (g.id ? [g.id] : [])));
+		// An entry the save took off the layout (a DNS entry with both switches off, 07 §7) leaves the outline. Its
+		// change can't be undone here: the DNS page brings it back.
+		const kept = new Set(l.groups.flatMap((g) => g.entries.map((e) => e.key)));
+		const gone = Object.keys(this.items).filter((k) => !kept.has(k));
+		if (gone.length) {
+			for (const g of this.groups) g.ids = g.ids.filter((k) => kept.has(k));
+			for (const k of gone) delete this.items[k];
+			this.selected = this.selected.filter((k) => kept.has(k));
+			this.last = null;
+			this.said = `${this.said}. ${gone.length === 1 ? 'It is' : 'They are'} off both public pages now.`;
+		}
+		this.savedSnap = this.snap();
 	}
 	private async failed(r: Answer) {
 		this.again = false;
@@ -157,8 +187,14 @@ export class LayoutState implements DragHost {
 			? 'The layout was changed elsewhere. This is the latest one; make your change again.'
 			: `Not saved: ${this.io.explain?.(r.error) ?? 'the server refused it'}. This is the saved layout.`;
 		this.last = null;
-		const fresh = await this.io.get();
+		const fresh = await this.io.get().catch((): Answer => ({}));
 		if (fresh.data) this.load(fresh.data);
+		else {
+			const back = clone(this.savedSnap);
+			this.groups = back.groups;
+			for (const [k, v] of Object.entries(back.sw))
+				if (this.items[k]) Object.assign(this.items[k], v);
+		}
 	}
 
 	undo() {

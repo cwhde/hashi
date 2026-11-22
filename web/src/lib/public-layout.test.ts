@@ -38,22 +38,28 @@ function layout(): Layout {
 	};
 }
 
-/** A server that answers every save with the next version, and records what it got. */
-function server() {
+/** A server that answers every save with the next version and the entries it kept, and records what it got. Like
+ * the real one it refuses a group id it doesn't know, and `leaves` names entries a save takes off the layout. */
+function server(start: Layout = layout(), leaves: (body: Save) => string[] = () => []) {
 	const got: Save[] = [];
 	let version = 3;
+	let fresh = 0;
+	const all = Object.fromEntries(start.groups.flatMap((g) => g.entries).map((e) => [e.key, e]));
+	let known = new Set(start.groups.flatMap((g) => (g.id ? [g.id] : [])));
 	const put = vi.fn(async (body: Save): Promise<Answer> => {
 		got.push(structuredClone(body));
+		const bad = body.groups.find((g) => g.id && !known.has(g.id));
+		if (bad) return { error: { detail: `unknown group "${bad.id}"` }, response: { status: 422 } };
 		version++;
-		return {
-			data: {
-				version,
-				groups: [
-					...body.groups.map((g, i) => ({ id: g.id ?? `new${i}`, name: g.name, entries: [] })),
-					{ name: 'Other', entries: [] }
-				]
-			}
-		};
+		const gone = leaves(body);
+		const list = (keys: string[]) => keys.filter((k) => !gone.includes(k)).map((k) => all[k]!);
+		const groups = body.groups.map((g) => ({
+			id: g.id ?? `new${++fresh}`,
+			name: g.name,
+			entries: list(g.entries)
+		}));
+		known = new Set(groups.map((g) => g.id));
+		return { data: { version, groups: [...groups, { name: 'Other', entries: list(body.other) }] } };
 	});
 	const get = vi.fn(async (): Promise<Answer> => ({ data: layout() }));
 	return { got, put, get };
@@ -237,11 +243,11 @@ describe('saving and undo', () => {
 		release();
 		await vi.waitFor(() => expect(io.put).toHaveBeenCalledTimes(2));
 		await settle();
-		expect(s.group(key)!.id).toBe('new2');
-		expect(io.got[1]!.groups[2]).toEqual({ id: 'new2', name: 'Games', entries: [] });
+		expect(s.group(key)!.id).toBe('new1');
+		expect(io.got[1]!.groups[2]).toEqual({ id: 'new1', name: 'Games', entries: [] });
 		s.undo(); // back to "New group 1", which the server knows by its id now
 		await settle();
-		expect(io.got[2]!.groups[2]).toEqual({ id: 'new2', name: 'New group 1', entries: [] });
+		expect(io.got[2]!.groups[2]).toEqual({ id: 'new1', name: 'New group 1', entries: [] });
 	});
 
 	test('a new group gets its id from the answer; names follow the server rules', async () => {
@@ -249,7 +255,7 @@ describe('saving and undo', () => {
 		const s = new LayoutState(layout(), io);
 		const key = s.addGroup();
 		await settle();
-		expect(s.group(key)).toMatchObject({ name: 'New group 1', id: 'new2' });
+		expect(s.group(key)).toMatchObject({ name: 'New group 1', id: 'new1' });
 		expect(s.rename(key, ' other ')).toBe(false);
 		expect(s.error).toMatch(/kept for entries without a group/);
 		expect(s.rename(key, 'media')).toBe(false);
@@ -258,5 +264,58 @@ describe('saving and undo', () => {
 		expect(s.group('g1')).toBeDefined();
 		s.deleteGroup(key);
 		expect(s.group(key)).toBeUndefined();
+	});
+});
+
+describe('saving', () => {
+	test('a save that cannot reach the server says so and shows the saved layout (bug 174)', async () => {
+		const io = server();
+		io.put.mockRejectedValueOnce(new TypeError('Failed to fetch'));
+		const s = new LayoutState(layout(), io);
+		s.addGroup();
+		await settle();
+		expect(s.error).toMatch(/^Not saved/);
+		expect(s.last).toBeNull();
+		expect(order(s)).toBe('Media:abc Home:de Other:f');
+	});
+
+	test('when the saved layout cannot be read either, the last saved order comes back (bug 174)', async () => {
+		const io = server();
+		io.put.mockRejectedValueOnce(new TypeError('Failed to fetch'));
+		io.get.mockRejectedValueOnce(new TypeError('Failed to fetch'));
+		const s = new LayoutState(layout(), io);
+		s.shift('a', 1);
+		await settle();
+		expect(s.error).toMatch(/^Not saved/);
+		expect(order(s)).toBe('Media:abc Home:de Other:f');
+	});
+
+	test('Undo brings back a deleted group as a new one (bug 163)', async () => {
+		const l = layout();
+		l.groups.splice(2, 0, { id: 'g3', name: 'Tools', entries: [] });
+		const io = server(l);
+		const s = new LayoutState(l, io);
+		s.deleteGroup('g3');
+		await settle();
+		s.undo();
+		await settle();
+		expect(s.error).toBe('');
+		expect(io.got.at(-1)!.groups.map((g) => g.id ?? g.name)).toEqual(['g1', 'g2', 'Tools']);
+		expect(s.group('g3')?.id).toMatch(/^new/);
+	});
+
+	test('an entry a save takes off the layout leaves the outline, without an Undo (bug 164)', async () => {
+		const io = server(layout(), (b) =>
+			(b.switches ?? []).filter((x) => x.entry === 'e' && !x.apps && !x.status).map((x) => x.entry)
+		);
+		const s = new LayoutState(layout(), io);
+		s.toggle('e', 'status');
+		await settle();
+		s.toggle('e', 'apps');
+		await settle();
+		expect(order(s)).toBe('Media:abc Home:d Other:f');
+		expect(s.items.e).toBeUndefined();
+		expect(s.last).toBeNull();
+		expect(s.said).toBe('Energy hidden from the apps page. It is off both public pages now.');
 	});
 });

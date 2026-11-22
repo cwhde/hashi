@@ -3,6 +3,7 @@ import createClient, { type Middleware } from 'openapi-fetch';
 import type { components, paths } from './schema.gen';
 import { signInHref } from '#lib/auth/next.ts';
 import { csrfRetry } from './csrf.ts';
+import { unreachableMiddleware } from './unreachable.ts';
 
 export type Schemas = components['schemas'];
 export type Problem = Schemas['Problem'];
@@ -36,7 +37,7 @@ export const sessionEndedMiddleware: Middleware = {
 	}
 };
 
-api.use(csrfMiddleware, sessionEndedMiddleware);
+api.use(csrfMiddleware, sessionEndedMiddleware, unreachableMiddleware);
 
 /** The problem's own message, or a plain fallback that still says nothing changed. */
 export function problemText(e: unknown): string {
