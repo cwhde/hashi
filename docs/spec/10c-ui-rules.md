@@ -1,7 +1,8 @@
 # 10c — UI rules: where things live, what is shown when, what is written
 
 10b says how things look. This file says **where** a thing belongs, **when** it is shown and **whether** it gets words.
-Where 10b and this file disagree, this file wins. Every page change is checked against the checklist in §7.
+Where 10b and this file disagree, this file wins. Every page change is checked against the checklist in §7;
+every new part also gets the hand checks in §8.
 
 Why it exists: a survey of the admin app (2026-11-16) found about 200 help sentences in 91 components, a description
 under almost every page title and panel, 6 places that fold anything away, settings for one subsystem spread over two or
@@ -153,3 +154,23 @@ Test for every sentence: delete it. Would someone now make a real mistake or be 
 - [ ] Every sentence passed the deletion test; no eyebrows; no description on a detail page (§4).
 - [ ] Save model and button label follow §5; drafts survive tab switches; leaving asks.
 - [ ] Every reference is a named link.
+
+## 8. Hand checks for a new part
+
+The e2e run checks contrast, width and titles on every page. These checks it cannot do, so they run by hand on every new
+part (pages, public pages, the code they touch) before its release, as in 13.10 and 13.11. Write the numbers into the
+slice's entry in `docs/progress.md`, before and after any fix.
+
+- **Copy.** The unslop-ui rules, followed by hand with the taste file `.unslop-ui/taste.md` (built from §4): count the
+  skill's patterns in the new files before and after, read every visible string, apply §4. Approved mocks under
+  `routes/design/` are reported, not edited.
+- **Lighthouse** (record the version), mobile and desktop, on every public page. Performance and accessibility scores,
+  bytes transferred and the number of page elements.
+- **Requests.** One page load sends each request once (no repeated reads of the same data); images and fonts are cached
+  by their versioned address.
+- **Speed on real data.** The new admin requests timed against a copy of a prod backup on the laptop, deleted afterwards.
+  Any request over about 100 ms gets a look at its query plan.
+- **Accessibility beyond contrast.** Keyboard only: every control reachable, visible focus, Escape closes, drags have a
+  keyboard way. Reduced motion honoured. Screen reader names: every icon button and every changing status is labelled.
+- **Look.** Real screenshots, looked at, in light and dark and all four themes at 390 and 1440 px, plus touch on a
+  phone-sized screen for anything dragged or swiped.
