@@ -89,7 +89,7 @@ func TestPublicStatusOnlyPublicEndpoints(t *testing.T) {
 		t.Fatal(err)
 	}
 	v, err := s.PublicStatus(ctx)
-	if err != nil || len(v.Endpoints) != 0 {
+	if err != nil || len(v.Groups) != 0 {
 		t.Fatalf("hidden endpoint shown: %+v %v", v, err)
 	}
 	rows, _ := s.List(ctx)
@@ -98,7 +98,7 @@ func TestPublicStatusOnlyPublicEndpoints(t *testing.T) {
 		t.Fatal(err)
 	}
 	s.statusCache = cache[PublicStatus]{}
-	if v, err = s.PublicStatus(ctx); err != nil || len(v.Endpoints) != 1 || v.Endpoints[0].Group != "G" {
+	if v, err = s.PublicStatus(ctx); err != nil || len(v.Groups) != 1 || v.Groups[0].Name != "G" || len(v.Groups[0].Entries) != 1 {
 		t.Fatalf("public %+v %v", v, err)
 	}
 }
@@ -471,54 +471,62 @@ func TestPublicAppsListWebServicesOnly(t *testing.T) {
 	mk("map", services.KindHTTP, 8100)
 	mk("java", services.KindTCP, 25565)
 	mk("bedrock", services.KindUDP, 19132)
+	if err := s.Sync(ctx); err != nil {
+		t.Fatal(err)
+	}
 	apps, err := s.PublicApps(ctx)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(apps.Apps) != 1 || apps.Apps[0].Name != "map" {
-		t.Fatalf("apps %+v: only the web map belongs on the apps page", apps.Apps)
+	if len(apps.Groups) != 1 || len(apps.Groups[0].Apps) != 1 || apps.Groups[0].Apps[0].Name != "map" {
+		t.Fatalf("apps %+v: only the web map belongs on the apps page", apps.Groups)
 	}
 }
 
-// The status page settings order the categories, hide some, or turn them off for one list by name (07 §7, bug 138).
-func TestPublicStatusCategories(t *testing.T) {
-	s, st, _, _ := fixture(t)
+// Both public pages show the layout's groups in its order, entries in its order, only those switched on, and an
+// editor save shows at once (07 §7, §8).
+func TestPublicPagesFollowTheLayout(t *testing.T) {
+	s, _, _, _ := fixture(t)
 	ctx := t.Context()
-	for _, c := range []struct{ name, group string }{{"wiki", "Apps"}, {"Edge", "Traefik hosts"}, {"alpha", "Apps"}, {"dns", "DNS"}} {
+	for _, c := range []struct{ name, group string }{{"wiki", "Apps"}, {"Edge", "Hosts"}, {"alpha", "Apps"}, {"quiet", "Apps"}} {
 		id, err := s.CreateUser(ctx, c.name, c.group, CheckSpec{Type: TypeTCP, Target: "127.0.0.1:1"})
 		if err != nil {
 			t.Fatal(err)
 		}
-		if err := s.Update(ctx, id, Settings{Group: c.group, IntervalSeconds: 60, TimeoutSeconds: 5, Public: true}); err != nil {
+		if err := s.Update(ctx, id, Settings{Group: c.group, IntervalSeconds: 60, TimeoutSeconds: 5, Public: c.name != "quiet"}); err != nil {
 			t.Fatal(err)
 		}
 	}
-	shown := func(p settings.StatusPage) (out []string, grouped bool) {
+	shown := func() (out []string) {
 		t.Helper()
-		if err := settings.Put(ctx, st.Q, p); err != nil {
-			t.Fatal(err)
-		}
-		s.statusCache = cache[PublicStatus]{}
 		v, err := s.PublicStatus(ctx)
 		if err != nil {
 			t.Fatal(err)
 		}
-		for _, e := range v.Endpoints {
-			out = append(out, e.Group+"/"+e.Name)
+		for _, g := range v.Groups {
+			for _, e := range g.Entries {
+				out = append(out, g.Name+"/"+e.Name+"/"+e.Slug)
+			}
 		}
-		return out, v.Grouped
+		return out
 	}
-	got, grouped := shown(settings.StatusPage{Grouped: true, Order: []string{"Traefik hosts", "Apps"}, Hidden: []string{}})
-	if want := []string{"Traefik hosts/Edge", "Apps/alpha", "Apps/wiki", "DNS/dns"}; !grouped || !slices.Equal(got, want) {
-		t.Fatalf("ordered: %v, want %v", got, want)
+	if got, want := shown(), []string{"Apps/wiki/wiki", "Apps/alpha/alpha", "Hosts/Edge/edge"}; !slices.Equal(got, want) {
+		t.Fatalf("status page %v, want %v (layout order, quiet is off)", got, want)
 	}
-	got, _ = shown(settings.StatusPage{Grouped: true, Order: []string{}, Hidden: []string{"Traefik hosts"}})
-	if want := []string{"Apps/alpha", "Apps/wiki", "DNS/dns"}; !slices.Equal(got, want) {
-		t.Fatalf("hidden: %v, want %v", got, want)
+	l := mustLayout(t, s)
+	keys := func(names ...string) (out []string) {
+		for _, n := range names {
+			out = append(out, keyOf(t, l, n))
+		}
+		return out
 	}
-	got, grouped = shown(settings.StatusPage{Grouped: false, Order: []string{"DNS"}, Hidden: []string{}})
-	if want := []string{"Apps/alpha", "DNS/dns", "Traefik hosts/Edge", "Apps/wiki"}; grouped || !slices.Equal(got, want) {
-		t.Fatalf("one list: %v, want %v", got, want)
+	if _, err := s.SaveLayout(ctx, LayoutSave{Version: l.Version, Groups: []LayoutSaveGroup{
+		{ID: l.Groups[1].ID, Name: "Hosts", Entries: keys("Edge")},
+		{ID: l.Groups[0].ID, Name: "Apps", Entries: keys("alpha", "quiet", "wiki")}}}); err != nil {
+		t.Fatal(err)
+	}
+	if got, want := shown(), []string{"Hosts/Edge/edge", "Apps/alpha/alpha", "Apps/wiki/wiki"}; !slices.Equal(got, want) {
+		t.Fatalf("after a save %v, want %v", got, want)
 	}
 }
 
@@ -534,7 +542,7 @@ func TestPublicStatusUpdatedFromPublicChecksOnly(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(v.Endpoints) != 0 || !v.UpdatedAt.IsZero() {
+	if len(v.Groups) != 0 || !v.UpdatedAt.IsZero() {
 		t.Fatalf("nothing public, yet updated at %v", v.UpdatedAt)
 	}
 }

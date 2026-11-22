@@ -34,3 +34,18 @@ UPDATE monitor_endpoints SET public = ?, updated_at = ? WHERE id = ?;
 
 -- name: SetDNSRecordDashboard :exec
 UPDATE dns_records SET dashboard = ?, updated_at = ? WHERE id = ?;
+
+-- Public history (07 section 7.1): rounds of the last hour with their response time, hourly round rollups and state
+-- changes of the last 90 days, for every endpoint at once (the public answers are cached 15 s).
+-- name: ListRoundSamplesSince :many
+SELECT endpoint_id, at, verdict, latency_ms FROM monitor_samples WHERE check_id = '' AND at >= ? ORDER BY at;
+
+-- name: ListHourlyRoundRollupsSince :many
+SELECT endpoint_id, bucket, count, ok_count, avg_ms, p95_ms FROM monitor_rollups
+WHERE check_id = '' AND resolution = 3600 AND bucket >= ? ORDER BY bucket;
+
+-- name: ListMonitorEventsSince :many
+SELECT endpoint_id, at, from_state, to_state FROM monitor_events WHERE at >= ? ORDER BY at;
+
+-- name: LatestCheckSampleDetail :one
+SELECT detail FROM monitor_samples WHERE endpoint_id = ? AND check_id = ? ORDER BY at DESC LIMIT 1;

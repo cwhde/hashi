@@ -80,6 +80,66 @@ func (q *Queries) InsertPublicGroup(ctx context.Context, arg InsertPublicGroupPa
 	return err
 }
 
+const latestCheckSampleDetail = `-- name: LatestCheckSampleDetail :one
+SELECT detail FROM monitor_samples WHERE endpoint_id = ? AND check_id = ? ORDER BY at DESC LIMIT 1
+`
+
+type LatestCheckSampleDetailParams struct {
+	EndpointID string
+	CheckID    string
+}
+
+func (q *Queries) LatestCheckSampleDetail(ctx context.Context, arg LatestCheckSampleDetailParams) (string, error) {
+	row := q.db.QueryRowContext(ctx, latestCheckSampleDetail, arg.EndpointID, arg.CheckID)
+	var detail string
+	err := row.Scan(&detail)
+	return detail, err
+}
+
+const listHourlyRoundRollupsSince = `-- name: ListHourlyRoundRollupsSince :many
+SELECT endpoint_id, bucket, count, ok_count, avg_ms, p95_ms FROM monitor_rollups
+WHERE check_id = '' AND resolution = 3600 AND bucket >= ? ORDER BY bucket
+`
+
+type ListHourlyRoundRollupsSinceRow struct {
+	EndpointID string
+	Bucket     int64
+	Count      int64
+	OkCount    int64
+	AvgMs      int64
+	P95Ms      int64
+}
+
+func (q *Queries) ListHourlyRoundRollupsSince(ctx context.Context, bucket int64) ([]ListHourlyRoundRollupsSinceRow, error) {
+	rows, err := q.db.QueryContext(ctx, listHourlyRoundRollupsSince, bucket)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListHourlyRoundRollupsSinceRow{}
+	for rows.Next() {
+		var i ListHourlyRoundRollupsSinceRow
+		if err := rows.Scan(
+			&i.EndpointID,
+			&i.Bucket,
+			&i.Count,
+			&i.OkCount,
+			&i.AvgMs,
+			&i.P95Ms,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listLayoutDNSRecords = `-- name: ListLayoutDNSRecords :many
 SELECT r.id, r.name, r.display_name, r.dashboard, r.monitoring, z.name AS zone_name
 FROM dns_records r JOIN dns_zones z ON z.id = r.zone_id WHERE r.dashboard = 1 OR r.monitoring = 1
@@ -110,6 +170,45 @@ func (q *Queries) ListLayoutDNSRecords(ctx context.Context) ([]ListLayoutDNSReco
 			&i.Dashboard,
 			&i.Monitoring,
 			&i.ZoneName,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listMonitorEventsSince = `-- name: ListMonitorEventsSince :many
+SELECT endpoint_id, at, from_state, to_state FROM monitor_events WHERE at >= ? ORDER BY at
+`
+
+type ListMonitorEventsSinceRow struct {
+	EndpointID string
+	At         int64
+	FromState  string
+	ToState    string
+}
+
+func (q *Queries) ListMonitorEventsSince(ctx context.Context, at int64) ([]ListMonitorEventsSinceRow, error) {
+	rows, err := q.db.QueryContext(ctx, listMonitorEventsSince, at)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListMonitorEventsSinceRow{}
+	for rows.Next() {
+		var i ListMonitorEventsSinceRow
+		if err := rows.Scan(
+			&i.EndpointID,
+			&i.At,
+			&i.FromState,
+			&i.ToState,
 		); err != nil {
 			return nil, err
 		}
@@ -170,6 +269,47 @@ func (q *Queries) ListPublicGroups(ctx context.Context) ([]PublicGroup, error) {
 	for rows.Next() {
 		var i PublicGroup
 		if err := rows.Scan(&i.ID, &i.Name, &i.Position); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listRoundSamplesSince = `-- name: ListRoundSamplesSince :many
+SELECT endpoint_id, at, verdict, latency_ms FROM monitor_samples WHERE check_id = '' AND at >= ? ORDER BY at
+`
+
+type ListRoundSamplesSinceRow struct {
+	EndpointID string
+	At         int64
+	Verdict    string
+	LatencyMs  int64
+}
+
+// Public history (07 section 7.1): rounds of the last hour with their response time, hourly round rollups and state
+// changes of the last 90 days, for every endpoint at once (the public answers are cached 15 s).
+func (q *Queries) ListRoundSamplesSince(ctx context.Context, at int64) ([]ListRoundSamplesSinceRow, error) {
+	rows, err := q.db.QueryContext(ctx, listRoundSamplesSince, at)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListRoundSamplesSinceRow{}
+	for rows.Next() {
+		var i ListRoundSamplesSinceRow
+		if err := rows.Scan(
+			&i.EndpointID,
+			&i.At,
+			&i.Verdict,
+			&i.LatencyMs,
+		); err != nil {
 			return nil, err
 		}
 		items = append(items, i)

@@ -1,19 +1,15 @@
 package monitor
 
 import (
-	"cmp"
 	"context"
 	"database/sql"
 	"errors"
-	"slices"
 	"strings"
 	"sync"
 	"time"
 
 	"github.com/oklog/ulid/v2"
 
-	"git.juzo.io/juzo/hashi/internal/services"
-	"git.juzo.io/juzo/hashi/internal/settings"
 	"git.juzo.io/juzo/hashi/internal/store/db"
 )
 
@@ -352,40 +348,6 @@ func (s *Service) DeleteUser(ctx context.Context, id string) error {
 	})
 }
 
-// PublicEndpoint holds only what the public status page may show (07 §7): no target, no message, no source.
-type PublicEndpoint struct {
-	Name     string
-	Group    string
-	State    string
-	Strip    Strip
-	Uptime24 *float64
-	// PendingDNS: its address changed and DNS may still be catching up.
-	PendingDNS bool
-}
-
-// PublicStatus is the status page's data.
-type PublicStatus struct {
-	Endpoints []PublicEndpoint // in display order: by category as set, or by name when Grouped is false
-	UpdatedAt time.Time
-	Grouped   bool
-}
-
-// PublicApp holds only what the dashboard may show (07 §8).
-type PublicApp struct {
-	Name  string
-	Group string
-	URL   string
-	State string
-	// SourceType and SourceID name the service or DNS entry it shows (its icon is keyed by them).
-	SourceType, SourceID string
-}
-
-// PublicApps is the dashboard's data.
-type PublicApps struct {
-	Apps      []PublicApp
-	UpdatedAt time.Time
-}
-
 // cache keeps public answers for 15 s (07 §7, §8): visitors never cause database work per request.
 type cache[T any] struct {
 	mu  sync.Mutex
@@ -414,101 +376,4 @@ func (c *cache[T]) get(now time.Time, load func() (T, error)) (T, error) {
 	}
 	c.val, c.at = v, now
 	return v, nil
-}
-
-// PublicStatus returns the public endpoints. UpdatedAt is the last check of any endpoint: when checks stop, the page
-// says how old its data is (07 §7).
-func (s *Service) PublicStatus(ctx context.Context) (PublicStatus, error) {
-	return s.statusCache.get(s.now(), func() (PublicStatus, error) {
-		rows, err := s.List(ctx)
-		if err != nil {
-			return PublicStatus{}, err
-		}
-		page, err := settings.Get[settings.StatusPage](ctx, s.st.R)
-		if err != nil {
-			return PublicStatus{}, err
-		}
-		out := PublicStatus{Endpoints: []PublicEndpoint{}, Grouped: page.Grouped}
-		for _, r := range rows {
-			if r.Endpoint.Public != 1 || slices.Contains(page.Hidden, r.Endpoint.GroupName) {
-				continue
-			}
-			if r.Endpoint.LastCheckAt.Valid { // only what the page shows (bug 80)
-				if t := time.UnixMilli(r.Endpoint.LastCheckAt.Int64).UTC(); t.After(out.UpdatedAt) {
-					out.UpdatedAt = t
-				}
-			}
-			out.Endpoints = append(out.Endpoints, PublicEndpoint{PendingDNS: r.Endpoint.PendingDns == 1, Name: r.Endpoint.Name, Group: r.Endpoint.GroupName, State: r.State, Strip: r.Strip, Uptime24: r.Uptime24})
-		}
-		place := func(group string) int { // set categories first, in their order; the rest after
-			if i := slices.Index(page.Order, group); i >= 0 {
-				return i
-			}
-			return len(page.Order)
-		}
-		slices.SortStableFunc(out.Endpoints, func(a, b PublicEndpoint) int {
-			if page.Grouped {
-				if c := cmp.Or(cmp.Compare(place(a.Group), place(b.Group)), strings.Compare(a.Group, b.Group)); c != 0 {
-					return c
-				}
-			}
-			return strings.Compare(strings.ToLower(a.Name), strings.ToLower(b.Name))
-		})
-		return out, nil
-	})
-}
-
-// PublicApps returns the dashboard: services with the dashboard flag and a public URL, and manual DNS entries with it.
-func (s *Service) PublicApps(ctx context.Context) (PublicApps, error) {
-	return s.appsCache.get(s.now(), func() (PublicApps, error) {
-		rows, err := s.st.R.ListMonitorEndpoints(ctx)
-		if err != nil {
-			return PublicApps{}, err
-		}
-		bySource := map[string]db.MonitorEndpoint{}
-		out := PublicApps{Apps: []PublicApp{}}
-		for _, e := range rows {
-			bySource[e.SourceType+"|"+e.SourceID] = e
-			if e.LastCheckAt.Valid {
-				if t := time.UnixMilli(e.LastCheckAt.Int64).UTC(); t.After(out.UpdatedAt) {
-					out.UpdatedAt = t
-				}
-			}
-		}
-		add := func(name, url, source string, group string) {
-			typ, id, _ := strings.Cut(source, "|")
-			app := PublicApp{Name: name, Group: group, URL: url, State: StateUnknown, SourceType: typ, SourceID: id}
-			if e, ok := bySource[source]; ok {
-				app.State, app.Group = shownState(e), e.GroupName
-			}
-			out.Apps = append(out.Apps, app)
-		}
-		svcs, err := services.List(ctx, s.st.R)
-		if err != nil {
-			return PublicApps{}, err
-		}
-		for _, v := range svcs {
-			// Web services only: a TCP or UDP server has no page to open, and may share its name with one (bug 139).
-			if v.Renderable() && v.DashboardVisible && v.HostName != "" && !v.Stream() {
-				add(v.Name, "https://"+strings.TrimSuffix(v.HostName, ".")+"/", SourceService+"|"+v.ID, "Services")
-			}
-		}
-		recs, err := s.st.R.ListDashboardDNSRecords(ctx)
-		if err != nil {
-			return PublicApps{}, err
-		}
-		for _, r := range recs {
-			host := r.ZoneName
-			if r.Name != "@" {
-				host = r.Name + "." + r.ZoneName
-			}
-			name := r.DisplayName
-			if name == "" {
-				name = host
-			}
-			add(name, "https://"+host+"/", SourceDNS+"|"+r.ID, "DNS entries")
-		}
-		slices.SortStableFunc(out.Apps, func(a, b PublicApp) int { return strings.Compare(a.Name, b.Name) })
-		return out, nil
-	})
 }
