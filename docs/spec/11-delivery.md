@@ -160,8 +160,8 @@ Hashi takes over in this order, each step reversible:
 
 ## 8. Operations
 
-- **Backups (mandatory):** nightly `VACUUM INTO /data/backups/hashi-<date>.db` (online, consistent), 14 kept; `/data`
-  (DB backups, GeoIP, assets, uploads) copied off-host by the host's backup system (Proxmox backup of the LXC is fine).
+- **Backups (mandatory):** nightly `VACUUM INTO`, gzip-compressed to `/data/backups/hashi-<date>.db.gz` (online, consistent;
+  about a ninth of the database's size), 14 kept; `/data` (DB backups, GeoIP, assets, uploads) copied off-host by the host's backup system (Proxmox backup of the LXC is fine).
   Master key and recovery key are stored outside Hashi (password manager).
 - **Disaster recovery:** restore `/data` → start Hashi with the master key (or recover it with the recovery key) → unlock
   (strict mode) → run global reconcile → review plan before approving any high-risk item.
