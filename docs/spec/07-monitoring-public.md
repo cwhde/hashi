@@ -133,7 +133,8 @@ error text or admin links.
   its rows, so the bar details of a group's first row show above it.
 - **Rows** (dense): icon (the app icon of §9.1, else the letter; always shown), name, history bar, uptime for the
   bar's span, and the state last, on the same right edge as the group's dot. Bars: 90 days, one per day, by default; a 90 days / Last hour switch above the groups shows
-  the last 60 minutes, one per minute, instead. No caption explains the bars; the details are on hover.
+  the last 60 minutes, one per minute, instead (`?view=hour` in the address, so a shared link shows it). No caption
+  explains the bars; the details are on hover.
 - **Bar details**: pointing at a bar (or tapping it, or arrow keys on the focused bar) raises that bar, dims the rest
   and shows a bubble with what happened then. A day: the date, then each downtime with its times and length ("Down
   19:55–19:56 (1 min)"), each slow spell ("Slow for 20 min, 14:10–14:30"), else "No downtime", and that day's uptime;
