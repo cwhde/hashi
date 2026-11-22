@@ -5,6 +5,7 @@ import (
 	"html"
 	"math"
 	"strings"
+	"unicode"
 )
 
 // Badges (07 §7.3): small SVG images for READMEs. The colours are fixed in the file, not theme tokens, because the
@@ -39,6 +40,8 @@ func textWidth(s string, bold bool) int {
 			w += 6.1
 		case c >= 'A' && c <= 'Z':
 			w += 7.2
+		case wide(c):
+			w += 11 // a whole em at the badge's 11 px (bug 179)
 		default:
 			w += 5.9
 		}
@@ -47,6 +50,13 @@ func textWidth(s string, bold bool) int {
 		w *= 1.07
 	}
 	return int(math.Ceil(w))
+}
+
+// wide reports a letter that takes a whole em: Chinese, Japanese and Korean script, full-width forms and emoji.
+func wide(c rune) bool {
+	return unicode.In(c, unicode.Han, unicode.Hiragana, unicode.Katakana, unicode.Hangul) ||
+		(c >= 0x3000 && c <= 0x30ff) || (c >= 0xff00 && c <= 0xff60) || (c >= 0xffe0 && c <= 0xffe6) ||
+		(c >= 0x1f300 && c <= 0x1faff) || (c >= 0x2600 && c <= 0x27bf)
 }
 
 // BadgeSVG draws one badge: a dark label and the value on its tone; dot puts a dot before the value (the status badge).

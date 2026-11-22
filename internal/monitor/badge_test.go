@@ -50,3 +50,17 @@ func TestBadges(t *testing.T) {
 		t.Error("an unknown kind")
 	}
 }
+
+// Wide letters (Japanese, Chinese, Korean, full-width forms, emoji) take a whole em at 11 px; counted as a narrow letter,
+// a Japanese name ran into the badge's state (bug 179).
+func TestBadgeTextWidthOfWideLetters(t *testing.T) {
+	if w := textWidth("状態監視サービス", false); w < 8*11 {
+		t.Errorf("状態監視サービス: %d px, want at least %d", w, 8*11)
+	}
+	if w := textWidth("東京📚", false); w < 3*11 {
+		t.Errorf("東京📚: %d px", w)
+	}
+	if a, b := textWidth("Jellyfin", false), 37; a != b { // Latin text measures as before
+		t.Errorf("Jellyfin: %d px, want %d", a, b)
+	}
+}

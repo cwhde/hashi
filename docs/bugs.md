@@ -17,7 +17,6 @@ All open entries are planned into the 0.13 bug round (slices 13.1 onwards in `do
 
 | # | Kind | Status | Where | What | Reported |
 | --- | --- | --- | --- | --- | --- |
-| 179 | visual | reproduced | Badges | Names in Japanese or other wide scripts overflow the badge: the label runs into the state value, and a long name past the badge's edge. Width is estimated per letter for Latin text only. | Codex round 3, 2026-11-22 |
 
 ## Details
 
