@@ -35,15 +35,21 @@ UPDATE monitor_endpoints SET public = ?, updated_at = ? WHERE id = ?;
 -- name: SetDNSRecordDashboard :exec
 UPDATE dns_records SET dashboard = ?, updated_at = ? WHERE id = ?;
 
--- Public history (07 section 7.1): rounds of the last hour with their response time, hourly round rollups and state
--- changes of the last 90 days, for every endpoint at once (the public answers are cached 15 s).
+-- Public history (07 section 7.1): rounds of the last hour with their response time and hourly round rollups of the last
+-- 90 days, for every endpoint (endpoint NULL) or one. Naming the endpoints lets SQLite seek through the primary key; by
+-- time alone it read every check's rows (about 150 ms on a copy of prod, 2026-11-22).
 -- name: ListRoundSamplesSince :many
-SELECT endpoint_id, at, verdict, latency_ms FROM monitor_samples WHERE check_id = '' AND at >= ? ORDER BY at;
+SELECT endpoint_id, at, verdict, latency_ms FROM monitor_samples
+WHERE endpoint_id IN (SELECT id FROM monitor_endpoints WHERE id = sqlc.narg('endpoint') OR sqlc.narg('endpoint') IS NULL)
+  AND check_id = '' AND at >= sqlc.arg('since')
+ORDER BY endpoint_id, at;
 
 -- name: ListHourlyRoundRollupsSince :many
 SELECT endpoint_id, bucket, count, ok_count, avg_ms, p95_ms FROM monitor_rollups
-WHERE check_id = '' AND resolution = 3600 AND bucket >= ? ORDER BY bucket;
+WHERE endpoint_id IN (SELECT id FROM monitor_endpoints WHERE id = sqlc.narg('endpoint') OR sqlc.narg('endpoint') IS NULL)
+  AND check_id = '' AND resolution = 3600 AND bucket >= sqlc.arg('since');
 
+-- State changes of the last 90 days (small: one row per change).
 -- name: ListMonitorEventsSince :many
 SELECT endpoint_id, at, from_state, to_state FROM monitor_events WHERE at >= ? ORDER BY at;
 

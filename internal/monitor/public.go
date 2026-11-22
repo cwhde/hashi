@@ -2,6 +2,7 @@ package monitor
 
 import (
 	"context"
+	"database/sql"
 	"errors"
 	"fmt"
 	"time"
@@ -104,10 +105,12 @@ func (s *Service) publicHistory(ctx context.Context, q *db.Queries, eps map[stri
 	y, m, d := now.In(time.Local).Date()
 	first := time.Date(y, m, d-(publicDays-1), 0, 0, 0, 0, time.Local)
 	out := map[string]*history{}
+	var one sql.NullString // a service page reads its own endpoint only; the status page reads them all
 	for id := range eps {
 		out[id] = &history{minutes: []PublicMinute{}}
+		one = sql.NullString{String: id, Valid: len(eps) == 1}
 	}
-	rounds, err := q.ListRoundSamplesSince(ctx, now.Add(-time.Hour).UnixMilli())
+	rounds, err := q.ListRoundSamplesSince(ctx, db.ListRoundSamplesSinceParams{Endpoint: one, Since: now.Add(-time.Hour).UnixMilli()})
 	if err != nil {
 		return nil, fmt.Errorf("read rounds: %w", err)
 	}
@@ -119,7 +122,7 @@ func (s *Service) publicHistory(ctx context.Context, q *db.Queries, eps map[stri
 	type tally struct{ ok, total int64 }
 	perDay := map[string]*[publicDays]tally{}
 	day24, all90 := map[string]*tally{}, map[string]*tally{}
-	rollups, err := q.ListHourlyRoundRollupsSince(ctx, first.UnixMilli())
+	rollups, err := q.ListHourlyRoundRollupsSince(ctx, db.ListHourlyRoundRollupsSinceParams{Endpoint: one, Since: first.UnixMilli()})
 	if err != nil {
 		return nil, fmt.Errorf("read rollups: %w", err)
 	}

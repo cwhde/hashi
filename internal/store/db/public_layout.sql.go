@@ -98,8 +98,14 @@ func (q *Queries) LatestCheckSampleDetail(ctx context.Context, arg LatestCheckSa
 
 const listHourlyRoundRollupsSince = `-- name: ListHourlyRoundRollupsSince :many
 SELECT endpoint_id, bucket, count, ok_count, avg_ms, p95_ms FROM monitor_rollups
-WHERE check_id = '' AND resolution = 3600 AND bucket >= ? ORDER BY bucket
+WHERE endpoint_id IN (SELECT id FROM monitor_endpoints WHERE id = ?1 OR ?1 IS NULL)
+  AND check_id = '' AND resolution = 3600 AND bucket >= ?2
 `
+
+type ListHourlyRoundRollupsSinceParams struct {
+	Endpoint sql.NullString
+	Since    int64
+}
 
 type ListHourlyRoundRollupsSinceRow struct {
 	EndpointID string
@@ -110,8 +116,8 @@ type ListHourlyRoundRollupsSinceRow struct {
 	P95Ms      int64
 }
 
-func (q *Queries) ListHourlyRoundRollupsSince(ctx context.Context, bucket int64) ([]ListHourlyRoundRollupsSinceRow, error) {
-	rows, err := q.db.QueryContext(ctx, listHourlyRoundRollupsSince, bucket)
+func (q *Queries) ListHourlyRoundRollupsSince(ctx context.Context, arg ListHourlyRoundRollupsSinceParams) ([]ListHourlyRoundRollupsSinceRow, error) {
+	rows, err := q.db.QueryContext(ctx, listHourlyRoundRollupsSince, arg.Endpoint, arg.Since)
 	if err != nil {
 		return nil, err
 	}
@@ -195,6 +201,7 @@ type ListMonitorEventsSinceRow struct {
 	ToState    string
 }
 
+// State changes of the last 90 days (small: one row per change).
 func (q *Queries) ListMonitorEventsSince(ctx context.Context, at int64) ([]ListMonitorEventsSinceRow, error) {
 	rows, err := q.db.QueryContext(ctx, listMonitorEventsSince, at)
 	if err != nil {
@@ -283,8 +290,16 @@ func (q *Queries) ListPublicGroups(ctx context.Context) ([]PublicGroup, error) {
 }
 
 const listRoundSamplesSince = `-- name: ListRoundSamplesSince :many
-SELECT endpoint_id, at, verdict, latency_ms FROM monitor_samples WHERE check_id = '' AND at >= ? ORDER BY at
+SELECT endpoint_id, at, verdict, latency_ms FROM monitor_samples
+WHERE endpoint_id IN (SELECT id FROM monitor_endpoints WHERE id = ?1 OR ?1 IS NULL)
+  AND check_id = '' AND at >= ?2
+ORDER BY endpoint_id, at
 `
+
+type ListRoundSamplesSinceParams struct {
+	Endpoint sql.NullString
+	Since    int64
+}
 
 type ListRoundSamplesSinceRow struct {
 	EndpointID string
@@ -293,10 +308,11 @@ type ListRoundSamplesSinceRow struct {
 	LatencyMs  int64
 }
 
-// Public history (07 section 7.1): rounds of the last hour with their response time, hourly round rollups and state
-// changes of the last 90 days, for every endpoint at once (the public answers are cached 15 s).
-func (q *Queries) ListRoundSamplesSince(ctx context.Context, at int64) ([]ListRoundSamplesSinceRow, error) {
-	rows, err := q.db.QueryContext(ctx, listRoundSamplesSince, at)
+// Public history (07 section 7.1): rounds of the last hour with their response time and hourly round rollups of the last
+// 90 days, for every endpoint (endpoint NULL) or one. Naming the endpoints lets SQLite seek through the primary key; by
+// time alone it read every check's rows (about 150 ms on a copy of prod, 2026-11-22).
+func (q *Queries) ListRoundSamplesSince(ctx context.Context, arg ListRoundSamplesSinceParams) ([]ListRoundSamplesSinceRow, error) {
+	rows, err := q.db.QueryContext(ctx, listRoundSamplesSince, arg.Endpoint, arg.Since)
 	if err != nil {
 		return nil, err
 	}
