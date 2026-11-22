@@ -87,7 +87,7 @@
 </script>
 
 <svelte:head><title>Status · {data?.title ?? ''}</title></svelte:head>
-<div class="mx-auto max-w-4xl px-4 py-10">
+<main class="mx-auto max-w-4xl px-4 py-10">
 	<PublicHeader title={data?.title ?? ''} assets={data?.assets} suffix="status" />
 	{#if stale}
 		<div
@@ -239,4 +239,4 @@
 			</div>
 		</section>
 	{/each}
-</div>
+</main>

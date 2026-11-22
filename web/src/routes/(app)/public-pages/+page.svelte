@@ -127,119 +127,119 @@
 	{#if s.error}<p role="alert" class="mb-3 text-md text-bad-text">{s.error}</p>{/if}
 	<div class="grid items-start gap-4 lg:grid-cols-[26rem_minmax(0,1fr)]">
 		<div
-			role="list"
-			aria-label="Layout"
-			data-sort-zone="group"
 			class="rounded-2xl border bg-card p-2 lg:sticky lg:top-4 lg:max-h-[calc(100dvh-7rem)] lg:overflow-y-auto"
 		>
-			{#each s.groups as g (g.key)}
-				<section
-					role="listitem"
-					animate:slide
-					use:sortable={{
-						host: s,
-						kind: 'group',
-						id: g.key,
-						handle: '[data-group-grip]',
-						handleOnly: true
-					}}
-					data-sort-kind="group"
-					data-sort-id={g.key}
-					aria-label={g.name}
-					class="mb-1 rounded-xl bg-card pb-1"
-				>
-					<header class="flex h-8 items-center gap-1 rounded-lg px-1">
-						{#if g.key !== OTHER_KEY}<button
-								type="button"
-								id="ggrip-{g.key}"
-								data-group-grip
-								onkeydown={(ev) => groupKey(ev, g.key)}
-								aria-label="Move group {g.name}: Alt and the arrow keys"
-								class="grid size-6 shrink-0 cursor-grab touch-none place-items-center rounded-md text-muted-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring"
-								><GripVertical class="size-4" /></button
-							>{:else}<span class="w-6"></span>{/if}
-						{#if renaming === g.key}
-							<!-- svelte-ignore a11y_autofocus -->
-							<input
-								autofocus
-								class="h-7 min-w-0 flex-1 rounded-md border bg-background px-2 text-md font-semibold"
-								value={g.name}
-								maxlength={60}
-								aria-label="Group name"
-								onfocus={(ev) => ev.currentTarget.select()}
-								onblur={(ev) => {
-									if (s!.rename(g.key, ev.currentTarget.value)) renaming = '';
-									else ev.currentTarget.focus();
-								}}
-								onkeydown={(ev) => {
-									if (ev.key === 'Enter') ev.currentTarget.blur();
-									if (ev.key === 'Escape') renaming = '';
-								}}
-							/>
-						{:else}
-							<button
-								type="button"
-								class="min-w-0 flex-1 truncate text-left text-md font-semibold disabled:cursor-default"
-								disabled={g.key === OTHER_KEY}
-								title={g.key === OTHER_KEY ? undefined : 'Rename'}
-								onclick={() => startRename(g.key)}>{g.name}</button
-							>
-						{/if}
-						<span class="tnum px-1 text-xs text-muted-foreground">{g.ids.length}</span>
-						<Button
-							variant="ghost"
-							size="icon"
-							class="size-7"
-							disabled={g.ids.length < 2}
-							aria-label="Sort {g.name} A to Z"
-							title="Sort A–Z"
-							onclick={() => s!.sortAZ(g.key)}><ArrowDownAZ /></Button
-						>
-						{#if !g.ids.length && g.key !== OTHER_KEY}
+			<!-- The list holds the groups only; New group follows it. -->
+			<div role="list" aria-label="Layout" data-sort-zone="group">
+				{#each s.groups as g (g.key)}
+					<section
+						role="listitem"
+						animate:slide
+						use:sortable={{
+							host: s,
+							kind: 'group',
+							id: g.key,
+							handle: '[data-group-grip]',
+							handleOnly: true
+						}}
+						data-sort-kind="group"
+						data-sort-id={g.key}
+						aria-label={g.name}
+						class="mb-1 rounded-xl bg-card pb-1"
+					>
+						<header class="flex h-8 items-center gap-1 rounded-lg px-1">
+							{#if g.key !== OTHER_KEY}<button
+									type="button"
+									id="ggrip-{g.key}"
+									data-group-grip
+									onkeydown={(ev) => groupKey(ev, g.key)}
+									aria-label="Move group {g.name}: Alt and the arrow keys"
+									class="grid size-6 shrink-0 cursor-grab touch-none place-items-center rounded-md text-muted-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring"
+									><GripVertical class="size-4" /></button
+								>{:else}<span class="w-6"></span>{/if}
+							{#if renaming === g.key}
+								<!-- svelte-ignore a11y_autofocus -->
+								<input
+									autofocus
+									class="h-7 min-w-0 flex-1 rounded-md border bg-background px-2 text-md font-semibold"
+									value={g.name}
+									maxlength={60}
+									aria-label="Group name"
+									onfocus={(ev) => ev.currentTarget.select()}
+									onblur={(ev) => {
+										if (s!.rename(g.key, ev.currentTarget.value)) renaming = '';
+										else ev.currentTarget.focus();
+									}}
+									onkeydown={(ev) => {
+										if (ev.key === 'Enter') ev.currentTarget.blur();
+										if (ev.key === 'Escape') renaming = '';
+									}}
+								/>
+							{:else}
+								<button
+									type="button"
+									class="min-w-0 flex-1 truncate text-left text-md font-semibold disabled:cursor-default"
+									disabled={g.key === OTHER_KEY}
+									title={g.key === OTHER_KEY ? undefined : 'Rename'}
+									onclick={() => startRename(g.key)}>{g.name}</button
+								>
+							{/if}
+							<span class="tnum px-1 text-xs text-muted-foreground">{g.ids.length}</span>
 							<Button
 								variant="ghost"
 								size="icon"
 								class="size-7"
-								aria-label="Delete {g.name}"
-								title="Delete"
-								onclick={() => s!.deleteGroup(g.key)}><Trash2 /></Button
+								disabled={g.ids.length < 2}
+								aria-label="Sort {g.name} A to Z"
+								title="Sort A–Z"
+								onclick={() => s!.sortAZ(g.key)}><ArrowDownAZ /></Button
 							>
-						{/if}
-					</header>
-					<div data-sort-zone="item" data-sort-group={g.key} class="min-h-7 space-y-1 pl-2">
-						{#each g.ids as id (id)}
-							{@const app = s.items[id]!.icon_app}
-							<div
-								animate:slide
-								use:sortable={{
-									host: s,
-									kind: 'item',
-									id,
-									scope: 'outline',
-									handle: '[data-grip]'
-								}}
-								data-sort-kind="item"
-								data-sort-id={id}
-								data-sort-group={g.key}
-								class="rounded-lg"
-							>
-								<LayoutRow
-									{s}
-									{id}
-									{preview}
-									flash={flash === id}
-									icon={app ? icons[app] : undefined}
-									oniconchange={iconChanged}
-								/>
-							</div>
-						{:else}
-							<p class="rounded-lg border border-dashed px-2 py-1 text-sm text-muted-foreground">
-								Empty
-							</p>
-						{/each}
-					</div>
-				</section>
-			{/each}
+							{#if !g.ids.length && g.key !== OTHER_KEY}
+								<Button
+									variant="ghost"
+									size="icon"
+									class="size-7"
+									aria-label="Delete {g.name}"
+									title="Delete"
+									onclick={() => s!.deleteGroup(g.key)}><Trash2 /></Button
+								>
+							{/if}
+						</header>
+						<div data-sort-zone="item" data-sort-group={g.key} class="min-h-7 space-y-1 pl-2">
+							{#each g.ids as id (id)}
+								{@const app = s.items[id]!.icon_app}
+								<div
+									animate:slide
+									use:sortable={{
+										host: s,
+										kind: 'item',
+										id,
+										scope: 'outline',
+										handle: '[data-grip]'
+									}}
+									data-sort-kind="item"
+									data-sort-id={id}
+									data-sort-group={g.key}
+									class="rounded-lg"
+								>
+									<LayoutRow
+										{s}
+										{id}
+										{preview}
+										flash={flash === id}
+										icon={app ? icons[app] : undefined}
+										oniconchange={iconChanged}
+									/>
+								</div>
+							{:else}
+								<p class="rounded-lg border border-dashed px-2 py-1 text-sm text-muted-foreground">
+									Empty
+								</p>
+							{/each}
+						</div>
+					</section>
+				{/each}
+			</div>
 			<Button variant="ghost" size="sm" onclick={addGroup}><Plus />New group</Button>
 		</div>
 		<div class="hidden lg:block">{@render page()}</div>

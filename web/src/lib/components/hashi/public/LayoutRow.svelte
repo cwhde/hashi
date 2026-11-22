@@ -1,8 +1,9 @@
 <script lang="ts">
 	// One entry in the Public pages outline (07 §8.1): grip, checkbox, icon, name, kind and the two switches, on one
-	// 28 px line. The row drags (on touch by its grip, or after holding still); from the keyboard, focus the grip and use
-	// Alt+Up/Down. The icon opens the icon picker (bug 149). A switch that is not possible is disabled with its reason;
-	// an entry hidden from the previewed page stays in place, dimmed.
+	// 28 px line, 9 px apart so the small controls keep the 24 px spacing of WCAG 2.5.8. The row drags (on touch by its
+	// grip, or after holding still); from the keyboard, focus the grip and use Alt+Up/Down. The icon opens the icon
+	// picker (bug 149). A switch that is not possible is disabled with its reason; an entry hidden from the previewed
+	// page stays in place, dashed and muted.
 	import AppIcon from '#lib/components/hashi/AppIcon.svelte';
 	import AppIconPicker from '#lib/components/hashi/AppIconPicker.svelte';
 	import { Checkbox } from '#lib/components/ui/checkbox/index.ts';
@@ -50,7 +51,7 @@
 
 <div
 	id="o-{id}"
-	class="flex h-7 cursor-grab items-center gap-1.5 rounded-lg border bg-card px-1 active:cursor-grabbing {off
+	class="flex h-7 cursor-grab items-center gap-2.5 rounded-lg border bg-card px-1 active:cursor-grabbing {off
 		? 'border-dashed text-muted-foreground'
 		: ''} {sel ? 'ring-2 ring-primary' : ''} {flash ? 'ring-2 ring-warn' : ''}"
 >

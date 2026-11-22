@@ -19,7 +19,8 @@
 	import { Button } from '#lib/components/ui/button/index.ts';
 	import { Input } from '#lib/components/ui/input/index.ts';
 	import { Switch } from '#lib/components/ui/switch/index.ts';
-	import { ChevronLeft, Folder, Upload } from '@lucide/svelte';
+	import { ChevronLeft, Folder } from '@lucide/svelte';
+	import FileButton from '#lib/components/hashi/FileButton.svelte';
 	import { api, problemText } from '#lib/api/client.ts';
 
 	let {
@@ -137,16 +138,11 @@
 							onclick={() => browse(s.id)}
 							aria-label="Choose {s.label} from the source"><Folder />Choose</Button
 						>{/if}
-					<Button variant="outline" size="sm" class="relative">
-						<Upload />Upload
-						<input
-							type="file"
-							accept="image/png,image/webp,image/svg+xml,image/x-icon,.ico"
-							class="absolute inset-0 cursor-pointer opacity-0"
-							aria-label="Upload {s.label}"
-							onchange={(e) => upload(s.id, e)}
-						/>
-					</Button>
+					<FileButton
+						accept="image/png,image/webp,image/svg+xml,image/x-icon,.ico"
+						label="Upload {s.label}"
+						onchange={(e) => upload(s.id, e)}
+					/>
 					{#if filled(s.id)}<Button
 							variant="ghost"
 							size="sm"

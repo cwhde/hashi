@@ -27,9 +27,14 @@ type Params = {
 	handleOnly?: boolean;
 };
 
-/** Slides the others out of the way; the dragged one follows the pointer instead. */
+/** Slides the others out of the way; the dragged one follows the pointer instead. Svelte runs this through the Web
+ * Animations API, which the stylesheet's reduced-motion rule does not reach, so it asks itself. */
 export function slide(node: Element, rects: { from: DOMRect; to: DOMRect }) {
-	if ((node as HTMLElement).dataset.dragging) return { duration: 0 };
+	if (
+		(node as HTMLElement).dataset.dragging ||
+		matchMedia('(prefers-reduced-motion: reduce)').matches
+	)
+		return { duration: 0 };
 	return flip(node, rects, { duration: 180 });
 }
 

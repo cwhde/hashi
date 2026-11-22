@@ -4,7 +4,8 @@
 	import * as Dialog from '#lib/components/ui/dialog/index.ts';
 	import { Button } from '#lib/components/ui/button/index.ts';
 	import { Input } from '#lib/components/ui/input/index.ts';
-	import { RefreshCw, Search, Upload } from '@lucide/svelte';
+	import { RefreshCw, Search } from '@lucide/svelte';
+	import FileButton from '#lib/components/hashi/FileButton.svelte';
 	import { api, problemText, type Schemas } from '#lib/api/client.ts';
 	import AppIcon from './AppIcon.svelte';
 
@@ -112,16 +113,12 @@
 					? 'Look again'
 					: 'Find it on the app'}</Button
 			>
-			<Button variant="outline" size="sm" class="relative" disabled={busy}>
-				<Upload />Upload
-				<input
-					type="file"
-					accept="image/png,image/webp,image/svg+xml,image/x-icon,.ico"
-					class="absolute inset-0 cursor-pointer opacity-0"
-					aria-label="Upload an icon for {app.name}"
-					onchange={upload}
-				/>
-			</Button>
+			<FileButton
+				accept="image/png,image/webp,image/svg+xml,image/x-icon,.ico"
+				label="Upload an icon for {app.name}"
+				disabled={busy}
+				onchange={upload}
+			/>
 		</div>
 		{#if error}<p role="alert" class="text-md text-bad-text">{error}</p>{/if}
 		<div class="relative">

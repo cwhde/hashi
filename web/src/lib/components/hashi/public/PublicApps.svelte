@@ -61,7 +61,7 @@
 </script>
 
 <svelte:head><title>Apps · {data?.title ?? ''}</title></svelte:head>
-<div class="mx-auto max-w-6xl px-4 py-10">
+<main class="mx-auto max-w-6xl px-4 py-10">
 	<header class="mb-8 flex flex-wrap items-end gap-3">
 		<!-- Up/down counts are the status page's job, not the launcher's (bug 147). -->
 		<PublicHeader title={data?.title ?? ''} assets={data?.assets} />
@@ -133,4 +133,4 @@
 			</div>
 		</section>
 	{/each}
-</div>
+</main>

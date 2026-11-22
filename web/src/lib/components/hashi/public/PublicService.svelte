@@ -82,7 +82,7 @@
 </script>
 
 <svelte:head><title>{e ? `${e.name} · ` : ''}Status · {title}</title></svelte:head>
-<div class="mx-auto max-w-5xl space-y-5 px-4 py-10">
+<main class="mx-auto max-w-5xl space-y-5 px-4 py-10">
 	<a
 		href="/"
 		class="inline-flex items-center gap-1.5 text-md text-muted-foreground hover:text-foreground"
@@ -206,4 +206,4 @@
 			{/if}
 		</section>
 	{/if}
-</div>
+</main>
