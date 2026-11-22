@@ -15,7 +15,7 @@
 	import { Draft, guardUnsaved } from '#lib/unsaved.svelte.ts';
 	import { Saver } from '#lib/settings/saver.svelte.ts';
 	import { SvelteMap } from 'svelte/reactivity';
-	import AssetSlots, { type Pending, type SlotName } from './AssetSlots.svelte';
+	import AssetSlots, { slotNames, type Pending, type SlotName } from './AssetSlots.svelte';
 
 	type D = Schemas['DashboardSettings'];
 	let pages = $state<{ dashboard: boolean; status: boolean } | null>(null);
@@ -50,11 +50,15 @@
 	});
 	// The source first: a file picked from it is read from the saved source.
 	async function saveAssets() {
+		// The source and background switch save with the first request: a file refused later says so.
+		const lookChanged =
+			!!assets && (look.source.trim() !== assets.source || look.background !== assets.background);
 		const r = await api.PUT('/api/public-assets', {
 			body: { ...look, source: look.source.trim() }
 		});
 		if (!r.data) throw r.error;
 		assets = r.data;
+		const done: string[] = lookChanged ? ['Look'] : [];
 		for (const [slot, p] of Object.entries(pending) as [SlotName, Pending][]) {
 			const path = { params: { path: { slot } } };
 			const res =
@@ -64,7 +68,15 @@
 							...path,
 							body: 'path' in p ? { path: p.path } : { data: await base64(files.get(slot)!) }
 						});
-			if (!res.data) throw res.error;
+			if (!res.data) {
+				// Say which file failed and what is already saved: the files go first, so nothing else is (bug 171).
+				const label = slotNames.find((x) => x.id === slot)!.label;
+				const earlier = done.length
+					? ` ${done.join(', ')} saved; nothing else changed.`
+					: ' Nothing was changed.';
+				throw { detail: `${label} not saved: ${problemText(res.error)}.${earlier}` };
+			}
+			done.push(slotNames.find((x) => x.id === slot)!.label);
 			assets = res.data;
 			const next = { ...pending };
 			delete next[slot];
@@ -83,6 +95,8 @@
 	const save = () =>
 		saver.run(
 			async () => {
+				// The files first: one the server refuses then leaves the other settings as they were (bug 171).
+				await saveAssets();
 				// The page switches share the appearance record with the theme: change only them.
 				const cur = await api.GET('/api/settings/appearance');
 				if (!cur.data) throw cur.error;
@@ -98,7 +112,6 @@
 				const r = await api.PUT('/api/settings/dashboard', { body: d! });
 				if (!r.data) throw r.error;
 				d = r.data;
-				await saveAssets();
 			},
 			'Saved.',
 			draft

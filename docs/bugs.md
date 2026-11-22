@@ -17,7 +17,6 @@ All open entries are planned into the 0.13 bug round (slices 13.1 onwards in `do
 
 | # | Kind | Status | Where | What | Reported |
 | --- | --- | --- | --- | --- | --- |
-| 171 | function | reproduced | Settings → Public pages | A save with a rejected upload says only the upload's error, but the page switches and the apps page's sort were already saved. | Codex round 3, 2026-11-22 |
 | 173 | function | reproduced | Settings → Public pages | No way to set the page titles, which the spec lists among the page-wide options (07 §8.1). | Codex round 3, 2026-11-22 |
 | 176 | visual | reproduced | Public pages | Screen readers hear the state twice in two words: "Slow Degraded", "No data Unknown", "Down Down": the dot keeps its admin name next to the visitor word. | Codex round 3, 2026-11-22 |
 | 178 | visual | reproduced | Public pages | A first-time visitor sees Graphite until the page's data arrives, then the configured theme (Warm Linen): a dark flash before the light page. | Codex round 3, 2026-11-22 |
