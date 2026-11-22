@@ -60,7 +60,14 @@ export function dayDetail(day: Day, today: boolean, now = Date.now()): Detail {
 	const worst = day.spells.filter((s) => s.state === 'down');
 	const list = worst.length ? worst : day.spells;
 	const first = list[0];
-	if (!first) return { when, text: 'No downtime', extra: uptime };
+	// Single failed checks that never added up to an outage still lower the day's uptime: say so rather than "No
+	// downtime" next to 98.96 %.
+	if (!first)
+		return {
+			when,
+			text: day.uptime !== undefined && day.uptime < 99.995 ? 'Some checks failed' : 'No downtime',
+			extra: uptime
+		};
 	const t = spellText(first, now);
 	const more = list.length > 1 ? ` and ${list.length - 1} more` : '';
 	return { when, text: t.text + more, extra: t.extra ?? uptime };

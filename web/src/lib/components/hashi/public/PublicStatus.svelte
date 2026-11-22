@@ -34,7 +34,11 @@
 			return {};
 		}
 	}
+	// A group being folded or unfolded clips its rows for the animation; open and at rest it clips nothing, so the bar
+	// details of its first row can show above the row.
+	let moving = $state<Record<string, boolean>>({});
 	function fold(name: string, value: boolean) {
+		if (!matchMedia('(prefers-reduced-motion: reduce)').matches) moving[name] = true;
 		folded[name] = value;
 		try {
 			localStorage.setItem(FOLD_KEY, JSON.stringify(folded));
@@ -81,21 +85,6 @@
 	};
 	const up = (list: Entry[]) => list.filter((e) => e.state === 'up').length;
 	const days = (e: Entry) => e.days.map((d) => d.state as Health);
-	// A group tile takes the visitor to its group: it opens if folded, scrolls into view, takes the keyboard focus and
-	// is outlined for a moment, so the jump shows even when the group is already on screen.
-	let landed = $state('');
-	let landTimer: ReturnType<typeof setTimeout> | undefined;
-	function jump(name: string) {
-		fold(name, false);
-		const el = document.getElementById(`g-${name}`);
-		if (!el) return;
-		const still = matchMedia('(prefers-reduced-motion: reduce)').matches;
-		el.scrollIntoView({ behavior: still ? 'auto' : 'smooth', block: 'start' });
-		el.querySelector('button')?.focus({ preventScroll: true });
-		landed = name;
-		clearTimeout(landTimer);
-		landTimer = setTimeout(() => (landed = ''), 1200);
-	}
 </script>
 
 <svelte:head><title>Status · {data?.title ?? ''}</title></svelte:head>
@@ -134,17 +123,15 @@
 	{/if}
 
 	{#if data && data.groups.length > 1}
-		<nav
+		<!-- The groups at a glance: a summary, not controls (the owner, 2026-11-22). -->
+		<ul
 			aria-label="Groups"
 			class="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-[repeat(auto-fit,minmax(8.5rem,1fr))]"
 		>
 			{#each data.groups as g (g.name)}
 				{@const w = worst(g.entries.map((e) => e.state))}
-				<button
-					type="button"
-					onclick={() => jump(g.name)}
-					class="rounded-xl border bg-card px-3 py-2.5 text-left transition-colors hover:border-muted-foreground/40 {w ===
-					'down'
+				<li
+					class="rounded-xl border bg-card px-3 py-2.5 {w === 'down'
 						? 'border-bad/40'
 						: w === 'degraded'
 							? 'border-warn/40'
@@ -156,9 +143,9 @@
 					<span class="tnum mt-0.5 block text-sm text-muted-foreground"
 						>{up(g.entries)} of {g.entries.length} up</span
 					>
-				</button>
+				</li>
 			{/each}
-		</nav>
+		</ul>
 	{/if}
 
 	{#if all.length}
@@ -178,13 +165,7 @@
 
 	{#each data?.groups ?? [] as g (g.name)}
 		{@const o = !folded[g.name]}
-		<section
-			id="g-{g.name}"
-			class="mt-3 scroll-mt-4 rounded-2xl border bg-card ring-offset-2 ring-offset-background transition-shadow duration-300 motion-reduce:transition-none {landed ===
-			g.name
-				? 'ring-2 ring-ring'
-				: 'ring-0'}"
-		>
+		<section class="mt-3 rounded-2xl border bg-card">
 			<button
 				type="button"
 				class="flex w-full items-center gap-3 px-4 py-2.5 text-left"
@@ -209,8 +190,9 @@
 					? 'grid-rows-[1fr]'
 					: 'grid-rows-[0fr]'}"
 				inert={!o}
+				ontransitionend={(ev) => ev.target === ev.currentTarget && (moving[g.name] = false)}
 			>
-				<div class="min-h-0 overflow-hidden">
+				<div class="min-h-0 {!o || moving[g.name] ? 'overflow-hidden' : ''}">
 					<ul class="divide-y border-t">
 						{#each g.entries as e (e.slug)}
 							<li>

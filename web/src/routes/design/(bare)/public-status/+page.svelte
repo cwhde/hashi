@@ -19,10 +19,6 @@
 	// A group with trouble starts open; the rest as the visitor left them (open the first time).
 	let open = $state<Record<string, boolean>>({});
 	const isOpen = (name: string) => open[name] ?? true;
-	function jump(name: string) {
-		open[name] = true;
-		document.getElementById(`g-${name}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-	}
 	const up = (list: typeof pub) => list.filter((e) => e.state === 'up').length;
 </script>
 
@@ -47,17 +43,14 @@
 	</div>
 
 	{#if groups.length > 1}
-		<nav
+		<ul
 			aria-label="Groups"
 			class="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-[repeat(auto-fit,minmax(8.5rem,1fr))]"
 		>
 			{#each groups as g (g.name)}
 				{@const w = worst(g.items)}
-				<button
-					type="button"
-					onclick={() => jump(g.name)}
-					class="rounded-xl border bg-card px-3 py-2.5 text-left transition-colors hover:border-muted-foreground/40 {w ===
-					'down'
+				<li
+					class="rounded-xl border bg-card px-3 py-2.5 {w === 'down'
 						? 'border-bad/40'
 						: w === 'degraded'
 							? 'border-warn/40'
@@ -69,9 +62,9 @@
 					<span class="tnum mt-0.5 block text-sm text-muted-foreground"
 						>{up(g.items)} of {g.items.length} up</span
 					>
-				</button>
+				</li>
 			{/each}
-		</nav>
+		</ul>
 	{/if}
 
 	<div class="mt-6 flex justify-end">

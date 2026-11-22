@@ -65,6 +65,11 @@ test('day details', () => {
 			Date.parse(at('13:42'))
 		)
 	).toEqual({ when: 'Today', text: 'Down since 13:36', extra: '6 min so far' });
+	expect(dayDetail(day({ uptime: 98.96 }), false)).toEqual({
+		when: 'Fri 20 Nov',
+		text: 'Some checks failed',
+		extra: 'Uptime 98.96%'
+	});
 	expect(dayDetail(day({ state: 'unknown' }), false)).toEqual({
 		when: 'Fri 20 Nov',
 		text: 'No data'
