@@ -9,8 +9,8 @@
 	import AppIcon from '#lib/components/hashi/AppIcon.svelte';
 	import DayStrip from '#lib/components/hashi/DayStrip.svelte';
 	import LineChart from '#lib/components/hashi/LineChart.svelte';
-	import StatusBadge from '#lib/components/hashi/StatusBadge.svelte';
 	import BadgesButton from './BadgesButton.svelte';
+	import PublicState from './PublicState.svelte';
 	import PublicHeader from './PublicHeader.svelte';
 	import { api, type Schemas } from '#lib/api/client.ts';
 	import type { Health } from '#lib/design/mock.ts';
@@ -120,7 +120,7 @@
 				<h1 class="truncate text-title font-semibold">{e.name}</h1>
 				<p class="text-md text-muted-foreground">{data.group}</p>
 			</div>
-			<StatusBadge state={e.state} />
+			<PublicState state={e.state} />
 			{#if data.badges.length}<BadgesButton name={e.name} slug={e.slug} kinds={data.badges} />{/if}
 		</header>
 

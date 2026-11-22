@@ -3,7 +3,7 @@
 	// owner's order, cards in the owner's order inside each; search always shown; sort: group, name or status.
 	// No up/down counts (bug 147), no admin controls.
 	import AppIcon from '#lib/components/hashi/AppIcon.svelte';
-	import StatusDot from '#lib/components/hashi/StatusDot.svelte';
+	import PublicState from '#lib/components/hashi/public/PublicState.svelte';
 	import { Input } from '#lib/components/ui/input/index.ts';
 	import * as Select from '#lib/components/ui/select/index.ts';
 	import { Search } from '@lucide/svelte';
@@ -59,10 +59,12 @@
 						<AppIcon name={a.name} class="size-10 rounded-xl text-lg" />
 						<span class="min-w-0 flex-1"
 							><span class="block truncate text-base font-medium">{a.name}</span><span
-								class="block truncate text-sm text-muted-foreground">{domain(a.name)}</span
+								class="flex items-center gap-2"
+								><span class="min-w-0 flex-1 truncate text-sm text-muted-foreground"
+									>{domain(a.name)}</span
+								>{#if a.check}<PublicState state={a.state} class="shrink-0 text-sm" />{/if}</span
 							></span
 						>
-						{#if a.check}<StatusDot state={a.state} />{/if}
 					</a>
 				{/each}
 			</div>

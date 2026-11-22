@@ -8,9 +8,9 @@
 	import { ChevronDown } from '@lucide/svelte';
 	import AppIcon from '#lib/components/hashi/AppIcon.svelte';
 	import DayStrip from '#lib/components/hashi/DayStrip.svelte';
-	import { health } from '#lib/components/hashi/status.ts';
 	import StatusDot from '#lib/components/hashi/StatusDot.svelte';
 	import PublicHeader from './PublicHeader.svelte';
+	import PublicState from './PublicState.svelte';
 	import { api, type Schemas } from '#lib/api/client.ts';
 	import type { Health } from '#lib/design/mock.ts';
 	import { publicSummary, uptimeText } from '#lib/monitor.ts';
@@ -83,7 +83,6 @@
 		warn: 'border-warn/30 bg-warn/10 text-warn-text',
 		bad: 'border-bad/30 bg-bad/10 text-bad-text'
 	};
-	const stateWord: Record<string, string> = { down: 'Down', degraded: 'Slow', paused: 'Paused' };
 	const up = (list: Entry[]) => list.filter((e) => e.state === 'up').length;
 	const days = (e: Entry) => e.days.map((d) => d.state as Health);
 </script>
@@ -138,8 +137,8 @@
 							? 'border-warn/40'
 							: ''}"
 				>
-					<span class="flex items-center gap-2 text-md font-medium"
-						><StatusDot state={w} /><span class="truncate">{g.name}</span></span
+					<span class="flex items-center justify-between gap-2 text-md font-medium"
+						><span class="truncate">{g.name}</span><StatusDot state={w} /></span
 					>
 					<span class="tnum mt-0.5 block text-sm text-muted-foreground"
 						>{up(g.entries)} of {g.entries.length} up</span
@@ -214,18 +213,8 @@
 												>DNS updating</span
 											>{/if}
 									</span>
-									<!-- The dot ends the row, on the same right edge as the group's dot; a word only when
-									     something is wrong, so trouble never rests on colour alone. -->
-									<span
-										class="flex items-center justify-end gap-1.5 text-md font-medium sm:order-last {health[
-											e.state
-										].text}"
-									>
-										{#if e.state === 'up'}<span class="sr-only">Up</span>{:else}<span
-												>{stateWord[e.state] ?? 'No data'}</span
-											>{/if}
-										<StatusDot state={e.state} />
-									</span>
+									<!-- Word then dot, the dot on the same right edge as the group's (07 §7.1). -->
+									<PublicState state={e.state} class="sm:order-last" />
 									{#if span === 'days'}
 										<DayStrip
 											samples={days(e)}

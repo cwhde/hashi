@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { Skeleton } from '#lib/components/ui/skeleton/index.ts';
 	import { onMount } from 'svelte';
-	import StatusDot from '#lib/components/hashi/StatusDot.svelte';
+	import PublicState from './PublicState.svelte';
 	import PublicHeader from './PublicHeader.svelte';
 	import AppIcon from '#lib/components/hashi/AppIcon.svelte';
 	import { Input } from '#lib/components/ui/input/index.ts';
@@ -115,13 +115,19 @@
 							light={a.icon_light}
 							class="size-10 rounded-xl text-lg"
 						/>
+						<!-- The state shares the address line, so the name keeps the full width (a cut address
+						     matters less than a cut name). -->
 						<span class="min-w-0 flex-1"
 							><span class="block truncate text-base font-medium">{a.name}</span><span
-								class="block truncate text-sm text-muted-foreground">{domain(a.url)}</span
+								class="flex items-center gap-2"
+								><span class="min-w-0 flex-1 truncate text-sm text-muted-foreground"
+									>{domain(a.url)}</span
+								>{#if a.has_check}<PublicState
+										state={a.state}
+										class="shrink-0 text-sm"
+									/>{/if}</span
 							></span
 						>
-						{#if a.has_check}<StatusDot state={a.state} /><span class="sr-only">{a.state}</span
-							>{/if}
 					</a>
 				{/each}
 			</div>

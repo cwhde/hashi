@@ -6,6 +6,7 @@ import {
 	minuteDetail,
 	minuteHealth,
 	sinceTile,
+	stateWord,
 	worst,
 	type Day
 } from './public.ts';
@@ -90,6 +91,13 @@ test('the last hour pads on the left and names each round', () => {
 });
 
 test('since and worst', () => {
+	expect(['up', 'degraded', 'down', 'paused', 'unknown'].map(stateWord)).toEqual([
+		'Up',
+		'Slow',
+		'Down',
+		'Paused',
+		'No data'
+	]);
 	const now = Date.parse(at('13:42'));
 	expect(sinceTile('down', at('13:36'), now)).toEqual(['Down for', '6 min']);
 	expect(sinceTile('degraded', at('13:30'), now)).toEqual(['Slow for', '12 min']);

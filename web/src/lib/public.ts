@@ -105,6 +105,16 @@ export function sinceTile(state: string, since: string, now = Date.now()): [stri
 	return [w, duration(now - Date.parse(since))];
 }
 
+const words: Record<string, string> = {
+	up: 'Up',
+	degraded: 'Slow',
+	down: 'Down',
+	paused: 'Paused'
+};
+
+/** A state in the visitors' words, the same on every public page. */
+export const stateWord = (state: string) => words[state] ?? 'No data';
+
 const rank: Record<string, number> = { down: 0, degraded: 1, unknown: 2, paused: 3, up: 4 };
 
 /** A group's dot: its worst entry. */

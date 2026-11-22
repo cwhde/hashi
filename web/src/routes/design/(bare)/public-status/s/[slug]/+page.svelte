@@ -6,7 +6,7 @@
 	import { page } from '$app/state';
 	import AppIcon from '#lib/components/hashi/AppIcon.svelte';
 	import LineChart from '#lib/components/hashi/LineChart.svelte';
-	import StatusBadge from '#lib/components/hashi/StatusBadge.svelte';
+	import PublicState from '#lib/components/hashi/public/PublicState.svelte';
 	import * as ToggleGroup from '#lib/components/ui/toggle-group/index.ts';
 	import { ArrowLeft } from '@lucide/svelte';
 	import BadgesButton from '../../../../BadgesButton.svelte';
@@ -63,7 +63,7 @@
 			<h1 class="truncate text-title font-semibold">{e.name}</h1>
 			<p class="text-md text-muted-foreground">{e.group || 'Other'}</p>
 		</div>
-		<StatusBadge state={e.state} />
+		<PublicState state={e.state} />
 		<BadgesButton {e} />
 	</header>
 
