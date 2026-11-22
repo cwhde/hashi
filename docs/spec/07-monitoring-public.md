@@ -73,9 +73,10 @@ of groups, each holding an ordered list of entries. Each page shows the entries 
 order, and skips the rest. Nothing on a public page knows whether the visitor is signed in to Hashi: no admin
 detection, no edit links.
 
-**Entries.** Every service, every manual DNS entry with a public address, and every endpoint that belongs to neither
-(user monitors, hosts, agents, Hashi itself) is one entry, kept in the layout automatically: a new one joins the end of
-"Other", a removed one leaves. An entry has two switches:
+**Entries.** Every service (except Hashi's own system ones), every DNS entry that is on the dashboard or monitored
+(the manual entries of 03 §7), and every endpoint that belongs to neither (user monitors, hosts, agents, Hashi itself)
+is one entry, kept in the layout automatically by the monitor's source sync: a new one joins the end of "Other", a
+removed one leaves. An entry has two switches:
 
 | Switch | Possible when | New entries |
 | --- | --- | --- |
@@ -91,10 +92,16 @@ groups in the same order (and never hides anything). The group is the endpoint's
 settings' Group field edits the entry's place in the layout.
 
 **Storage.** `public_groups` (id, name unique, position) and `public_entries` (id, subject kind `service` | `dns` |
-`endpoint` + subject id unique, group id or null for "Other", position, apps, status), one `version` for the whole layout.
+`endpoint` + subject id unique, group id or null for "Other", position), one `version` for the whole layout. The layout
+holds order and groups only. The two switches stay where they already live and other pages already write them (one
+truth, nothing to keep in step; changed 2026-11-22 while building): Apps is the service's `dashboard_visible` or the DNS
+entry's `dashboard`, Status is the entry's endpoint's `public`. Turning Apps off on a DNS entry that is not monitored
+takes it out of the layout; the DNS page brings it back. An entry's group is written to its endpoint's `group_name` in
+the same transaction ("Other" for none), so notifications and older readers see the same group.
 Migration: groups from the endpoints' group names in the old category order (then by name), entries in each group by
-name, apps from `dashboard_visible`/`dashboard`, status from the endpoint's `public`; the hidden-categories and
-categories-off settings go (switch the entries off instead; both pages always show groups, 2026-11-22).
+name (an entry without an endpoint in "Services" or "DNS entries", as the old apps page grouped them); the
+hidden-categories and categories-off settings go: entries of a hidden category get Status off, and both pages always
+show groups (2026-11-22).
 
 **API.** `GET /api/public-layout` returns groups, entries (with name, kind, icon, what is possible) and `version`.
 `PUT /api/public-layout` takes the whole order (groups with entry ids) and switch changes with `version`; a newer stored
