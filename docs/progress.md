@@ -79,7 +79,22 @@ PR B, the editor:
 **Full hunt** (before the next release). Findings are reproduced before they go into `bugs.md`, and this round fixes
 all of them.
 - [x] Hand checks written into 10c §8 (copy, Lighthouse, requests, speed on real data, accessibility, look).
-- [ ] 10c §8 on the new parts (Public pages editor, public status, service page, apps page, badges).
+- [x] 10c §8 on the new parts (Public pages editor, public status, service page, apps page, badges), 2026-11-22, on the
+  laptop with seeded data and a copy of prod's database (deleted after the hunt). Found and fixed:
+  - Copy: the strips read in the visitors' words ("90 days: 1 down, 2 slow", "60 checks, all up"); one time format,
+    local 24-hour with the date when not today (spec 07 §7.0).
+  - Requests: Settings read the appearance twice per load (now shared); each public page loads only its own code
+    (Lighthouse phone: apps 529 → 466 KiB, LCP 4.95 → 4.50 s; status 592 → 481 KiB, 5.1 → 4.35 s); a page without an
+    uploaded icon no longer makes the browser ask for `/favicon.ico` (a 404 in every visitor's console).
+  - Speed on prod data: the status and service pages' history read every check's rollups; it now seeks through the
+    primary key (status 150 → 18 ms, service 146 → 1 ms, uncached; plan test). Layout GET 0.6–0.9 ms, save 2.4 ms.
+  - Accessibility (axe, WCAG 2.2 AA, keyboard, reduced motion): upload buttons were a file input inside a button (now
+    one control); outline controls too close for 2.5.8 target spacing; New group inside the Layout list; moves still
+    slid under reduced motion; the public pages had no main landmark. Now clean on all five pages, every keyboard path
+    checked (outline Alt+arrows, Move to menu, phone sheet, group fold, strip arrows, Badges, focus return).
+  - Look: the four themes at 390 and 1440 px, no overflow, no contrast failure; the status heading's double gap.
+  - Lighthouse locally (no compression here): accessibility and best practices 100 on all three public pages; desktop
+    98–99, phone 74–78. Re-measure on prod after the deploy, where Traefik compresses.
 - [ ] UI skills on the whole app (unslop-ui and the like).
 - [ ] Performance test of the whole app on a copy of prod data.
 - [ ] Heavy linting and cross-file safety analysis, Go and Svelte.
