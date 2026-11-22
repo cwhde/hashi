@@ -35,8 +35,10 @@ first, structure before text, search after the settings regroup.
 | 13.10 | UI copy pass with unslop-ui | none (the owner, 2026-11-20) | Talk the skill through with the owner (https://github.com/felipebasurto/unslop-ui: an agent skill that cuts AI tells from UI copy and charts, optional visual rules); decide together whether and how to run it (install or follow by hand, which pages, with or without its visual rules, a taste file from 10c); run it as decided; the owner accepts the result |
 | 13.11 | Speed and the last bugs | 150, 151, 152, 153 | Lighthouse and request timings measured before and after; the slow admin requests faster on a copy of prod data; no open bug left |
 
-Next: the public pages work decided 2026-11-21 (Agenda: spec, approved mocks, drag-library ADR, build, Codex bug hunt).
-13.5's gate still waits for a real host outage. Then a last bug sweep, then `v1.0.0`. With 1.0, a better README (the owner, 2026-11-19): what Hashi
+Next: bug 161, then the public pages work decided 2026-11-21 (spec, approved mocks, drag-library ADR, build). No deploy
+before the full hunt (the owner, 2026-11-22): UI skills (unslop-ui and the like), a performance test of the whole app off
+prod, heavy linting and cross-file safety analysis for Go and Svelte, then the Codex pass (bugs and visuals); only then
+release and deploy. Then a last bug sweep, then `v1.0.0`. With 1.0, a better README (the owner, 2026-11-19): what Hashi
 is, screenshots, how to install and run it, what it needs.
 
 **13.11 speed and the last bugs** (2026-11-21, the owner: "easy wins and the medium ones, plus all bugs"). Measured
@@ -256,6 +258,13 @@ and group, the picker offers all 282 rules; Counters with a search that is not a
   the VPS kernel shows `limit rate over 150/minute burst 128`.
 
 Gate: measured thresholds with 3× headroom; WAF exclusions by name; Counters and address links correct.
+
+**13.5 done** (2026-11-22). Gate: a real host outage sends one grouped alert. Three small web services on a Debian test
+container, monitored by prod Hashi (60 s checks, their check times spread ~20 s apart by a short pause), then the container
+stopped at 07:12:41 UTC. Down at 07:15:13, 07:15:24, 07:15:45; all three delivered as one SMTP message at 07:16:02.392.
+The last alert came 21 s after the one before, beyond the 15 s window: it joined only because the 15 s delivery job had not
+run in between. Default window raised to 30 s (spec 07 §6, migration 00034), prod route set to 30 s. Cleanup: monitors
+deleted, container rolled back to its pre-test snapshot and the snapshot removed.
 
 ### 13.5 checklist (two PRs: A status and alerts, B plans tell the truth)
 
