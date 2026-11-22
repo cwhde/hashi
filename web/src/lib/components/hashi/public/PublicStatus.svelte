@@ -3,6 +3,8 @@
 	// that folds, dense rows with the app icon, 90 days by default with a Last hour switch. Pointing at a bar says what
 	// happened then; a row opens the service page. Public fields only: names, states, history, uptime.
 	import { every } from '#lib/poll.ts';
+	import { page } from '$app/state';
+	import { replaceState } from '$app/navigation';
 	import { Skeleton } from '#lib/components/ui/skeleton/index.ts';
 	import * as ToggleGroup from '#lib/components/ui/toggle-group/index.ts';
 	import { onMount } from 'svelte';
@@ -22,7 +24,15 @@
 	let data = $state<Schemas['PublicStatus'] | null>(null);
 	let failedSince = $state<Date | null>(null);
 	let now = $state(Date.now());
-	let span = $state('days');
+	// The view is in the address (?view=hour), so a shared link or a reload shows the same one; 90 days leaves none.
+	let span = $state(page.url.searchParams.get('view') === 'hour' ? 'hour' : 'days');
+	function pick(v: string) {
+		span = v;
+		const u = new URL(page.url.href);
+		if (v === 'hour') u.searchParams.set('view', 'hour');
+		else u.searchParams.delete('view');
+		replaceState(u, {});
+	}
 
 	// Folded groups are the visitor's own (this browser only); a group with trouble opens again on the next visit.
 	const FOLD_KEY = 'hashi.status.folded';
@@ -150,7 +160,7 @@
 			<ToggleGroup.Root
 				type="single"
 				value={span}
-				onValueChange={(v) => v && (span = v)}
+				onValueChange={(v) => v && pick(v)}
 				variant="outline"
 				size="sm"
 			>

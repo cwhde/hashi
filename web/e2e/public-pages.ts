@@ -206,6 +206,11 @@ export async function publicPagesSeen(page: Page, appsURL: string, statusURL: st
 			await page.screenshot({ path: `test-results/13-12-${file}-${w}.png`, fullPage: true });
 		}
 	}
+	// The status page's view too.
+	await page.goto(`${statusURL}/?view=hour`);
+	await expect(page.getByRole('radio', { name: 'Last hour' })).toBeChecked();
+	await page.getByRole('radio', { name: '90 days' }).click();
+	await expect(page).toHaveURL(new RegExp(`${statusURL}/?$`));
 	// The service page's range is in the address: a shared link opens the same range, picking one updates it.
 	await page.goto(`${statusURL}/s/${slug}?range=7d`);
 	await expect(page.getByRole('radio', { name: '7d' })).toBeChecked();
