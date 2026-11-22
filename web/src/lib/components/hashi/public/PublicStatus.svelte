@@ -181,7 +181,10 @@
 				<span class="tnum text-sm text-muted-foreground"
 					>{up(g.entries)} of {g.entries.length} up</span
 				>
-				<StatusDot state={worst(g.entries.map((e) => e.state))} />
+				<!-- The group's dot sits in the rows' state column, so every dot on the page lines up. -->
+				<span class="flex w-[5.5rem] shrink-0 pl-px"
+					><StatusDot state={worst(g.entries.map((e) => e.state))} /></span
+				>
 			</button>
 			<!-- Folding animates the height through the grid row (0fr ↔ 1fr), so no row is measured and any length folds
 			     smoothly; folded rows are inert, out of the tab order and hidden from screen readers. -->
@@ -198,7 +201,7 @@
 							<li>
 								<a
 									href="/s/{e.slug}"
-									class="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-3 gap-y-1.5 px-4 py-2 hover:bg-surface-2/60 sm:grid-cols-[11rem_minmax(0,1fr)_4.5rem_5.5rem]"
+									class="grid grid-cols-[minmax(0,1fr)_5.5rem] items-center gap-x-3 gap-y-1.5 px-4 py-2 hover:bg-surface-2/60 sm:grid-cols-[11rem_minmax(0,1fr)_4.5rem_5.5rem]"
 								>
 									<span class="flex min-w-0 items-center gap-2 text-md font-medium">
 										<AppIcon
@@ -213,7 +216,7 @@
 												>DNS updating</span
 											>{/if}
 									</span>
-									<span class="sm:order-last sm:text-right"><StatusBadge state={e.state} /></span>
+									<span class="sm:order-last"><StatusBadge state={e.state} /></span>
 									{#if span === 'days'}
 										<DayStrip
 											samples={days(e)}

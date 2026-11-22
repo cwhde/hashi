@@ -92,7 +92,7 @@ export function minuteDetail(minutes: Minute[], i: number, slots = 60): Detail {
 	};
 }
 
-/** The service page's "Now" tile: "Up for 14 h", "Down for 6 min", "Slow for 12 min". */
+/** The service page's "Current state" tile: "Up for 14 h", "Down for 6 min", "Slow for 12 min". */
 export function sinceText(state: string, since: string, now = Date.now()): string {
 	const words: Record<string, string> = {
 		up: 'Up',

@@ -17,6 +17,7 @@
 	import { uptimeText } from '#lib/monitor.ts';
 	import { dayDetail, downtimeRow, sinceText } from '#lib/public.ts';
 	import { theme } from '#lib/theme.svelte.ts';
+	import { ChartSync } from '#lib/chart-sync.svelte.ts';
 
 	let { slug }: { slug: string } = $props();
 	let data = $state<Schemas['PublicService'] | null>(null);
@@ -62,11 +63,14 @@
 			minute: '2-digit'
 		});
 	const labels = $derived(data?.series.map((p) => label(p.at)) ?? []);
+	// The three charts share one pointer: the same moment shows in each of them.
+	const sync = new ChartSync();
+	const times = $derived(data?.series.map((p) => Date.parse(p.at)) ?? []);
 	const pct = (v: number) => `${v.toFixed(v === 100 ? 0 : 2)}%`;
 	const tiles = $derived(
 		e && data
 			? [
-					['Now', sinceText(e.state, e.since, now)],
+					['Current state', sinceText(e.state, e.since, now)],
 					['24 hours', uptimeText(e.uptime_24h)],
 					['7 days', uptimeText(data.uptime_7d)],
 					['30 days', uptimeText(data.uptime_30d)],
@@ -157,17 +161,23 @@
 						values={data.series.map((p) => p.avg_ms)}
 						unit=" ms"
 						{labels}
+						{times}
+						{sync}
 					/>
 					<LineChart
 						title="Slowest responses"
 						values={data.series.map((p) => p.p95_ms)}
 						unit=" ms"
 						{labels}
+						{times}
+						{sync}
 					/>
 					<LineChart
 						title="Availability"
 						values={data.series.map((p) => p.availability)}
 						{labels}
+						{times}
+						{sync}
 						format={pct}
 					/>
 				</div>

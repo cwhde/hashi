@@ -1,14 +1,19 @@
 <script lang="ts">
 	// Thin trace, sparse grid, current value top-right (10a §5.6). With `labels`, a pointer over the chart shows that
 	// moment's time and value in a bubble beside it, as the overview's charts do (bugs 119, 155); the corner keeps the
-	// latest value. Values may be negative (a public path faster than the internal one, bug 156).
+	// latest value. Values may be negative (a public path faster than the internal one, bug 156). With `sync` and
+	// `times`, charts of one page share the pointer: the same moment shows in each of them.
+	import { nearest, type ChartSync } from '#lib/chart-sync.svelte.ts';
+
 	let {
 		title,
 		values,
 		unit = '',
 		current,
 		labels,
-		format
+		format,
+		times,
+		sync
 	}: {
 		title: string;
 		values: number[];
@@ -16,12 +21,23 @@
 		current?: string;
 		labels?: string[];
 		format?: (v: number) => string;
+		/** Each point's moment (ms); with `sync`, the pointer is shared with the page's other charts. */
+		times?: number[];
+		sync?: ChartSync;
 	} = $props();
-	let at = $state<number | null>(null);
+	let own = $state<number | null>(null);
+	const shared = $derived(!!sync && !!times && times.length === values.length);
+	const at = $derived(shared ? (sync!.at === null ? null : nearest(times!, sync!.at)) : own);
 	function move(e: PointerEvent) {
 		const r = (e.currentTarget as HTMLElement).getBoundingClientRect();
 		const i = Math.round(((e.clientX - r.left) / r.width) * (values.length - 1));
-		at = Math.max(0, Math.min(values.length - 1, i));
+		const k = Math.max(0, Math.min(values.length - 1, i));
+		if (shared) sync!.at = times![k]!;
+		else own = k;
+	}
+	function leave() {
+		if (shared) sync!.at = null;
+		else own = null;
 	}
 	const show = (v: number) => (format ? format(v) : v + unit);
 	const w = 600;
@@ -45,7 +61,7 @@
 		role="img"
 		aria-label="{title}, latest {current ?? show(values.at(-1) ?? 0)}"
 		onpointermove={labels ? move : undefined}
-		onpointerleave={() => (at = null)}
+		onpointerleave={leave}
 	>
 		<svg
 			viewBox="0 0 {w} {h}"

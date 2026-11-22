@@ -19,6 +19,7 @@
 	import { api, problemText, type Schemas } from '#lib/api/client.ts';
 	import { checkSummary, sourceText, stripHealth, uptimeText } from '#lib/monitor.ts';
 	import { dateTime } from '#lib/format.ts';
+	import { ChartSync } from '#lib/chart-sync.svelte.ts';
 
 	// 07 §5: status, response numbers, uptime, charts by range, events, settings.
 	const id = $derived(page.params.id ?? '');
@@ -138,6 +139,9 @@
 	// Public minus internal response time, with the moment of each (bug 156); negative when the public path is faster.
 	const gapPoints = $derived(series.filter((p) => p.gap_ms !== undefined && p.gap_ms !== null));
 	const gaps = $derived(gapPoints.map((p) => p.gap_ms ?? 0));
+	// The charts share one pointer: the same moment shows in each of them.
+	const sync = new ChartSync();
+	const at = (list: { at: string }[]) => list.map((p) => Date.parse(p.at));
 	// Bug 64: a check made from something links back to it.
 	const sourceHref: Record<string, (id: string) => string> = {
 		service: (id) => `/services/${id}`,
@@ -223,6 +227,8 @@
 				values={series.map((p) => p.latency_ms)}
 				unit=" ms"
 				labels={series.map((p) => dateTime(p.at))}
+				times={at(series)}
+				{sync}
 			/>
 			{#if gaps.length}
 				<LineChart
@@ -230,6 +236,8 @@
 					values={gaps}
 					unit=" ms"
 					labels={gapPoints.map((p) => dateTime(p.at))}
+					times={at(gapPoints)}
+					{sync}
 				/>
 			{/if}
 			<LineChart
@@ -237,6 +245,8 @@
 				values={series.map((p) => p.availability)}
 				current={uptimeText(series.at(-1)?.availability)}
 				labels={series.map((p) => dateTime(p.at))}
+				times={at(series)}
+				{sync}
 				format={(v) => uptimeText(v)}
 			/>
 		</div>

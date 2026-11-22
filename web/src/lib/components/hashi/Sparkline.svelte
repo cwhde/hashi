@@ -1,13 +1,18 @@
 <script lang="ts">
 	// Thin line, no fill, no axes (10a §5.2 item 11). Colour comes from the parent's text colour. With `labels`, a
-	// pointer over the line shows that moment's value (bug 119); nothing reacts until the pointer is on it.
+	// pointer over the line shows that moment's value (bug 119); nothing reacts until the pointer is on it. With `sync`
+	// and `times`, sparklines of one page share the pointer: the same moment shows in each of them.
+	import { nearest, type ChartSync } from '#lib/chart-sync.svelte.ts';
+
 	let {
 		values,
 		width = 120,
 		height = 28,
 		labels,
 		format = (v: number) => v.toLocaleString(),
-		class: className = ''
+		class: className = '',
+		times,
+		sync
 	}: {
 		values: number[];
 		width?: number;
@@ -15,6 +20,9 @@
 		labels?: string[];
 		format?: (v: number) => string;
 		class?: string;
+		/** Each point's moment (ms); with `sync`, the pointer is shared with the page's other charts. */
+		times?: number[];
+		sync?: ChartSync;
 	} = $props();
 
 	const max = $derived(Math.max(...values, 1));
@@ -25,11 +33,19 @@
 		values.map((v, i) => `${(i * step).toFixed(1)},${y(v).toFixed(1)}`).join(' ')
 	);
 
-	let at = $state<number | null>(null);
+	let own = $state<number | null>(null);
+	const shared = $derived(!!sync && !!times && times.length === values.length);
+	const at = $derived(shared ? (sync!.at === null ? null : nearest(times!, sync!.at)) : own);
 	function move(e: PointerEvent) {
 		const r = (e.currentTarget as HTMLElement).getBoundingClientRect();
 		const i = Math.round(((e.clientX - r.left) / r.width) * (values.length - 1));
-		at = Math.max(0, Math.min(values.length - 1, i));
+		const k = Math.max(0, Math.min(values.length - 1, i));
+		if (shared) sync!.at = times![k]!;
+		else own = k;
+	}
+	function leave() {
+		if (shared) sync!.at = null;
+		else own = null;
 	}
 </script>
 
@@ -39,7 +55,7 @@
 		role="img"
 		aria-label="Trend"
 		onpointermove={move}
-		onpointerleave={() => (at = null)}
+		onpointerleave={leave}
 	>
 		<svg
 			class="block w-full"
