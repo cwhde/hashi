@@ -114,9 +114,12 @@ error text or admin links.
 
 - **Banner**: "N services are down." / slow / everything works, with "Updated" from public checks only (as since 13.5).
 - **Group tiles**: one per group shown, in layout order: the group's name, a state dot (worst of its entries), "x of n
-  up". A click scrolls to the group and opens it. Hidden when only one group is shown.
+  up". A click takes the visitor to the group: it opens if folded, scrolls into view, takes the keyboard focus and is
+  outlined for about a second, so the jump shows even when the group is already on screen. Hidden when only one group
+  is shown.
 - **Group panels**: each group in its own panel that folds. A group with an entry down or slow starts open; the others
-  start as the visitor left them (kept in the browser), open the first time.
+  start as the visitor left them (kept in the browser), open the first time. Folding animates the panel's height
+  (about 200 ms, none with reduced motion); folded rows are out of the tab order.
 - **Rows** (dense): icon (the app icon of §9.1, else the letter; always shown), name, history bar, uptime for the
   bar's span, state badge. Bars: 90 days, one per day, by default; a 90 days / Last hour switch above the groups shows
   the last 60 minutes, one per minute, instead. No caption explains the bars; the details are on hover.
@@ -170,7 +173,8 @@ Launcher of the entries with Apps on, enabled by default (setting), no admin con
 - Groups as headings in layout order; cards in layout order inside each. Sorting by Name or Status drops the
   headings and shows one list.
 - Each card: app icon (§9.1), name, the public address; links to it. No up/down counts in the header (bug 147).
-- Search field always shown (bug 146); sort selector: Your order (default), Name, Status.
+- Search field always shown (bug 146); sort selector "Sort: Group" (default: the groups
+  and cards as the owner arranged them), Name, Status. Visitors never see the owner's wording ("Your order").
 - `GET /api/public/apps` (cached 15 s).
 
 ### 8.1 Public pages editor (admin `/public-pages`, renamed from App display)
