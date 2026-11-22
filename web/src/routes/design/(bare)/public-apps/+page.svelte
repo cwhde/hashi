@@ -1,6 +1,6 @@
 <script lang="ts">
 	// Approved mock (07 §8, 2026-11-22): the apps page in the shared layout's order. Groups as headings in the
-	// owner's order, cards in the owner's order inside each; search always shown; sort: your order, name or status.
+	// owner's order, cards in the owner's order inside each; search always shown; sort: group, name or status.
 	// No up/down counts (bug 147), no admin controls.
 	import AppIcon from '#lib/components/hashi/AppIcon.svelte';
 	import StatusDot from '#lib/components/hashi/StatusDot.svelte';
@@ -12,7 +12,7 @@
 	const apps = entries.filter((e) => e.apps);
 	let q = $state('');
 	let sort = $state('order');
-	const sorts = { order: 'Your order', name: 'Name', status: 'Status' } as const;
+	const sorts = { order: 'Group', name: 'Name', status: 'Status' } as const;
 	const rank = { down: 0, degraded: 1, up: 2, unknown: 3, paused: 4 } as const;
 	const domain = (name: string) => `${name.toLowerCase().replace(/[^a-z0-9]+/g, '')}.example.com`;
 	const shown = $derived.by(() => {
@@ -40,7 +40,7 @@
 		</label>
 		<Select.Root type="single" bind:value={sort}>
 			<Select.Trigger class="w-36" aria-label="Sort"
-				>{sorts[sort as keyof typeof sorts]}</Select.Trigger
+				>Sort: {sorts[sort as keyof typeof sorts]}</Select.Trigger
 			>
 			<Select.Content>
 				{#each Object.entries(sorts) as [v, l] (v)}<Select.Item value={v}>{l}</Select.Item>{/each}

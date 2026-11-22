@@ -60,7 +60,7 @@ PR B, the editor:
 - [ ] `web/src/lib/sortable.ts` from the mock, with unit tests of the move rules (ADR 0004).
 - [ ] Admin `/public-pages` replaces `/app-display` (old address redirects): outline, preview, live drag, selection
   bar, Undo, phone sheet; a row's icon opens the icon picker (bug 149, kept from App display). Gear → Settings →
-  Public pages, which loses "Group the list" and the hidden categories; the sort is labelled "Your order".
+  Public pages, which loses the hidden categories and the category order.
 - [ ] Admin Status page groups by the layout's groups in its order.
 - [ ] e2e: drag with mouse and with touch (hold, swipe), keyboard Alt+arrows, both public pages and a service page at
   390 and 1440 px, badge SVG served.

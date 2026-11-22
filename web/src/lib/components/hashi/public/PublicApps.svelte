@@ -56,7 +56,8 @@
 	const rank = (a: Schemas['PublicApp']) => (a.has_check ? (stateOrder[a.state] ?? 9) : 10);
 	const total = $derived(data?.groups.reduce((n, g) => n + g.apps.length, 0) ?? 0);
 	const domain = (url: string) => url.replace(/^https?:\/\//, '').replace(/\/$/, '');
-	const sortNames: Record<string, string> = { group: 'Your order', name: 'Name', status: 'Status' };
+	// Group: the groups and cards as the owner arranged them (the default); Name and Status drop the groups.
+	const sortNames: Record<string, string> = { group: 'Group', name: 'Name', status: 'Status' };
 </script>
 
 <svelte:head><title>Apps · {data?.title ?? ''}</title></svelte:head>
@@ -74,7 +75,9 @@
 				<Input bind:value={query} placeholder="Search" aria-label="Search" class="pl-8" />
 			</div>
 			<Select.Root type="single" bind:value={sort} onValueChange={() => (sortChosen = true)}>
-				<Select.Trigger class="w-36 shrink-0" aria-label="Sort">{sortNames[sort]}</Select.Trigger>
+				<Select.Trigger class="w-36 shrink-0" aria-label="Sort"
+					>Sort: {sortNames[sort]}</Select.Trigger
+				>
 				<Select.Content>
 					{#each Object.entries(sortNames) as [v, l] (v)}<Select.Item value={v}>{l}</Select.Item
 						>{/each}

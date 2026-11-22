@@ -81,9 +81,20 @@
 	};
 	const up = (list: Entry[]) => list.filter((e) => e.state === 'up').length;
 	const days = (e: Entry) => e.days.map((d) => d.state as Health);
+	// A group tile takes the visitor to its group: it opens if folded, scrolls into view, takes the keyboard focus and
+	// is outlined for a moment, so the jump shows even when the group is already on screen.
+	let landed = $state('');
+	let landTimer: ReturnType<typeof setTimeout> | undefined;
 	function jump(name: string) {
 		fold(name, false);
-		document.getElementById(`g-${name}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+		const el = document.getElementById(`g-${name}`);
+		if (!el) return;
+		const still = matchMedia('(prefers-reduced-motion: reduce)').matches;
+		el.scrollIntoView({ behavior: still ? 'auto' : 'smooth', block: 'start' });
+		el.querySelector('button')?.focus({ preventScroll: true });
+		landed = name;
+		clearTimeout(landTimer);
+		landTimer = setTimeout(() => (landed = ''), 1200);
 	}
 </script>
 
@@ -167,7 +178,13 @@
 
 	{#each data?.groups ?? [] as g (g.name)}
 		{@const o = !folded[g.name]}
-		<section id="g-{g.name}" class="mt-3 scroll-mt-4 rounded-2xl border bg-card">
+		<section
+			id="g-{g.name}"
+			class="mt-3 scroll-mt-4 rounded-2xl border bg-card ring-offset-2 ring-offset-background transition-shadow duration-300 motion-reduce:transition-none {landed ===
+			g.name
+				? 'ring-2 ring-ring'
+				: 'ring-0'}"
+		>
 			<button
 				type="button"
 				class="flex w-full items-center gap-3 px-4 py-2.5 text-left"
@@ -175,7 +192,9 @@
 				onclick={() => fold(g.name, o)}
 			>
 				<ChevronDown
-					class="size-4 shrink-0 text-muted-foreground transition-transform {o ? '' : '-rotate-90'}"
+					class="size-4 shrink-0 text-muted-foreground transition-transform duration-200 ease-out motion-reduce:transition-none {o
+						? ''
+						: '-rotate-90'}"
 				/>
 				<h2 class="flex-1 text-base font-semibold">{g.name}</h2>
 				<span class="tnum text-sm text-muted-foreground"
@@ -183,50 +202,60 @@
 				>
 				<StatusDot state={worst(g.entries.map((e) => e.state))} />
 			</button>
-			{#if o}
-				<ul class="divide-y border-t">
-					{#each g.entries as e (e.slug)}
-						<li>
-							<a
-								href="/s/{e.slug}"
-								class="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-3 gap-y-1.5 px-4 py-2 hover:bg-surface-2/60 sm:grid-cols-[11rem_minmax(0,1fr)_4.5rem_5.5rem]"
-							>
-								<span class="flex min-w-0 items-center gap-2 text-md font-medium">
-									<AppIcon
-										name={e.name}
-										icon={e.icon}
-										light={e.icon_light}
-										class="size-6 rounded-md text-xs"
-									/>
-									<span class="truncate">{e.name}</span>
-									{#if e.pending_dns}<span
-											class="shrink-0 text-xs font-normal text-muted-foreground">DNS updating</span
-										>{/if}
-								</span>
-								<span class="sm:order-last sm:text-right"><StatusBadge state={e.state} /></span>
-								{#if span === 'days'}
-									<DayStrip
-										samples={days(e)}
-										detail={(i) => dayDetail(e.days[i]!, i === e.days.length - 1, now)}
-										labels={false}
-										class="col-span-2 sm:col-span-1"
-									/>
-								{:else}
-									<DayStrip
-										samples={minuteHealth(e.minutes)}
-										detail={(i) => minuteDetail(e.minutes, i)}
-										labels={false}
-										class="col-span-2 sm:col-span-1"
-									/>
-								{/if}
-								<span class="tnum hidden text-sm text-muted-foreground sm:block sm:text-right"
-									>{uptimeText(span === 'days' ? e.uptime_90d : e.uptime_24h)}</span
+			<!-- Folding animates the height through the grid row (0fr ↔ 1fr), so no row is measured and any length folds
+			     smoothly; folded rows are inert, out of the tab order and hidden from screen readers. -->
+			<div
+				class="grid transition-[grid-template-rows] duration-200 ease-out motion-reduce:transition-none {o
+					? 'grid-rows-[1fr]'
+					: 'grid-rows-[0fr]'}"
+				inert={!o}
+			>
+				<div class="min-h-0 overflow-hidden">
+					<ul class="divide-y border-t">
+						{#each g.entries as e (e.slug)}
+							<li>
+								<a
+									href="/s/{e.slug}"
+									class="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-3 gap-y-1.5 px-4 py-2 hover:bg-surface-2/60 sm:grid-cols-[11rem_minmax(0,1fr)_4.5rem_5.5rem]"
 								>
-							</a>
-						</li>
-					{/each}
-				</ul>
-			{/if}
+									<span class="flex min-w-0 items-center gap-2 text-md font-medium">
+										<AppIcon
+											name={e.name}
+											icon={e.icon}
+											light={e.icon_light}
+											class="size-6 rounded-md text-xs"
+										/>
+										<span class="truncate">{e.name}</span>
+										{#if e.pending_dns}<span
+												class="shrink-0 text-xs font-normal text-muted-foreground"
+												>DNS updating</span
+											>{/if}
+									</span>
+									<span class="sm:order-last sm:text-right"><StatusBadge state={e.state} /></span>
+									{#if span === 'days'}
+										<DayStrip
+											samples={days(e)}
+											detail={(i) => dayDetail(e.days[i]!, i === e.days.length - 1, now)}
+											labels={false}
+											class="col-span-2 sm:col-span-1"
+										/>
+									{:else}
+										<DayStrip
+											samples={minuteHealth(e.minutes)}
+											detail={(i) => minuteDetail(e.minutes, i)}
+											labels={false}
+											class="col-span-2 sm:col-span-1"
+										/>
+									{/if}
+									<span class="tnum hidden text-sm text-muted-foreground sm:block sm:text-right"
+										>{uptimeText(span === 'days' ? e.uptime_90d : e.uptime_24h)}</span
+									>
+								</a>
+							</li>
+						{/each}
+					</ul>
+				</div>
+			</div>
 		</section>
 	{/each}
 </div>
