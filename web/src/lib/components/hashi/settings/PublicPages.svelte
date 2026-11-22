@@ -1,14 +1,14 @@
 <script lang="ts">
 	import { Skeleton } from '#lib/components/ui/skeleton/index.ts';
-	// Settings → Public pages (10c §1.2, bug 65): the two public pages on or off, how the dashboard starts, and the status
-	// page's categories (07 §7, bug 138). Which service shows on them is an instant switch on App display.
+	// Settings → Public pages (07 §8.1, 10c §1.2, bug 65): the page-wide options. Each page on or off and where it is
+	// published (bug 64), how the apps page starts, and the look (§9). The order, the groups and what shows on each page
+	// are the Public pages editor's.
 	import { onMount } from 'svelte';
 	import Panel from '#lib/components/hashi/Panel.svelte';
 	import SaveBar from './SaveBar.svelte';
 	import { Switch } from '#lib/components/ui/switch/index.ts';
 	import * as ToggleGroup from '#lib/components/ui/toggle-group/index.ts';
-	import { Button } from '#lib/components/ui/button/index.ts';
-	import { ArrowDown, ArrowUp } from '@lucide/svelte';
+	import Mono from '#lib/components/hashi/Mono.svelte';
 	import { api, problemText, type Schemas } from '#lib/api/client.ts';
 	import { withReauth } from '#lib/auth/reauth.ts';
 	import { Draft, guardUnsaved } from '#lib/unsaved.svelte.ts';
@@ -19,49 +19,34 @@
 	type D = Schemas['DashboardSettings'];
 	let pages = $state<{ dashboard: boolean; status: boolean } | null>(null);
 	let d = $state<D | null>(null);
-	let sp = $state<Schemas['StatusPageSettings'] | null>(null);
-	let cats = $state<string[]>([]); // categories of the public checks, in the order set
+	// Where each page is published (bug 64): the services that point at it.
+	let links = $state<Schemas['PublicPages'] | null>(null);
 	// The public pages' icon, logos and background (07 §9, bug 30).
 	let assets = $state<Schemas['PublicAssets'] | null>(null);
 	let look = $state<Schemas['PublicAssetsSettings']>({ source: '', background: false });
 	let pending = $state<Partial<Record<SlotName, Pending>>>({});
 	const files = new SvelteMap<SlotName, File>();
 	let error = $state('');
-	const draft = new Draft(() => [pages, d, sp, cats, look, pending]);
+	const draft = new Draft(() => [pages, d, look, pending]);
 	const saver = new Saver();
 	guardUnsaved(() => draft.dirty);
 	onMount(async () => {
-		const [a, b, c, e, f] = await Promise.all([
+		void api.GET('/api/app-display/pages').then((r) => (links = r.data ?? null));
+		const [a, b, f] = await Promise.all([
 			api.GET('/api/settings/appearance'),
 			api.GET('/api/settings/dashboard'),
-			api.GET('/api/settings/status-page'),
-			api.GET('/api/monitor/endpoints'),
 			api.GET('/api/public-assets')
 		]);
-		if (!a.data || !b.data || !c.data || !e.data || !f.data) {
-			error = problemText(a.error ?? b.error ?? c.error ?? e.error ?? f.error);
+		if (!a.data || !b.data || !f.data) {
+			error = problemText(a.error ?? b.error ?? f.error);
 			return;
 		}
 		assets = f.data;
 		look = { source: f.data.source, background: f.data.background };
 		pages = { dashboard: a.data.public_dashboard_enabled, status: a.data.public_status_enabled };
 		d = b.data;
-		sp = c.data;
-		const found = new Set(e.data.endpoints.filter((x) => x.public).map((x) => x.group));
-		cats = [
-			...c.data.order.filter((g) => found.has(g)),
-			...[...found].filter((g) => !c.data.order.includes(g)).sort((x, y) => x.localeCompare(y))
-		];
 		draft.mark();
 	});
-	function move(i: number, by: number) {
-		const next = [...cats];
-		next.splice(i + by, 0, ...next.splice(i, 1));
-		cats = next;
-	}
-	function show(g: string, on: boolean) {
-		sp!.hidden = on ? sp!.hidden.filter((x) => x !== g) : [...sp!.hidden, g];
-	}
 	// The source first: a file picked from it is read from the saved source.
 	async function saveAssets() {
 		const r = await api.PUT('/api/public-assets', {
@@ -112,12 +97,6 @@
 				const r = await api.PUT('/api/settings/dashboard', { body: d! });
 				if (!r.data) throw r.error;
 				d = r.data;
-				const keep = sp!.order.filter((g) => !cats.includes(g)); // categories with no public check now
-				const s = await api.PUT('/api/settings/status-page', {
-					body: { ...sp!, order: [...cats, ...keep] }
-				});
-				if (!s.data) throw s.error;
-				sp = s.data;
 				await saveAssets();
 			},
 			'Saved.',
@@ -126,15 +105,38 @@
 </script>
 
 {#if error}<p role="alert" class="text-md text-bad-text">{error}</p>
-{:else if pages && d && sp}
+{:else if pages && d}
 	<Panel title="Pages">
 		<div class="grid gap-3 md:grid-cols-2">
-			<label class="flex items-center justify-between gap-3 rounded-xl border px-3 py-2.5 text-md"
-				>Public app dashboard<Switch bind:checked={pages.dashboard} /></label
-			>
-			<label class="flex items-center justify-between gap-3 rounded-xl border px-3 py-2.5 text-md"
-				>Public status page<Switch bind:checked={pages.status} /></label
-			>
+			{#each [['dashboard', 'Public app dashboard', links?.apps], ['status', 'Public status page', links?.status]] as const as [k, label, at] (k)}
+				<div class="rounded-xl border px-3 py-2.5 text-md">
+					<label class="flex items-center justify-between gap-3"
+						>{label}<Switch bind:checked={pages[k]} /></label
+					>
+					{#if at}
+						<ul class="mt-1.5 space-y-0.5 text-sm">
+							{#each at as l (l.service_id)}
+								<li class="flex flex-wrap items-baseline gap-x-2">
+									<a
+										href={l.url}
+										target="_blank"
+										rel="noreferrer"
+										class="font-medium hover:underline">{l.url.replace(/^https:\/\/|\/$/g, '')}</a
+									>
+									<a href="/services/{l.service_id}" class="text-muted-foreground hover:underline"
+										><Mono>{l.upstream}</Mono></a
+									>
+								</li>
+							{:else}
+								<li class="text-muted-foreground">
+									Not published yet. <a href="/services" class="underline">Add a service</a> that points
+									at it.
+								</li>
+							{/each}
+						</ul>
+					{/if}
+				</div>
+			{/each}
 		</div>
 	</Panel>
 	<Panel title="App dashboard">
@@ -156,40 +158,6 @@
 			<label class="flex items-center justify-between gap-3 text-md"
 				>New services show on the dashboard<Switch bind:checked={d.new_services_visible} /></label
 			>
-		</div>
-	</Panel>
-	<Panel title="Status page">
-		<div class="space-y-3 text-md">
-			{#if cats.length === 0}
-				<p class="text-muted-foreground">No checks are on the status page yet.</p>
-			{:else}
-				<ul class="divide-y rounded-xl border">
-					{#each cats as g, i (g)}
-						<li class="flex items-center gap-2 px-3 py-1.5">
-							<span class="min-w-0 flex-1 truncate">{g}</span>
-							<Button
-								variant="ghost"
-								size="icon-sm"
-								disabled={i === 0}
-								onclick={() => move(i, -1)}
-								aria-label="Move {g} up"><ArrowUp /></Button
-							>
-							<Button
-								variant="ghost"
-								size="icon-sm"
-								disabled={i === cats.length - 1}
-								onclick={() => move(i, 1)}
-								aria-label="Move {g} down"><ArrowDown /></Button
-							>
-							<Switch
-								checked={!sp.hidden.includes(g)}
-								onCheckedChange={(on) => show(g, on)}
-								aria-label="Show {g}"
-							/>
-						</li>
-					{/each}
-				</ul>
-			{/if}
 		</div>
 	</Panel>
 	{#if assets}

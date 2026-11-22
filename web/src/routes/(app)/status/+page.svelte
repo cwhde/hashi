@@ -28,7 +28,8 @@
 	let groupBy = $state('group');
 	let sortBy = $state('name');
 	let addOpen = $state(false);
-	let order = $state<string[]>([]); // category order from Settings → Public pages (07 §7)
+	// Groups in the order of the public layout (07 §8.1); a group the layout doesn't know goes after them.
+	let order = $state<string[]>([]);
 
 	async function load() {
 		const r = await api.GET('/api/monitor/endpoints');
@@ -38,7 +39,7 @@
 	}
 	onMount(() => {
 		load().catch((e) => (error = problemText(e)));
-		api.GET('/api/settings/status-page').then((r) => (order = r.data?.order ?? []));
+		api.GET('/api/public-layout').then((r) => (order = r.data?.groups.map((g) => g.name) ?? []));
 		const t = setInterval(() => load().catch(() => {}), 20_000);
 		return () => clearInterval(t);
 	});
