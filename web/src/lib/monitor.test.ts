@@ -13,6 +13,17 @@ test('public summary', () => {
 	expect(publicSummary(['down', 'down', 'degraded'])?.text).toBe('2 services are down, 1 slow.');
 });
 
+// Bug 168: a paused service or one without data yet is not known to work, so the claim covers only those checked.
+test('public summary with unchecked services', () => {
+	expect(publicSummary(['up', 'paused'])).toEqual({
+		text: 'All checked services are working.',
+		tone: 'ok'
+	});
+	expect(publicSummary(['up', 'unknown'])?.text).toBe('All checked services are working.');
+	expect(publicSummary(['down', 'paused'])?.text).toBe('1 service is down.');
+	expect(publicSummary(['unknown', 'paused'])).toBeNull();
+});
+
 // Bug 87: the padding before the first checks is not counted.
 test('strip summary', () => {
 	expect(stripSummary(Array(60).fill('unknown'))).toBe('No checks yet');

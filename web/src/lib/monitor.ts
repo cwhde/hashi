@@ -56,7 +56,13 @@ export function publicSummary(
 		return { text: `${n(down, 'is down', 'are down')}, ${slow} slow.`, tone: 'bad' };
 	if (down) return { text: `${n(down, 'is down', 'are down')}.`, tone: 'bad' };
 	if (slow) return { text: `${n(slow, 'is slow', 'are slow')}.`, tone: 'warn' };
-	return { text: 'All services are working.', tone: 'ok' };
+	// Paused or without data yet: not known to work (bug 168).
+	const unchecked = states.filter((s) => s === 'paused' || s === 'unknown').length;
+	if (unchecked === states.length) return null;
+	return {
+		text: unchecked ? 'All checked services are working.' : 'All services are working.',
+		tone: 'ok'
+	};
 }
 
 /** What the history strip says to a screen reader: only real results, not the grey padding (bug 87). */

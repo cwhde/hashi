@@ -17,12 +17,8 @@ All open entries are planned into the 0.13 bug round (slices 13.1 onwards in `do
 
 | # | Kind | Status | Where | What | Reported |
 | --- | --- | --- | --- | --- | --- |
-| 165 | function | reproduced | Public status | The Last hour view shows the 24-hour uptime beside the hour's bars (Lamp: every minute down, "71.73%"). The spec says uptime for the bar's span. | Codex round 3, 2026-11-22 |
 | 166 | function | reproduced | Service page | A slower answer for an earlier range replaces the chart of the range now chosen (7d then 30d: 30d selected, 7d's data shown). No check that an answer is still current. | Codex round 3, 2026-11-22 |
-| 167 | function | reproduced | Public status | On a phone, tapping a history bar opens the service page instead of showing that bar's details: the strip sits inside the row's link. | Codex round 3, 2026-11-22 |
-| 168 | function | reproduced | Public status | The banner says "All services are working." while a service is paused or has no data yet ("1 of 2 up" below it). | Codex round 3, 2026-11-22 |
 | 169 | function | reproduced | Service page | Right after pausing, the service page says "Paused for 9 h 50 min": pausing keeps the time the last state began. | Codex round 3, 2026-11-22 |
-| 170 | visual | reproduced | Public status | A group name without spaces (60 × W) pushes the group's count and dot off screen and makes the page scroll sideways (1000 px at 390, 1120 px at 1024). | Codex round 3, 2026-11-22 |
 | 171 | function | reproduced | Settings → Public pages | A save with a rejected upload says only the upload's error, but the page switches and the apps page's sort were already saved. | Codex round 3, 2026-11-22 |
 | 172 | function | reproduced | Public pages | A service page that is switched off or unknown answers 200 (the page shell); only its data request answers 404. The spec says 404. | Codex round 3, 2026-11-22 |
 | 173 | function | reproduced | Settings → Public pages | No way to set the page titles, which the spec lists among the page-wide options (07 §8.1). | Codex round 3, 2026-11-22 |

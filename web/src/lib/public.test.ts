@@ -5,6 +5,7 @@ import {
 	duration,
 	minuteDetail,
 	minuteHealth,
+	minuteUptime,
 	sinceTile,
 	stateWord,
 	stripText,
@@ -121,4 +122,19 @@ test('a time on a public page reads the same everywhere: 24 hours, a date when n
 	const iso = new Date(2026, 10, 20, 9, 5).toISOString();
 	expect(when(iso, new Date(2026, 10, 20, 18, 0).getTime())).toBe('09:05');
 	expect(when(iso, new Date(2026, 10, 22, 8, 0).getTime())).toBe('20 Nov, 09:05');
+});
+
+test('the Last hour view states the hour’s uptime, not the day’s (bug 165)', () => {
+	const at = (i: number) => new Date(Date.UTC(2026, 10, 22, 18, i)).toISOString();
+	const m = (i: number, state: 'up' | 'degraded' | 'down') => ({ at: at(i), state, latency_ms: 5 });
+	expect(minuteUptime([m(0, 'down'), m(1, 'down')])).toBe(0);
+	expect(minuteUptime([m(0, 'up'), m(1, 'degraded'), m(2, 'down'), m(3, 'up')])).toBe(75); // slow still answered
+	expect(minuteUptime([])).toBeUndefined();
+	// Only the bars shown: the last 60.
+	expect(
+		minuteUptime([
+			...Array.from({ length: 10 }, (_, i) => m(i, 'down')),
+			...Array.from({ length: 60 }, (_, i) => m(i, 'up'))
+		])
+	).toBe(100);
 });

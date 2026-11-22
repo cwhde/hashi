@@ -17,7 +17,7 @@
 	import { api, type Schemas } from '#lib/api/client.ts';
 	import type { Health } from '#lib/design/mock.ts';
 	import { publicSummary, uptimeText } from '#lib/monitor.ts';
-	import { dayDetail, minuteDetail, minuteHealth, when, worst } from '#lib/public.ts';
+	import { dayDetail, minuteDetail, minuteHealth, minuteUptime, when, worst } from '#lib/public.ts';
 	import { theme } from '#lib/theme.svelte.ts';
 
 	type Entry = Schemas['PublicStatusEntry'];
@@ -35,6 +35,16 @@
 	}
 
 	// Folded groups are the visitor's own (this browser only); a group with trouble opens again on the next visit.
+	// A finger on the bars shows that bar's details (07 §7.1), so it doesn't also open the row's service page (bug 167);
+	// a mouse click on them still does.
+	let tapOnBars = false;
+	function barTap(ev: PointerEvent) {
+		tapOnBars = ev.pointerType !== 'mouse' && !!(ev.target as Element).closest('[role="slider"]');
+	}
+	function rowClick(ev: MouseEvent) {
+		if (tapOnBars) ev.preventDefault();
+		tapOnBars = false;
+	}
 	const FOLD_KEY = 'hashi.status.folded';
 	let folded = $state<Record<string, boolean>>(read());
 	function read(): Record<string, boolean> {
@@ -184,7 +194,7 @@
 						? ''
 						: '-rotate-90'}"
 				/>
-				<h2 class="flex-1 text-base font-semibold">{g.name}</h2>
+				<h2 class="min-w-0 flex-1 truncate text-base font-semibold" title={g.name}>{g.name}</h2>
 				<span class="tnum text-sm text-muted-foreground"
 					>{up(g.entries)} of {g.entries.length} up</span
 				>
@@ -205,6 +215,8 @@
 							<li>
 								<a
 									href="/s/{e.slug}"
+									onpointerdown={barTap}
+									onclick={rowClick}
 									class="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-3 gap-y-1.5 px-4 py-2 hover:bg-surface-2/60 sm:grid-cols-[11rem_minmax(0,1fr)_4.5rem_4.5rem]"
 								>
 									<span class="flex min-w-0 items-center gap-2 text-md font-medium">
@@ -239,7 +251,7 @@
 										/>
 									{/if}
 									<span class="tnum hidden text-sm text-muted-foreground sm:block sm:text-right"
-										>{uptimeText(span === 'days' ? e.uptime_90d : e.uptime_24h)}</span
+										>{uptimeText(span === 'days' ? e.uptime_90d : minuteUptime(e.minutes))}</span
 									>
 								</a>
 							</li>

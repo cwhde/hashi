@@ -104,6 +104,12 @@ export function minuteHealth(minutes: Minute[], slots = 60): Health[] {
 	return [...Array<Health>(slots - s.length).fill('unknown'), ...s];
 }
 
+/** The uptime of the bars the Last hour view shows, in percent; a slow check still answered (bug 165). */
+export function minuteUptime(minutes: Minute[], slots = 60): number | undefined {
+	const s = minutes.slice(-slots);
+	return s.length ? (100 * s.filter((m) => m.state !== 'down').length) / s.length : undefined;
+}
+
 /** What one bar of the last hour says; `i` counts the padded strip of `slots` bars. */
 export function minuteDetail(minutes: Minute[], i: number, slots = 60): Detail {
 	const m = minutes.slice(-slots)[i - (slots - Math.min(slots, minutes.length))];
