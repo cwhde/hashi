@@ -132,6 +132,14 @@ all of them.
   page: a stale range answer is dropped, pausing starts its own time, an unknown slug is 404, the chart works by
   keyboard. Settings → Public pages: files save first, one title for both pages (spec 07 §9). Public pages start in
   their own theme, the state is read once, badges measure CJK and emoji. `make check` and `make test-e2e` green.
+- [x] Gate round 1 on prod (`v0.13.12-beta.1`, 2026-11-22): public pages follow the layout, a service page and its
+  badges are served, a down day explains itself. The owner's drag failed: entries stayed lifted after a fast release
+  (bug 181, a frame queued by the last move put the lift back). On the owner's phone, strips and charts took a sideways
+  slide as a scroll, a long press opened the link menu, and readings stuck on every strip touched (bug 182); a downtime
+  days old read as this morning (bug 180). All three fixed from reproductions; the owner checked 182 on their phone
+  against a LAN build before any suite ran. Lighthouse 12.8.2 on the local copy after (desktop / phone): apps 98–99 /
+  76, status 99 / 78, service 98 / 73 (was 74: two more small script files, LCP 4.80 → 4.95 s simulated; merging tiny
+  chunks needs Rolldown's experimental inlining, not taken now). Accessibility and best practices 100 everywhere.
 - [ ] Release and deploy (the owner's OK), then the 13.12 gate on prod with the owner; confirm bug 161's lookup timeouts
   are gone from Docker's DNS log.
 
