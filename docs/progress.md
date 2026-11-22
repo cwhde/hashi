@@ -119,7 +119,10 @@ all of them.
   search for raw HTML and data-built links. One fix: six functions returned a value and, in the same statement, called
   what fills it, an order Go doesn't promise. Everything else was already reviewed (marked in the code) or harmless.
   Then `make check`, `make test-e2e` and the adguard and firewall integration tests green on `bc9eb820`.
-- [ ] Codex pass on the new parts (bugs and visuals), `bug-hunt/ROUND2.md` with `CODEX-BRIEF.md`'s safety rules.
+- [ ] Codex pass on the new parts (bugs and visuals). The new parts aren't on prod yet, so Codex tests a local dev
+  build of `bc9eb820` with seeded data that reaches nothing outside the laptop (`bug-hunt/r3/`: start script, a
+  Playwright helper with a virtual passkey, the data and a clean copy). Brief: `bug-hunt/ROUND3.md` (round 2's method,
+  its own safety rules), handed to the owner 2026-11-22.
 - [ ] Fix every finding.
 - [ ] Release and deploy (the owner's OK), then the 13.12 gate on prod with the owner; confirm bug 161's lookup timeouts
   are gone from Docker's DNS log.
