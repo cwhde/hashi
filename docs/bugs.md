@@ -17,6 +17,24 @@ All open entries are planned into the 0.13 bug round (slices 13.1 onwards in `do
 
 | # | Kind | Status | Where | What | Reported |
 | --- | --- | --- | --- | --- | --- |
+| 162 | function | reproduced | Public pages editor | Moving an apps-only entry (a DNS link) can take a monitored service's address: after moving the Jellyfin link, `/s/jellyfin` answers 404 and the check moves to `/s/jellyfin-2`, breaking shared links and badges. Slugs are handed out over all rows in layout order (`internal/monitor/layout.go`). | Codex round 3, 2026-11-22 |
+| 163 | function | reproduced | Public pages editor | Undo after deleting an empty group fails: "Not saved: unknown group …". Undo sends the deleted group's old id, which the server refuses. | Codex round 3, 2026-11-22 |
+| 164 | function | reproduced | Public pages editor | Hiding an app that has no check from the apps page removes it on the server, but the outline keeps the row and Undo fails ("unknown entry dns:…"). The editor ignores the saved layout's entry list. | Codex round 3, 2026-11-22 |
+| 165 | function | reproduced | Public status | The Last hour view shows the 24-hour uptime beside the hour's bars (Lamp: every minute down, "71.73%"). The spec says uptime for the bar's span. | Codex round 3, 2026-11-22 |
+| 166 | function | reproduced | Service page | A slower answer for an earlier range replaces the chart of the range now chosen (7d then 30d: 30d selected, 7d's data shown). No check that an answer is still current. | Codex round 3, 2026-11-22 |
+| 167 | function | reproduced | Public status | On a phone, tapping a history bar opens the service page instead of showing that bar's details: the strip sits inside the row's link. | Codex round 3, 2026-11-22 |
+| 168 | function | reproduced | Public status | The banner says "All services are working." while a service is paused or has no data yet ("1 of 2 up" below it). | Codex round 3, 2026-11-22 |
+| 169 | function | reproduced | Service page | Right after pausing, the service page says "Paused for 9 h 50 min": pausing keeps the time the last state began. | Codex round 3, 2026-11-22 |
+| 170 | visual | reproduced | Public status | A group name without spaces (60 × W) pushes the group's count and dot off screen and makes the page scroll sideways (1000 px at 390, 1120 px at 1024). | Codex round 3, 2026-11-22 |
+| 171 | function | reproduced | Settings → Public pages | A save with a rejected upload says only the upload's error, but the page switches and the apps page's sort were already saved. | Codex round 3, 2026-11-22 |
+| 172 | function | reproduced | Public pages | A service page that is switched off or unknown answers 200 (the page shell); only its data request answers 404. The spec says 404. | Codex round 3, 2026-11-22 |
+| 173 | function | reproduced | Settings → Public pages | No way to set the page titles, which the spec lists among the page-wide options (07 §8.1). | Codex round 3, 2026-11-22 |
+| 174 | function | reproduced | Public pages editor | A failed save (server down, connection lost) still says "New group 1 added. Saved."; the change is lost on reload. A thrown request skips the error path. | Codex round 3, 2026-11-22 |
+| 175 | visual | reproduced | Service page | The charts' moment-by-moment values can only be read with a pointer; keyboard users get only the latest value (same on the admin monitor page). | Codex round 3, 2026-11-22 |
+| 176 | visual | reproduced | Public pages | Screen readers hear the state twice in two words: "Slow Degraded", "No data Unknown", "Down Down": the dot keeps its admin name next to the visitor word. | Codex round 3, 2026-11-22 |
+| 177 | function | reproduced | Public pages editor | If the layout can't be loaded at all (connection refused), the editor shows its loading placeholder forever, with no error. Same on Settings → Public pages and Activity → Jobs. | Codex round 3, 2026-11-22 |
+| 178 | visual | reproduced | Public pages | A first-time visitor sees Graphite until the page's data arrives, then the configured theme (Warm Linen): a dark flash before the light page. | Codex round 3, 2026-11-22 |
+| 179 | visual | reproduced | Badges | Names in Japanese or other wide scripts overflow the badge: the label runs into the state value, and a long name past the badge's edge. Width is estimated per letter for Latin text only. | Codex round 3, 2026-11-22 |
 
 ## Details
 

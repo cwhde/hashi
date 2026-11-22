@@ -123,6 +123,8 @@ all of them.
   build of `bc9eb820` with seeded data that reaches nothing outside the laptop (`bug-hunt/r3/`: start script, a
   Playwright helper with a virtual passkey, the data and a clean copy). Brief: `bug-hunt/ROUND3.md` (round 2's method,
   its own safety rules), handed to the owner 2026-11-22.
+  Ran 2026-11-22, 18:45–19:28: 19 findings. Each reproduced from the original data (browser or code): 18 hold, now
+  bugs 162–179; one dropped (the editor has no group folding: the spec doesn't ask for it, the brief did by mistake).
 - [ ] Fix every finding.
 - [ ] Release and deploy (the owner's OK), then the 13.12 gate on prod with the owner; confirm bug 161's lookup timeouts
   are gone from Docker's DNS log.
