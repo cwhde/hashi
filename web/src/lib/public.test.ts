@@ -7,6 +7,8 @@ import {
 	minuteHealth,
 	sinceTile,
 	stateWord,
+	stripText,
+	when,
 	worst,
 	type Day
 } from './public.ts';
@@ -106,4 +108,17 @@ test('since and worst', () => {
 	expect(worst(['up', 'degraded', 'up'])).toBe('degraded');
 	expect(worst(['up', 'down', 'degraded'])).toBe('down');
 	expect(worst([])).toBe('unknown');
+});
+
+test('a strip tells a screen reader what it holds, in the words the page uses', () => {
+	expect(stripText(['unknown', 'up', 'up'], 'day')).toBe('2 days, all up');
+	expect(stripText(['up', 'down', 'degraded', 'degraded'], 'day')).toBe('4 days: 1 down, 2 slow');
+	expect(stripText(['unknown', 'down'], 'check')).toBe('1 check: 1 down');
+	expect(stripText(['unknown', 'unknown'], 'day')).toBe('No data');
+});
+
+test('a time on a public page reads the same everywhere: 24 hours, a date when not today', () => {
+	const iso = new Date(2026, 10, 20, 9, 5).toISOString();
+	expect(when(iso, new Date(2026, 10, 20, 18, 0).getTime())).toBe('09:05');
+	expect(when(iso, new Date(2026, 10, 22, 8, 0).getTime())).toBe('20 Nov, 09:05');
 });

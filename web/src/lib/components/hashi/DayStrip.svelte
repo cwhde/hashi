@@ -3,9 +3,8 @@
 	// rect drawn on top that grows, the rest dim, and a bubble says what happened in that bar: when, how long, down or
 	// slow. Arrow keys walk the bars; a tap shows the bubble on touch.
 	import type { Health } from '#lib/design/mock.ts';
-	import type { Detail } from '#lib/public.ts';
+	import { stripText, type Detail } from '#lib/public.ts';
 	import { health } from '#lib/components/hashi/status.ts';
-	import { stripSummary } from '#lib/monitor.ts';
 	import { cn } from '#lib/utils.ts';
 
 	let {
@@ -14,9 +13,12 @@
 		from = '90 days ago',
 		to = 'today',
 		labels = true,
+		unit = 'day',
 		class: className = ''
 	}: {
 		samples: Health[];
+		/** What one bar is, for the screen reader's summary. */
+		unit?: 'day' | 'check';
 		detail: (i: number) => Detail;
 		from?: string;
 		to?: string;
@@ -26,7 +28,7 @@
 
 	let at = $state<number | null>(null);
 	const n = $derived(Math.max(samples.length, 1));
-	const summary = $derived(stripSummary(samples));
+	const summary = $derived(stripText(samples, unit));
 	const paths = $derived.by(() => {
 		const out: Partial<Record<Health, string>> = {};
 		samples.forEach((s, i) => (out[s] = (out[s] ?? '') + `M${i} 0.15h0.8v0.7h-0.8z`));

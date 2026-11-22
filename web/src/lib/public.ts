@@ -25,6 +25,31 @@ export function duration(ms: number): string {
 export const clock = (iso: string) =>
 	new Date(iso).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
 
+/** "20 Nov, 09:05". */
+const stamp = (iso: string) =>
+	new Date(iso).toLocaleString('en-GB', {
+		day: 'numeric',
+		month: 'short',
+		hour: '2-digit',
+		minute: '2-digit'
+	});
+
+/** A moment on a public page: the time today, else the date too. */
+export function when(iso: string, now = Date.now()): string {
+	return new Date(iso).toDateString() === new Date(now).toDateString() ? clock(iso) : stamp(iso);
+}
+
+/** What a strip says to a screen reader: how many bars hold data, and which of them were down or slow. */
+export function stripText(samples: string[], unit: 'day' | 'check'): string {
+	const real = samples.filter((s) => s !== 'unknown');
+	if (!real.length) return 'No data';
+	const down = real.filter((s) => s === 'down').length;
+	const slow = real.filter((s) => s === 'degraded').length;
+	const what = `${real.length} ${unit}${real.length === 1 ? '' : 's'}`;
+	const bad = [down && `${down} down`, slow && `${slow} slow`].filter(Boolean);
+	return bad.length ? `${what}: ${bad.join(', ')}` : `${what}, all up`;
+}
+
 /** A day's name on the strip: "Today" or "Sat 21 Nov". The date is Hashi's day, so it is shown as given. */
 export function dayName(date: string, today: boolean): string {
 	if (today) return 'Today';
@@ -126,14 +151,8 @@ export function worst(states: string[]): Health {
 
 /** A downtime on the service page: start, end and length; "ongoing" while it lasts. */
 export function downtimeRow(s: Spell, now = Date.now()) {
-	const start = new Date(s.start).toLocaleString('en-GB', {
-		day: 'numeric',
-		month: 'short',
-		hour: '2-digit',
-		minute: '2-digit'
-	});
 	return {
-		start,
+		start: stamp(s.start),
 		end: s.end ? clock(s.end) : 'ongoing',
 		length: duration((s.end ? Date.parse(s.end) : now) - Date.parse(s.start))
 	};

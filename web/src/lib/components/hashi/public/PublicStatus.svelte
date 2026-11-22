@@ -14,8 +14,7 @@
 	import { api, type Schemas } from '#lib/api/client.ts';
 	import type { Health } from '#lib/design/mock.ts';
 	import { publicSummary, uptimeText } from '#lib/monitor.ts';
-	import { dayDetail, minuteDetail, minuteHealth, worst } from '#lib/public.ts';
-	import { dateTime, time } from '#lib/format.ts';
+	import { dayDetail, minuteDetail, minuteHealth, when, worst } from '#lib/public.ts';
 	import { theme } from '#lib/theme.svelte.ts';
 
 	type Entry = Schemas['PublicStatusEntry'];
@@ -95,9 +94,7 @@
 			role="alert"
 			class="mt-4 rounded-2xl border border-warn/30 bg-warn/10 px-4 py-3 text-base font-medium text-warn-text"
 		>
-			Data may be stale since {data?.updated_at
-				? dateTime(data.updated_at)
-				: 'the page was opened'}.
+			Data may be stale since {data?.updated_at ? when(data.updated_at) : 'the page was opened'}.
 		</div>
 	{:else if summary}
 		<!-- The update time sits in the banner, so it belongs to it and not to the first card (bug 145). -->
@@ -108,7 +105,7 @@
 		>
 			<span class="text-base font-medium">{summary.text}</span>
 			{#if data?.updated_at}<span class="text-sm text-muted-foreground"
-					>Updated {time(data.updated_at)}</span
+					>Updated {when(data.updated_at)}</span
 				>{/if}
 		</div>
 	{/if}
@@ -227,6 +224,7 @@
 											samples={minuteHealth(e.minutes)}
 											detail={(i) => minuteDetail(e.minutes, i)}
 											labels={false}
+											unit="check"
 											class="col-span-2 sm:col-span-1"
 										/>
 									{/if}
