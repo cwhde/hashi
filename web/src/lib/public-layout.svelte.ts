@@ -1,3 +1,4 @@
+import { SvelteSet } from 'svelte/reactivity';
 // The Public pages editor's state (07 §8.1): ONE order for both public pages. Every entry has a place in one group;
 // "Other" (no id) is always last. Every change saves at once as the whole order plus the switches that changed, one save
 // at a time; a change made while a save runs goes out with the next one. The last change can be undone.
@@ -43,7 +44,7 @@ export class LayoutState implements DragHost {
 	/** Each group's id by its editor key, once the server gave one (a snapshot taken earlier may lack it). */
 	private ids: Record<string, string> = {};
 	/** The group ids the server holds now: a group Undo brings back after a delete is sent as a new one (bug 163). */
-	private known = new Set<string>();
+	private known = new SvelteSet<string>();
 	/** The layout as last saved, for a save that fails while the server can't be read either (bug 174). */
 	private savedSnap: Snap = { groups: [], sw: {} };
 
@@ -71,7 +72,7 @@ export class LayoutState implements DragHost {
 		this.items = items;
 		this.savedSw = this.switches();
 		this.selected = this.selected.filter((k) => k in items);
-		this.known = new Set(l.groups.flatMap((g) => (g.id ? [g.id] : [])));
+		this.known = new SvelteSet(l.groups.flatMap((g) => (g.id ? [g.id] : [])));
 		this.savedSnap = this.snap();
 	}
 
@@ -166,10 +167,10 @@ export class LayoutState implements DragHost {
 			const mine = this.group(keys[i]!);
 			if (mine) mine.id = id;
 		});
-		this.known = new Set(l.groups.flatMap((g) => (g.id ? [g.id] : [])));
+		this.known = new SvelteSet(l.groups.flatMap((g) => (g.id ? [g.id] : [])));
 		// An entry the save took off the layout (a DNS entry with both switches off, 07 §7) leaves the outline. Its
 		// change can't be undone here: the DNS page brings it back.
-		const kept = new Set(l.groups.flatMap((g) => g.entries.map((e) => e.key)));
+		const kept = new SvelteSet(l.groups.flatMap((g) => g.entries.map((e) => e.key)));
 		const gone = Object.keys(this.items).filter((k) => !kept.has(k));
 		if (gone.length) {
 			for (const g of this.groups) g.ids = g.ids.filter((k) => kept.has(k));
