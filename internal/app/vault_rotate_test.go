@@ -2,8 +2,10 @@ package app
 
 import (
 	"bytes"
+	"compress/gzip"
 	"context"
 	"errors"
+	"io"
 	"net/http"
 	"net/netip"
 	"os"
@@ -97,7 +99,7 @@ func TestRestoreNightlyBackupOnFreshFolder(t *testing.T) {
 	ctx := context.Background()
 	cfg := newConfig(t)
 	in := start(t, cfg)
-	nightly := filepath.Join(cfg.DataDir, "backups", "hashi-"+time.Now().UTC().Format(time.DateOnly)+".db")
+	nightly := filepath.Join(cfg.DataDir, "backups", "hashi-"+time.Now().UTC().Format(time.DateOnly)+".db.gz")
 	deadline := time.Now().Add(readyWait)
 	for {
 		if _, err := os.Stat(nightly); err == nil {
@@ -144,7 +146,17 @@ func TestRestoreNightlyBackupOnFreshFolder(t *testing.T) {
 
 	// The new host: an empty folder, the copy as its database, no master key.
 	fresh := t.TempDir()
-	data, err := os.ReadFile(nightly) //nolint:gosec // test temp path
+	// As the runbook (operations.md §4): gunzip the copy into place.
+	gz, err := os.Open(nightly) //nolint:gosec // test temp path
+	if err != nil {
+		t.Fatal(err)
+	}
+	zr, err := gzip.NewReader(gz)
+	if err != nil {
+		t.Fatal(err)
+	}
+	data, err := io.ReadAll(zr)
+	_ = gz.Close()
 	if err != nil {
 		t.Fatal(err)
 	}
