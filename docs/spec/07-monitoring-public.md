@@ -196,7 +196,7 @@ Launcher of the entries with Apps on, enabled by default (setting), no admin con
 ### 8.1 Public pages editor (admin `/public-pages`, renamed from App display)
 
 The page holds the layout only. A gear in the header opens Settings → Public pages (10c §1.1, §6), which holds the
-page-wide options: each page on or off, where it is published (bug 64), the apps page's default sort, page titles and
+page-wide options: each page on or off, where it is published (bug 64), the apps page's default sort, the pages' title and
 the asset slots of §9. No tabs, no description, no help sentences.
 
 - **Outline** (left): one 28 px line per entry, about 30 on a 1080 px screen. Rows: grip, checkbox, icon, name, kind,
@@ -230,6 +230,8 @@ Each slot is empty, downloaded or uploaded; Settings → Public pages sets them.
 - Served at `/assets/<slot>` on the admin and both public listeners, with an ETag; an empty slot answers 404.
 - Empty icon → Hashi's 橋 icon; empty logo → the page title as text. Background is off by default and, when on, sits
   behind a scrim that keeps text at its normal contrast (10-ui §2). Admin screens keep the theme canvas and the 橋 icon.
+- Title: one for both pages, set in Look (at most 60 characters; empty: the root domain). The header shows it (the status
+  page adds "status"), and a logo takes its place.
 - A public page's HTML names its title ("Status · example.com", "Jellyfin · Status · example.com", "Apps · example.com",
   also as `og:title`) and its icon, so a shared link's preview and a bookmark show them without running the page.
 
