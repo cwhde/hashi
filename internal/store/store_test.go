@@ -1,6 +1,7 @@
 package store
 
 import (
+	"compress/gzip"
 	"context"
 	"errors"
 	"fmt"
@@ -124,8 +125,8 @@ func TestNightlyBackupKeepsFourteen(t *testing.T) {
 	if err := os.MkdirAll(dir, 0o700); err != nil {
 		t.Fatal(err)
 	}
-	// A pre-migration copy and an unrelated file are never pruned.
-	for _, n := range []string{"pre-migrate-v3-20261001T000000Z.db", "notes.txt"} {
+	// A pre-migration copy and an unrelated file are never pruned; an uncompressed copy from before 0.13.14 is.
+	for _, n := range []string{"pre-migrate-v3-20261001T000000Z.db", "notes.txt", "hashi-2026-10-31.db"} {
 		if err := os.WriteFile(filepath.Join(dir, n), []byte("x"), 0o600); err != nil {
 			t.Fatal(err)
 		}
@@ -141,7 +142,7 @@ func TestNightlyBackupKeepsFourteen(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if filepath.Base(path) != "hashi-2026-11-16.db" {
+	if filepath.Base(path) != "hashi-2026-11-16.db.gz" {
 		t.Fatalf("path %s", path)
 	}
 	entries, err := os.ReadDir(dir)
@@ -152,17 +153,40 @@ func TestNightlyBackupKeepsFourteen(t *testing.T) {
 	for _, e := range entries {
 		names = append(names, e.Name())
 	}
-	want := []string{"hashi-2026-11-03.db", "hashi-2026-11-16.db", "notes.txt", "pre-migrate-v3-20261001T000000Z.db"}
+	want := []string{"hashi-2026-11-03.db.gz", "hashi-2026-11-16.db.gz", "notes.txt", "pre-migrate-v3-20261001T000000Z.db"}
 	if len(names) != 16 || names[0] != want[0] || names[13] != want[1] || names[14] != want[2] || names[15] != want[3] {
 		t.Fatalf("backups dir: %v", names)
 	}
-	c, err := Open(ctx, path)
+	// The copy is a gzip stream of a migrated database: gunzip it as the restore runbook does, then open it.
+	raw := filepath.Join(t.TempDir(), "restored.db")
+	gunzip(t, path, raw)
+	c, err := Open(ctx, raw)
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer func() { _ = c.Close() }()
 	if err := c.Ready(ctx); err != nil {
 		t.Fatalf("nightly copy is not a migrated database: %v", err)
+	}
+}
+
+func gunzip(t *testing.T, src, dst string) {
+	t.Helper()
+	f, err := os.Open(src) //nolint:gosec // test temp dir
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = f.Close() }()
+	z, err := gzip.NewReader(f)
+	if err != nil {
+		t.Fatal(err)
+	}
+	b, err := io.ReadAll(z)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(dst, b, 0o600); err != nil {
+		t.Fatal(err)
 	}
 }
 

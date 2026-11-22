@@ -3,11 +3,13 @@ package store
 
 import (
 	"cmp"
+	"compress/gzip"
 	"context"
 	"database/sql"
 	"embed"
 	"errors"
 	"fmt"
+	"io"
 	"io/fs"
 	"log/slog"
 	"net/url"
@@ -203,29 +205,40 @@ func (s *Store) BackupTo(ctx context.Context, dst string) error {
 // nightlyPrefix names the daily copies; only files with it are pruned (pre-migration copies are pruned by Migrate).
 const nightlyPrefix = "hashi-"
 
-// NightlyBackup writes today's copy to <data>/backups/hashi-<YYYY-MM-DD>.db (11-delivery.md §8) and keeps the newest
-// keep of them. A second run on the same day replaces that day's copy. It returns the copy's path.
+// NightlyBackup writes today's copy to <data>/backups/hashi-<YYYY-MM-DD>.db.gz (11-delivery.md §8) and keeps the
+// newest keep of them. The copy is gzip-compressed: a database is mostly free pages and repeated rows, so a 0.9 GB copy
+// shrinks to about 0.1 GB and 14 of them stay small. A second run on the same day replaces that day's copy. It returns
+// the copy's path.
 func (s *Store) NightlyBackup(ctx context.Context, now time.Time, keep int) (string, error) {
 	dir := filepath.Join(filepath.Dir(s.path), "backups")
-	dst := filepath.Join(dir, nightlyPrefix+now.UTC().Format(time.DateOnly)+".db")
-	// VACUUM INTO refuses an existing file: write beside it, then move it into place.
-	tmp := dst + ".tmp"
-	if err := os.Remove(tmp); err != nil && !errors.Is(err, fs.ErrNotExist) {
-		return "", err
+	dst := filepath.Join(dir, nightlyPrefix+now.UTC().Format(time.DateOnly)+".db.gz")
+	// VACUUM INTO refuses an existing file: write beside it, compress, then move the result into place.
+	raw, gz := dst+".raw.tmp", dst+".tmp"
+	for _, p := range []string{raw, gz} {
+		if err := os.Remove(p); err != nil && !errors.Is(err, fs.ErrNotExist) {
+			return "", err
+		}
 	}
-	if err := s.BackupTo(ctx, tmp); err != nil {
+	defer func() { _ = os.Remove(raw) }()
+	if err := s.BackupTo(ctx, raw); err != nil {
 		return "", fmt.Errorf("nightly backup: %w", err)
 	}
-	if err := os.Rename(tmp, dst); err != nil {
+	if err := gzipFile(raw, gz); err != nil {
+		_ = os.Remove(gz)
+		return "", fmt.Errorf("nightly backup: compress: %w", err)
+	}
+	if err := os.Rename(gz, dst); err != nil {
 		return "", fmt.Errorf("nightly backup: %w", err)
 	}
 	entries, err := os.ReadDir(dir) // sorted by name, so by date
 	if err != nil {
 		return "", err
 	}
+	// Copies from before 0.13.14 are plain .db files; they count toward keep and age out the same way.
 	var copies []string
 	for _, e := range entries {
-		if n := e.Name(); e.Type().IsRegular() && strings.HasPrefix(n, nightlyPrefix) && strings.HasSuffix(n, ".db") {
+		n := e.Name()
+		if e.Type().IsRegular() && strings.HasPrefix(n, nightlyPrefix) && (strings.HasSuffix(n, ".db") || strings.HasSuffix(n, ".db.gz")) {
 			copies = append(copies, n)
 		}
 	}
@@ -236,6 +249,32 @@ func (s *Store) NightlyBackup(ctx context.Context, now time.Time, keep int) (str
 		copies = copies[1:]
 	}
 	return dst, nil
+}
+
+// gzipFile writes src compressed to dst and syncs it, so a crash never leaves a short copy under the final name.
+func gzipFile(src, dst string) (err error) {
+	in, err := os.Open(src) //nolint:gosec // src is the backup's temp file in the data dir
+	if err != nil {
+		return err
+	}
+	defer func() { _ = in.Close() }()
+	out, err := os.OpenFile(dst, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0o600) //nolint:gosec // dst is in the data dir
+	if err != nil {
+		return err
+	}
+	defer func() {
+		if cerr := out.Close(); err == nil {
+			err = cerr
+		}
+	}()
+	z := gzip.NewWriter(out)
+	if _, err := io.Copy(z, in); err != nil {
+		return err
+	}
+	if err := z.Close(); err != nil {
+		return err
+	}
+	return out.Sync()
 }
 
 // restore replaces the live database with backup. Pools are reopened afterwards.

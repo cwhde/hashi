@@ -40,7 +40,7 @@ Ports: 8080 admin and API, 8081 public app dashboard, 8082 public status page (`
 
 ## 3. Backups
 
-Hashi writes a consistent copy of its database every night to `data/backups/hashi-<date>.db` and keeps the newest 14.
+Hashi writes a consistent copy of its database every night to `data/backups/hashi-<date>.db.gz` (compressed) and keeps the newest 14.
 Activity → Jobs shows the last run (`backup.nightly`) and any failure. Copies made before an upgrade
 (`pre-migrate-v<n>-…`) and before a key rotation (`pre-rotate-v<n>-…`) stay until you delete them.
 
@@ -58,10 +58,11 @@ You need: one copy from `data/backups/`, and either the master key or the recove
    mkdir -p data && chown 65532:65532 data && chmod 700 data
    : > master.key && chown 65532:65532 master.key && chmod 600 master.key
    : > cap.env && printf 'HASHI_TAG=<version>\n' > .env
-   cp hashi-<date>.db data/hashi.db && chown 65532:65532 data/hashi.db && chmod 600 data/hashi.db
+   gunzip -c hashi-<date>.db.gz > data/hashi.db && chown 65532:65532 data/hashi.db && chmod 600 data/hashi.db
    ```
 
-   A copy from an older Hashi version is fine: the server upgrades it on its first start.
+   A copy from before 0.13.14 is a plain `hashi-<date>.db`: copy it with `cp` instead. A copy from an older Hashi
+   version is fine: the server upgrades it on its first start.
 
 2. The master key:
    - **You have it:** write it into `master.key`.
