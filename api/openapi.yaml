@@ -4419,8 +4419,9 @@ components:
               status: { type: boolean }
     PublicAssets:
       type: object
-      required: [source, background, slots]
+      required: [title, source, background, slots]
       properties:
+        title: { type: string, description: "Both public pages' title; empty: the root domain (07 §8.1)" }
         source: { type: string, description: "Base address of the owner's asset folder; empty when none" }
         background: { type: boolean, description: "Show the background image on the public pages" }
         slots: { type: array, items: { $ref: "#/components/schemas/PublicAssetSlot" }, description: "Filled slots only" }
@@ -4428,6 +4429,7 @@ components:
       type: object
       required: [source, background]
       properties:
+        title: { type: string, maxLength: 60, description: "Empty or left out: the root domain" }
         source: { type: string }
         background: { type: boolean }
     PublicAssetSlot:

@@ -4585,12 +4585,18 @@ type PublicAssets struct {
 
 	// Source Base address of the owner's asset folder; empty when none
 	Source string `json:"source"`
+
+	// Title Both public pages' title; empty: the root domain (07 §8.1)
+	Title string `json:"title"`
 }
 
 // PublicAssetsSettings defines model for PublicAssetsSettings.
 type PublicAssetsSettings struct {
 	Background bool   `json:"background"`
 	Source     string `json:"source"`
+
+	// Title Empty or left out: the root domain
+	Title *string `json:"title,omitempty"`
 }
 
 // PublicDay defines model for PublicDay.

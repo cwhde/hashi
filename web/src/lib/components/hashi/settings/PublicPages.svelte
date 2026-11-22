@@ -24,7 +24,8 @@
 	let links = $state<Schemas['PublicPages'] | null>(null);
 	// The public pages' icon, logos and background (07 §9, bug 30).
 	let assets = $state<Schemas['PublicAssets'] | null>(null);
-	let look = $state<Schemas['PublicAssetsSettings']>({ source: '', background: false });
+	let look = $state<Schemas['PublicAssetsSettings']>({ title: '', source: '', background: false });
+	let domain = $state('');
 	let pending = $state<Partial<Record<SlotName, Pending>>>({});
 	const files = new SvelteMap<SlotName, File>();
 	let error = $state('');
@@ -33,6 +34,7 @@
 	guardUnsaved(() => draft.dirty);
 	onMount(async () => {
 		void api.GET('/api/app-display/pages').then((r) => (links = r.data ?? null));
+		void api.GET('/api/settings/general').then((r) => (domain = r.data?.root_domain ?? ''));
 		const [a, b, f] = await Promise.all([
 			theme.load(), // shared with the layout's read as the page loads
 			api.GET('/api/settings/dashboard'),
@@ -43,7 +45,7 @@
 			return;
 		}
 		assets = f.data;
-		look = { source: f.data.source, background: f.data.background };
+		look = { title: f.data.title, source: f.data.source, background: f.data.background };
 		pages = { dashboard: a.data.public_dashboard_enabled, status: a.data.public_status_enabled };
 		d = b.data;
 		draft.mark();
@@ -52,9 +54,12 @@
 	async function saveAssets() {
 		// The source and background switch save with the first request: a file refused later says so.
 		const lookChanged =
-			!!assets && (look.source.trim() !== assets.source || look.background !== assets.background);
+			!!assets &&
+			((look.title ?? '').trim() !== assets.title ||
+				look.source.trim() !== assets.source ||
+				look.background !== assets.background);
 		const r = await api.PUT('/api/public-assets', {
-			body: { ...look, source: look.source.trim() }
+			body: { ...look, title: (look.title ?? '').trim(), source: look.source.trim() }
 		});
 		if (!r.data) throw r.error;
 		assets = r.data;
@@ -83,7 +88,7 @@
 			pending = next;
 			files.delete(slot);
 		}
-		look = { source: assets.source, background: assets.background };
+		look = { title: assets.title, source: assets.source, background: assets.background };
 	}
 	const base64 = (f: File) =>
 		new Promise<string>((done, fail) => {
@@ -176,7 +181,7 @@
 	</Panel>
 	{#if assets}
 		<Panel title="Look">
-			<AssetSlots bind:look bind:pending saved={assets} {files} />
+			<AssetSlots bind:look bind:pending saved={assets} {files} {domain} />
 		</Panel>
 	{/if}
 	<SaveBar {saver} dirty={draft.dirty} onsave={save} />

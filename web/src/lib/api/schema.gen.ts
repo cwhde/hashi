@@ -4496,6 +4496,8 @@ export interface components {
             }[];
         };
         PublicAssets: {
+            /** @description Both public pages' title; empty: the root domain (07 §8.1) */
+            title: string;
             /** @description Base address of the owner's asset folder; empty when none */
             source: string;
             /** @description Show the background image on the public pages */
@@ -4504,6 +4506,8 @@ export interface components {
             slots: components["schemas"]["PublicAssetSlot"][];
         };
         PublicAssetsSettings: {
+            /** @description Empty or left out: the root domain */
+            title?: string;
             source: string;
             background: boolean;
         };

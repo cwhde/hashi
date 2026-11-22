@@ -1,6 +1,7 @@
 package httpapi
 
 import (
+	"cmp"
 	"context"
 	"database/sql"
 	"encoding/json"
@@ -417,7 +418,7 @@ func (s *Server) publicLook(ctx context.Context) (string, gen.AppearanceSettings
 	if err != nil {
 		return "", gen.AppearanceSettings{}, nil, err
 	}
-	return g.RootDomain, appearanceBody(a), pageAssets(pa), nil
+	return cmp.Or(pa.Title, g.RootDomain), appearanceBody(a), pageAssets(pa), nil
 }
 
 func nonZero(t time.Time) *time.Time {

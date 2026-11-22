@@ -6,6 +6,8 @@ import (
 	"slices"
 	"strings"
 	"time"
+	"unicode"
+	"unicode/utf8"
 
 	"git.juzo.io/juzo/hashi/internal/clientip"
 )
@@ -78,6 +80,7 @@ type Dashboard struct {
 // PublicAssets: the public pages' icon, logos and background (07 §9). Source is the owner's asset folder (empty: none);
 // Slots says what each slot holds, its file lives in <data>/assets. Background shows only when switched on.
 type PublicAssets struct {
+	Title      string               `json:"title"` // both pages' title; empty: the root domain (07 §8.1)
 	Source     string               `json:"source"`
 	Background bool                 `json:"background"`
 	Slots      map[string]AssetSlot `json:"slots"`
@@ -560,6 +563,9 @@ func (d Dashboard) Validate() error {
 
 // Validate checks PublicAssets.
 func (a PublicAssets) Validate() error {
+	if utf8.RuneCountInString(a.Title) > 60 || strings.ContainsFunc(a.Title, unicode.IsControl) {
+		return invalid("the title has at most 60 characters on one line")
+	}
 	if a.Source != "" {
 		u, err := url.Parse(a.Source)
 		if err != nil || (u.Scheme != "https" && u.Scheme != "http") || u.Host == "" || u.RawQuery != "" || u.Fragment != "" {

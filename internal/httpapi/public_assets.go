@@ -18,7 +18,7 @@ import (
 func assetURL(slot string, etag string) string { return "/assets/" + slot + "?v=" + etag }
 
 func publicAssetsBody(a settings.PublicAssets) gen.PublicAssets {
-	out := gen.PublicAssets{Source: a.Source, Background: a.Background, Slots: []gen.PublicAssetSlot{}}
+	out := gen.PublicAssets{Title: a.Title, Source: a.Source, Background: a.Background, Slots: []gen.PublicAssetSlot{}}
 	for _, slot := range assets.Slots {
 		v, ok := a.Slots[string(slot)]
 		if !ok {
@@ -62,6 +62,9 @@ func (s *Server) PutPublicAssets(ctx context.Context, req gen.PutPublicAssetsReq
 	var out settings.PublicAssets
 	err := s.updateAssets(ctx, func(a *settings.PublicAssets) error {
 		a.Source, a.Background = req.Body.Source, req.Body.Background
+		if req.Body.Title != nil {
+			a.Title = strings.TrimSpace(*req.Body.Title)
+		}
 		out = *a
 		return nil
 	})
@@ -251,10 +254,14 @@ func (s *Server) PublicTitle(r *http.Request, page string) (title string, missin
 	if err != nil {
 		return "", false
 	}
-	if page != "status" {
-		return "Apps · " + g.RootDomain, false
+	name := g.RootDomain
+	if pa, err := settings.Get[settings.PublicAssets](ctx, s.Store.R); err == nil && pa.Title != "" {
+		name = pa.Title
 	}
-	title = "Status · " + g.RootDomain
+	if page != "status" {
+		return "Apps · " + name, false
+	}
+	title = "Status · " + name
 	slug, ok := strings.CutPrefix(r.URL.Path, "/s/")
 	if !ok || s.Monitor == nil {
 		return title, false

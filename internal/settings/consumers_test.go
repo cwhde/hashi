@@ -100,6 +100,7 @@ var consumerTests = map[string]string{
 	"status_page.order":  "internal/monitor/layout_test.go::TestLayoutSeedsFromOldGroups",
 	"status_page.hidden": "internal/monitor/layout_test.go::TestLayoutSeedsFromOldGroups",
 
+	"public_assets.title":      "internal/app/public_test.go::TestPublicPageTitleSetting",
 	"public_assets.source":     "internal/httpapi/public_assets_test.go::TestPublicAssetsFromTheSource",
 	"public_assets.background": "internal/httpapi/public_assets_test.go::TestPublicPagesNameTheirAssets",
 	"public_assets.slots":      "internal/httpapi/public_assets_test.go::TestPublicPagesNameTheirAssets",

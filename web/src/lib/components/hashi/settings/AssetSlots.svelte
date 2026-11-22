@@ -25,11 +25,14 @@
 
 	let {
 		look = $bindable(),
+		domain = '',
 		saved,
 		pending = $bindable(),
 		files
 	}: {
 		look: Schemas['PublicAssetsSettings'];
+		/** The root domain: the title when none is set. */
+		domain?: string;
 		saved: Schemas['PublicAssets'];
 		pending: Partial<Record<SlotName, Pending>>;
 		files: Map<SlotName, File>;
@@ -111,6 +114,10 @@
 </script>
 
 <div class="space-y-4">
+	<label class="block space-y-1.5 text-md">
+		<span class="font-medium">Title</span>
+		<Input bind:value={look.title} maxlength={60} placeholder={domain} />
+	</label>
 	<label class="block space-y-1.5 text-md">
 		<span class="font-medium">Asset source</span>
 		<Input bind:value={look.source} placeholder="https://static.example.com/" />

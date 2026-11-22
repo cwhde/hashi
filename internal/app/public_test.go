@@ -12,6 +12,7 @@ import (
 
 	"git.juzo.io/juzo/hashi/internal/assets"
 	"git.juzo.io/juzo/hashi/internal/httpapi"
+	"git.juzo.io/juzo/hashi/internal/httpapi/gen"
 	"git.juzo.io/juzo/hashi/internal/monitor"
 	"git.juzo.io/juzo/hashi/internal/pulse"
 	"git.juzo.io/juzo/hashi/internal/settings"
@@ -232,5 +233,38 @@ func TestStatusListenerServesServicePagesAndBadges(t *testing.T) {
 		if r := get(status, p); r.Code != 404 {
 			t.Errorf("Status off %s: %d, want 404", p, r.Code)
 		}
+	}
+}
+
+// The pages' title (07 §8.1, bug 173): set in Settings → Public pages, it replaces the root domain in both pages' own
+// title and in their tab titles; empty is the domain.
+func TestPublicPageTitleSetting(t *testing.T) {
+	st := storetest.New(t)
+	ctx := context.Background()
+	if err := settings.Put(ctx, st.Q, settings.General{RootDomain: "example.com", AdminDomain: "hashi.example.com",
+		InternalURL: "http://192.0.2.10:3340", SyncIntervalSeconds: 3600}); err != nil {
+		t.Fatal(err)
+	}
+	api := &httpapi.Server{Store: st, Monitor: monitor.New(st, func(context.Context) error { return nil }, nil, nil),
+		Log: slog.New(slog.DiscardHandler)}
+	tab := func() string {
+		got, _ := api.PublicTitle(httptest.NewRequest(http.MethodGet, "/", nil), "apps")
+		return got
+	}
+	own := func() string {
+		r, err := api.GetPublicApps(ctx, gen.GetPublicAppsRequestObject{})
+		if err != nil {
+			t.Fatal(err)
+		}
+		return r.(gen.GetPublicApps200JSONResponse).Title
+	}
+	if tab() != "Apps · example.com" || own() != "example.com" {
+		t.Fatalf("without a title: %q, %q", tab(), own())
+	}
+	if err := settings.Put(ctx, st.Q, settings.PublicAssets{Title: "Juzo's lab"}); err != nil {
+		t.Fatal(err)
+	}
+	if tab() != "Apps · Juzo's lab" || own() != "Juzo's lab" {
+		t.Fatalf("with a title: %q, %q", tab(), own())
 	}
 }
