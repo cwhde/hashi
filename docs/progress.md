@@ -35,7 +35,31 @@ first, structure before text, search after the settings regroup.
 | 13.10 | UI copy pass with unslop-ui | none (the owner, 2026-11-20) | Talk the skill through with the owner (https://github.com/felipebasurto/unslop-ui: an agent skill that cuts AI tells from UI copy and charts, optional visual rules); decide together whether and how to run it (install or follow by hand, which pages, with or without its visual rules, a taste file from 10c); run it as decided; the owner accepts the result |
 | 13.11 | Speed and the last bugs | 150, 151, 152, 153 | Lighthouse and request timings measured before and after; the slow admin requests faster on a copy of prod data; no open bug left |
 
-Next: bug 161, then the public pages work decided 2026-11-21 (spec, approved mocks, drag-library ADR, build). No deploy
+**13.12 Public pages** (decided 2026-11-21; spec `docs(spec)` 07cc4cf6, mocks approved by the owner 2026-11-22
+(e699bba5), ADR 0004). Gate on prod, after the full hunt: the owner arranges the layout by dragging in the outline and in
+the preview; both public pages follow it; a service page and its badges are served; a down day explains itself on hover.
+PR A, layout and public data:
+- [ ] Migration: `public_groups`, `public_entries`, layout `version`; filled from endpoint groups, the status page's
+  category order and hidden list, `dashboard_visible`, DNS `dashboard` and endpoint `public` (07 §7 Storage). The
+  entry table becomes the only truth for what the public pages show; the old switches write to it.
+- [ ] Reconcile: every service, DNS entry with a public address and other endpoint is in the layout exactly once; new
+  ones join the end of "Other", removed ones leave. Endpoint Group field moves the entry.
+- [ ] `GET`/`PUT /api/public-layout` with `version` (409 when stale), impossible switches refused, one audit event per save.
+- [ ] `/api/public/status` and `/api/public/apps` in layout order with groups; day and minute details (downtimes, slow
+  spells, uptime, response); `/api/public/status/{slug}` with the three chart series; `/badge/{slug}/{kind}.svg`
+  (fixed look of §7.3, width table, CSP, 404 rules); the status listener serves `/s/{slug}`.
+- [ ] Tests of 07 §10 for the layout, the public APIs and the badges.
+PR B, pages:
+- [ ] `web/src/lib/sortable.ts` from the mock, with unit tests of the move rules (ADR 0004).
+- [ ] Admin `/public-pages` replaces `/app-display` (old address redirects): outline, preview, live drag, selection
+  bar, Undo, phone sheet; a row's icon opens the icon picker (bug 149, kept from App display). Gear → Settings →
+  Public pages, which loses "Group the list" and the hidden categories.
+- [ ] Public status page, service page (hover strip, three charts, Badges panel) and apps page as the mocks.
+- [ ] Admin Status page groups by the layout's groups in its order.
+- [ ] e2e: drag with mouse and with touch (hold, swipe), keyboard Alt+arrows, both public pages and a service page at
+  390 and 1440 px, badge SVG served.
+
+Next: 13.12 Public pages (above). No deploy
 before the full hunt (the owner, 2026-11-22): UI skills (unslop-ui and the like), a performance test of the whole app off
 prod, heavy linting and cross-file safety analysis for Go and Svelte, then the Codex pass (bugs and visuals); only then
 release and deploy. Then a last bug sweep, then `v1.0.0`. With 1.0, a better README (the owner, 2026-11-19): what Hashi
