@@ -154,11 +154,12 @@ entry switched off answers 404.
 
 - Head: icon, name, group, the state (§7.0), and one **Badges** button (§7.3).
 - Tiles, each a label over a value: the state as the label with how long as the value ("Up for" / "14 h", "Down for" /
-  "6 min"; "No data yet" before the first check), then "Uptime 24 h", "Uptime 7 d", "Uptime 30 d" and "Response 24 h"
+  "6 min"; "No data" before the first check), then "Uptime 24 h", "Uptime 7 d", "Uptime 30 d" and "Response 24 h"
   (the average).
 - 90-day bar with its dates and the bar details of §7.1.
 - Three charts side by side (stacked on a phone), one 24 h / 7 d / 30 d switch for all: **Response time** (average),
-  **Slowest responses** (p95), **Availability**. Pointing at a chart shows that moment's time and value beside the
+  **Slowest responses** (p95), **Availability**. The range is in the address (`?range=7d`; 24 h leaves none), so a
+  shared link or a reload shows the same one. Pointing at a chart shows that moment's time and value beside the
   pointer, as the admin endpoint page's charts do (`LineChart` with labels); the three share the pointer (10b).
 - Recent downtimes: the last 10 within 90 days, start, end and length; none: "No downtime in the last 90 days."
 - Back link to the status page. `GET /api/public/status/<slug>` (cached 15 s), the same public fields only.
