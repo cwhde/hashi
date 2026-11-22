@@ -353,5 +353,6 @@ func ParseTakeover(s string) (Takeover, error) {
 	if s == "" {
 		return t, nil
 	}
-	return t, json.Unmarshal([]byte(s), &t)
+	err := json.Unmarshal([]byte(s), &t)
+	return t, err
 }

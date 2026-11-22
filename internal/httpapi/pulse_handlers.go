@@ -238,7 +238,8 @@ func (s *Server) PreviewAgentDNS(ctx context.Context, req gen.PreviewAgentDNSReq
 		return nil, err
 	}
 	var out gen.PreviewAgentDNS200JSONResponse
-	return out, json.Unmarshal(raw, &out)
+	err = json.Unmarshal(raw, &out)
+	return out, err
 }
 
 func agentNames(names []pulse.AgentName) []map[string]any {
@@ -387,5 +388,6 @@ func (s *Server) GetIPSetSources(ctx context.Context, req gen.GetIPSetSourcesReq
 		return nil, err
 	}
 	var out gen.GetIPSetSources200JSONResponse
-	return out, json.Unmarshal(b, &out)
+	err = json.Unmarshal(b, &out)
+	return out, err
 }

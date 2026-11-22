@@ -204,7 +204,8 @@ func optionsMap(v any) (map[string]any, error) {
 		return nil, err
 	}
 	var m map[string]any
-	return m, json.Unmarshal(b, &m)
+	err = json.Unmarshal(b, &m)
+	return m, err
 }
 
 func ceremonyError(err error) error {

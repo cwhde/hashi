@@ -117,13 +117,15 @@ func (c Client) do(ctx context.Context, method, path string, body, out any) erro
 // Status reads the instance's version and state; it also proves the credentials.
 func (c Client) Status(ctx context.Context) (Status, error) {
 	var s Status
-	return s, c.do(ctx, http.MethodGet, "status", nil, &s)
+	err := c.do(ctx, http.MethodGet, "status", nil, &s)
+	return s, err
 }
 
 // List returns every rewrite, manual ones and duplicates included.
 func (c Client) List(ctx context.Context) ([]Rewrite, error) {
 	var l []Rewrite
-	return l, c.do(ctx, http.MethodGet, "rewrite/list", nil, &l)
+	err := c.do(ctx, http.MethodGet, "rewrite/list", nil, &l)
+	return l, err
 }
 
 // Add creates a rewrite. AdGuard does not refuse an exact duplicate: the caller compares with List first.
