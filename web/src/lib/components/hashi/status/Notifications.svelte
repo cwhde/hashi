@@ -19,7 +19,7 @@
 	let route = $state<Schemas['NotificationRoute']>({
 		min_severity: 'down',
 		cooldown_seconds: 600,
-		group_seconds: 15,
+		group_seconds: 30,
 		recovery: true
 	});
 	let error = $state('');

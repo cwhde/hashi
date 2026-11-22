@@ -22,8 +22,8 @@ func TestNotificationRouteGrouping(t *testing.T) {
 		}
 		return *r.(gen.GetNotificationRoute200JSONResponse).GroupSeconds
 	}
-	if g := group(); g != 15 {
-		t.Fatalf("default %d, want 15", g)
+	if g := group(); g != 30 {
+		t.Fatalf("default %d, want 30", g)
 	}
 	put := func(g *int64) error {
 		_, err := s.PutNotificationRoute(ctx, gen.PutNotificationRouteRequestObject{Body: &gen.NotificationRoute{
