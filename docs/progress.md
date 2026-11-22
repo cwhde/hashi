@@ -114,7 +114,11 @@ all of them.
   6 ms; the endpoint list's last-hour strips 18 ms (4,305 samples through the time index). Found: Activity → Jobs kept
   every run forever (278,000 rows in 25 days, about 8,000 a day): each job now prunes its own history after a run,
   7 days and always its newest 30 (spec 01 §4.3).
-- [ ] Heavy linting and cross-file safety analysis, Go and Svelte.
+- [x] Heavy linting and cross-file safety analysis, Go and Svelte (2026-11-22). golangci-lint with 40 linters on top of
+  the usual set, semgrep's Go, gosec, JavaScript, TypeScript, secrets, OWASP and XSS rules, govulncheck, pnpm audit, a
+  search for raw HTML and data-built links. One fix: six functions returned a value and, in the same statement, called
+  what fills it, an order Go doesn't promise. Everything else was already reviewed (marked in the code) or harmless.
+  Then `make check`, `make test-e2e` and the adguard and firewall integration tests green on `bc9eb820`.
 - [ ] Codex pass on the new parts (bugs and visuals), `bug-hunt/ROUND2.md` with `CODEX-BRIEF.md`'s safety rules.
 - [ ] Fix every finding.
 - [ ] Release and deploy (the owner's OK), then the 13.12 gate on prod with the owner; confirm bug 161's lookup timeouts
