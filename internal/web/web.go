@@ -69,10 +69,14 @@ func publicHandler(root fs.FS, page string, icon func(*http.Request) string) htt
 		html := string(index)
 		// The icon is named in the HTML, not only by the page's script, so whatever reads the page without running it
 		// (the app dashboard's icon finder, bug 160) finds the owner's icon, or Hashi's mark without one.
+		// Without one the mark is the tab icon too, or the browser asks for /favicon.ico first: a 404 in every visitor's
+		// console. The page's script then draws the mark in the theme's accent (bug 159).
 		if u := icon(r); u != "" {
 			u = htmlpkg.EscapeString(u)
 			meta += `<link rel="icon" href="` + u + `"><link rel="apple-touch-icon" href="` + u + `">`
 			html = markLink.ReplaceAllString(html, "")
+		} else {
+			meta += `<link rel="icon" href="/` + markFile + `">`
 		}
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
 		w.Header().Set("Cache-Control", "no-cache")

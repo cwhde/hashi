@@ -85,6 +85,11 @@ func TestPublicPageNamesItsIcon(t *testing.T) {
 	if r := get(plain, "/"); !strings.Contains(r.Body.String(), `href="/apple-touch-icon.png"`) {
 		t.Fatalf("without an icon: %s", r.Body)
 	}
+	// Named as the tab icon too: a page without one makes the browser ask for /favicon.ico, a 404 here and an error
+	// in every visitor's console (Lighthouse, 2026-11-22). The page's script then draws the mark in the theme's accent.
+	if r := get(plain, "/"); !strings.Contains(r.Body.String(), `<link rel="icon" href="/apple-touch-icon.png">`) {
+		t.Errorf("no tab icon without an uploaded one: %s", r.Body)
+	}
 	own := publicHandler(root, "apps", func(*http.Request) string { return "/assets/icon?v=ab12" })
 	body := get(own, "/").Body.String()
 	for _, want := range []string{`<link rel="icon" href="/assets/icon?v=ab12">`, `<link rel="apple-touch-icon" href="/assets/icon?v=ab12">`} {
