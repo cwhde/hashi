@@ -277,7 +277,7 @@ export class LayoutState implements DragHost {
 		let n = 1;
 		while (this.groups.some((g) => g.name.toLowerCase() === `new group ${n}`)) n++;
 		const key = `new-${++this.fresh}`;
-		this.change(`Group New group ${n} added`, () => {
+		this.change(`New group ${n} added`, () => {
 			this.groups.splice(this.groups.length - 1, 0, { key, name: `New group ${n}`, ids: [] });
 		});
 		return key;

@@ -126,7 +126,7 @@ export function sinceTile(state: string, since: string, now = Date.now()): [stri
 		paused: 'Paused for'
 	};
 	const w = words[state];
-	if (!w) return ['State', 'No data yet'];
+	if (!w) return ['State', 'No data'];
 	return [w, duration(now - Date.parse(since))];
 }
 

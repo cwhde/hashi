@@ -104,7 +104,7 @@ test('since and worst', () => {
 	expect(sinceTile('down', at('13:36'), now)).toEqual(['Down for', '6 min']);
 	expect(sinceTile('degraded', at('13:30'), now)).toEqual(['Slow for', '12 min']);
 	expect(sinceTile('up', at('00:01'), now)).toEqual(['Up for', '13 h 41 min']);
-	expect(sinceTile('unknown', at('13:30'), now)).toEqual(['State', 'No data yet']);
+	expect(sinceTile('unknown', at('13:30'), now)).toEqual(['State', 'No data']);
 	expect(worst(['up', 'degraded', 'up'])).toBe('degraded');
 	expect(worst(['up', 'down', 'degraded'])).toBe('down');
 	expect(worst([])).toBe('unknown');

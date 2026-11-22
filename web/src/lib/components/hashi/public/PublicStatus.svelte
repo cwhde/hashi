@@ -116,7 +116,7 @@
 		</div>
 	{/if}
 	{#if data && all.length === 0}
-		<p class="mt-6 text-md text-muted-foreground">Nothing is listed here yet.</p>
+		<p class="mt-6 text-md text-muted-foreground">Nothing is listed here.</p>
 	{/if}
 
 	{#if data && data.groups.length > 1}

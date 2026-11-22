@@ -96,7 +96,7 @@
 		</div>
 	{/if}
 	{#if data && total === 0}
-		<p class="text-md text-muted-foreground">No apps are listed here yet.</p>
+		<p class="text-md text-muted-foreground">No apps are listed here.</p>
 	{:else if data && groups.length === 0}
 		<p class="text-md text-muted-foreground">No app matches “{query.trim()}”.</p>
 	{/if}

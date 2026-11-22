@@ -183,7 +183,7 @@
 				</div>
 			{:else}
 				<p class="rounded-2xl border bg-card px-4 py-3 text-md text-muted-foreground">
-					No checks in this range yet.
+					No checks in this range.
 				</p>
 			{/if}
 		</section>
