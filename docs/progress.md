@@ -96,6 +96,12 @@ all of them.
   - Lighthouse locally (no compression here): accessibility and best practices 100 on all three public pages; desktop
     98–99, phone 74–78. Re-measure on prod after the deploy, where Traefik compresses.
 - [ ] UI skills on the whole app (unslop-ui and the like).
+  - [x] baseline-ui (ibelick) counted over the app: nothing to change (gradients are shadcn's scroll fades, spinners
+    only while busy, the sidebar's 150 ms width change is user-started and off under reduced motion, every `$effect`
+    loads or resets rather than computes).
+  - [x] axe, WCAG 2.2 AA, on all 29 admin pages and Settings categories at 1440 and 390 px: two unnamed dropdowns on
+    Status, seven labels that named no dropdown (found by search, inside sheets): fixed, now clean, no overflow.
+  - [ ] fixing-metadata, fixing-motion-performance (ibelick), Impeccable's audit, Vercel's web-design-guidelines.
 - [ ] Performance test of the whole app on a copy of prod data.
 - [ ] Heavy linting and cross-file safety analysis, Go and Svelte.
 - [ ] Codex pass on the new parts (bugs and visuals), `bug-hunt/ROUND2.md` with `CODEX-BRIEF.md`'s safety rules.
