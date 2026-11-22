@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"net/http"
+	"slices"
 	"strings"
 	"time"
 
@@ -241,6 +242,29 @@ func (s *Server) PublicIconURL(r *http.Request) string {
 		return assetURL(string(assets.Icon), v.ETag)
 	}
 	return ""
+}
+
+// PublicTheme is the theme a public page starts with, before its data arrives (bug 178): a built-in's id and mode, or
+// a custom theme's mode, canvas and text. Empty when the setting can't be read; the page then starts as before.
+func (s *Server) PublicTheme(r *http.Request) (theme, mode, canvas, text string) {
+	a, err := settings.Get[settings.Appearance](r.Context(), s.Store.R)
+	if err != nil {
+		return "", "", "", ""
+	}
+	if a.Theme == "custom" && a.CustomTheme != nil {
+		mode = "dark"
+		if a.CustomTheme.Light() {
+			mode = "light"
+		}
+		return "custom", mode, a.CustomTheme.Canvas, a.CustomTheme.Text
+	}
+	if a.Theme == "linen" {
+		return "linen", "light", "", ""
+	}
+	if slices.Contains(settings.Themes, a.Theme) {
+		return a.Theme, "dark", "", ""
+	}
+	return "", "", "", ""
 }
 
 // PublicTitle is a public page's title as the page's script sets it: "Status · example.com", "Apps · example.com",

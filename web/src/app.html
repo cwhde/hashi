@@ -11,7 +11,8 @@
 			(function () {
 				try {
 					var r = document.documentElement;
-					var t = localStorage.getItem('hashi.theme');
+					// A public page arrives with the owner's theme in its tag (bug 178): this browser's stored one may be old.
+					var t = r.hasAttribute('data-public-theme') ? null : localStorage.getItem('hashi.theme');
 					var modes = { graphite: 'dark', linen: 'light', verdant: 'dark', violet: 'dark' };
 					if (t && modes[t]) {
 						r.dataset.theme = t;

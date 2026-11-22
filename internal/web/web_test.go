@@ -132,3 +132,25 @@ func TestMissingServicePageIs404(t *testing.T) {
 		t.Fatalf("%d %s", rec.Code, rec.Body)
 	}
 }
+
+// The configured theme is in the page from the first paint (10-ui §4, bug 178): a new visitor saw Graphite until the
+// page's data arrived. A custom theme brings its canvas and text, the rest follows with the data.
+func TestPublicPageCarriesItsTheme(t *testing.T) {
+	root := fstest.MapFS{"index.html": {Data: []byte(`<!doctype html><html lang="en" data-theme="graphite" data-mode="dark"><head><meta charset="utf-8" /></head></html>`)}}
+	for _, c := range []struct {
+		head Head
+		want string
+	}{
+		{Head{Theme: "linen", Mode: "light"}, `<html lang="en" data-theme="linen" data-mode="light" data-public-theme>`},
+		{Head{Theme: "custom", Mode: "light", Canvas: "#fafafa", Text: `#111111"><script>`},
+			`<html lang="en" data-theme="custom" data-mode="light" data-public-theme style="--h-canvas: #fafafa; --h-text: #111111&#34;&gt;&lt;script&gt;; color-scheme: light">`},
+		{Head{}, `<html lang="en" data-theme="graphite" data-mode="dark">`},
+	} {
+		h := publicHandler(root, "status", func(*http.Request) Head { return c.head })
+		rec := httptest.NewRecorder()
+		h.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/", nil))
+		if !strings.Contains(rec.Body.String(), c.want) {
+			t.Errorf("%+v: %s", c.head, rec.Body)
+		}
+	}
+}

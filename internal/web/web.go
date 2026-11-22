@@ -29,6 +29,21 @@ type Head struct {
 	// Missing: a service page for no entry shown on the status page. It answers 404 (07 §7.2) and is still drawn, so
 	// the visitor reads why.
 	Missing bool
+	// The configured theme (10-ui §4, bug 178), in the page from the first paint: a built-in's id and mode, or
+	// "custom" with its mode, canvas and text. Empty: the shell's own default and the browser's stored theme.
+	Theme, Mode, Canvas, Text string
+}
+
+var htmlTag = regexp.MustCompile(`<html[^>]*>`)
+
+// themed is the opening <html> tag with the page's theme; data-public-theme tells the shell's script to keep it.
+func themed(hd Head) string {
+	esc := htmlpkg.EscapeString
+	tag := `<html lang="en" data-theme="` + esc(hd.Theme) + `" data-mode="` + esc(hd.Mode) + `" data-public-theme`
+	if hd.Theme == "custom" {
+		tag += ` style="--h-canvas: ` + esc(hd.Canvas) + `; --h-text: ` + esc(hd.Text) + `; color-scheme: ` + esc(hd.Mode) + `"`
+	}
+	return tag + ">"
 }
 
 //go:embed all:dist
@@ -106,6 +121,9 @@ func publicHandler(root fs.FS, page string, head func(*http.Request) Head) http.
 			html = html[:at[1]] + meta + html[at[1]:]
 		} else {
 			html = strings.Replace(html, "<head>", "<head>"+meta, 1)
+		}
+		if at := htmlTag.FindStringIndex(html); hd.Theme != "" && at != nil {
+			html = html[:at[0]] + themed(hd) + html[at[1]:]
 		}
 		if hd.Missing {
 			w.WriteHeader(http.StatusNotFound)

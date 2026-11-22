@@ -268,3 +268,25 @@ func TestPublicPageTitleSetting(t *testing.T) {
 		t.Fatalf("with a title: %q, %q", tab(), own())
 	}
 }
+
+// The public pages start in the configured theme (bug 178); a custom one brings its mode, canvas and text.
+func TestPublicPageStartsInItsTheme(t *testing.T) {
+	st := storetest.New(t)
+	ctx := context.Background()
+	api := &httpapi.Server{Store: st, Log: slog.New(slog.DiscardHandler)}
+	req := httptest.NewRequest(http.MethodGet, "/", nil)
+	if err := settings.Put(ctx, st.Q, settings.Appearance{Theme: "linen", PublicDashboardEnabled: true, PublicStatusEnabled: true}); err != nil {
+		t.Fatal(err)
+	}
+	if th, mode, _, _ := api.PublicTheme(req); th != "linen" || mode != "light" {
+		t.Fatalf("linen: %q %q", th, mode)
+	}
+	custom := &settings.CustomTheme{Canvas: "#f8f8f8", Surface: "#ffffff", Text: "#111111", Muted: "#555555", Border: "#cccccc",
+		Accent: "#2255aa", Roundness: "default"}
+	if err := settings.Put(ctx, st.Q, settings.Appearance{Theme: "custom", CustomTheme: custom, PublicDashboardEnabled: true, PublicStatusEnabled: true}); err != nil {
+		t.Fatal(err)
+	}
+	if th, mode, canvas, text := api.PublicTheme(req); th != "custom" || mode != "light" || canvas != "#f8f8f8" || text != "#111111" {
+		t.Fatalf("custom: %q %q %q %q", th, mode, canvas, text)
+	}
+}

@@ -3,11 +3,24 @@
 	import { cn } from '#lib/utils.ts';
 	import { health } from './status';
 
-	let { state, class: className = '' }: { state: Health; class?: string } = $props();
+	// `label` names the dot in other words (the public pages' "Slow", "No data"); '' hides it from screen readers where
+	// the state is already written beside it (bug 176).
+	let {
+		state,
+		label,
+		class: className = ''
+	}: { state: Health; label?: string; class?: string } = $props();
 </script>
 
-<span
-	class={cn('inline-block size-2 shrink-0 rounded-full', health[state].dot, className)}
-	role="img"
-	aria-label={health[state].label}
-></span>
+{#if label === ''}
+	<span
+		class={cn('inline-block size-2 shrink-0 rounded-full', health[state].dot, className)}
+		aria-hidden="true"
+	></span>
+{:else}
+	<span
+		class={cn('inline-block size-2 shrink-0 rounded-full', health[state].dot, className)}
+		role="img"
+		aria-label={label ?? health[state].label}
+	></span>
+{/if}

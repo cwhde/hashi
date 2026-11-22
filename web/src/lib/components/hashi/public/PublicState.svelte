@@ -18,5 +18,5 @@
 		cls
 	)}
 >
-	{stateWord(state)}<StatusDot state={h} />
+	{stateWord(state)}<StatusDot state={h} label="" />
 </span>

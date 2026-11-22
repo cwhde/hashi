@@ -17,7 +17,15 @@
 	import { api, type Schemas } from '#lib/api/client.ts';
 	import type { Health } from '#lib/design/mock.ts';
 	import { publicSummary, uptimeText } from '#lib/monitor.ts';
-	import { dayDetail, minuteDetail, minuteHealth, minuteUptime, when, worst } from '#lib/public.ts';
+	import {
+		dayDetail,
+		minuteDetail,
+		minuteHealth,
+		minuteUptime,
+		stateWord,
+		when,
+		worst
+	} from '#lib/public.ts';
 	import { theme } from '#lib/theme.svelte.ts';
 
 	type Entry = Schemas['PublicStatusEntry'];
@@ -155,7 +163,10 @@
 							: ''}"
 				>
 					<span class="flex items-center justify-between gap-2 text-md font-medium"
-						><span class="truncate">{g.name}</span><StatusDot state={w} /></span
+						><span class="truncate">{g.name}</span><StatusDot
+							state={w}
+							label={stateWord(w)}
+						/></span
 					>
 					<span class="tnum mt-0.5 block text-sm text-muted-foreground"
 						>{up(g.entries)} of {g.entries.length} up</span
@@ -198,7 +209,10 @@
 				<span class="tnum text-sm text-muted-foreground"
 					>{up(g.entries)} of {g.entries.length} up</span
 				>
-				<StatusDot state={worst(g.entries.map((e) => e.state))} />
+				<StatusDot
+					state={worst(g.entries.map((e) => e.state))}
+					label={stateWord(worst(g.entries.map((e) => e.state)))}
+				/>
 			</button>
 			<!-- Folding animates the height through the grid row (0fr ↔ 1fr), so no row is measured and any length folds
 			     smoothly; folded rows are inert, out of the tab order and hidden from screen readers. -->

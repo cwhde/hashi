@@ -17,8 +17,6 @@ All open entries are planned into the 0.13 bug round (slices 13.1 onwards in `do
 
 | # | Kind | Status | Where | What | Reported |
 | --- | --- | --- | --- | --- | --- |
-| 176 | visual | reproduced | Public pages | Screen readers hear the state twice in two words: "Slow Degraded", "No data Unknown", "Down Down": the dot keeps its admin name next to the visitor word. | Codex round 3, 2026-11-22 |
-| 178 | visual | reproduced | Public pages | A first-time visitor sees Graphite until the page's data arrives, then the configured theme (Warm Linen): a dark flash before the light page. | Codex round 3, 2026-11-22 |
 | 179 | visual | reproduced | Badges | Names in Japanese or other wide scripts overflow the badge: the label runs into the state value, and a long name past the badge's edge. Width is estimated per letter for Latin text only. | Codex round 3, 2026-11-22 |
 
 ## Details
