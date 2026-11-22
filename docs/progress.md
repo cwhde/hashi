@@ -95,14 +95,25 @@ all of them.
   - Look: the four themes at 390 and 1440 px, no overflow, no contrast failure; the status heading's double gap.
   - Lighthouse locally (no compression here): accessibility and best practices 100 on all three public pages; desktop
     98–99, phone 74–78. Re-measure on prod after the deploy, where Traefik compresses.
-- [ ] UI skills on the whole app (unslop-ui and the like).
+- [x] UI skills on the whole app (unslop-ui and the like).
   - [x] baseline-ui (ibelick) counted over the app: nothing to change (gradients are shadcn's scroll fades, spinners
     only while busy, the sidebar's 150 ms width change is user-started and off under reduced motion, every `$effect`
     loads or resets rather than computes).
   - [x] axe, WCAG 2.2 AA, on all 29 admin pages and Settings categories at 1440 and 390 px: two unnamed dropdowns on
     Status, seven labels that named no dropdown (found by search, inside sheets): fixed, now clean, no overflow.
-  - [ ] fixing-metadata, fixing-motion-performance (ibelick), Impeccable's audit, Vercel's web-design-guidelines.
-- [ ] Performance test of the whole app on a copy of prod data.
+  - [x] unslop-ui by hand with `.unslop-ui/taste.md`: three empty states said "yet", a tile said "—" for no data,
+    the new-group announcement didn't name the group. Fixed.
+  - [x] fixing-metadata, fixing-motion-performance (ibelick), Impeccable's audit (by hand, no detector script), Vercel's
+    web-design-guidelines. Fixed: the public pages' tab title and link preview name the page ("Status · domain",
+    a service's name first); pages left in a background tab polled the server around the clock (now paused while
+    hidden, once on return); under reduced motion spinners and loading placeholders flickered (they now run once);
+    the service page's range and the status page's Last hour view are kept in the address, so a shared link opens
+    the same view.
+- [x] Performance test of the whole app on a copy of prod data (2026-11-22). Query plans for all 387 queries: three
+  full reads, all fine (the audit list's count, the IP set renderer by design, a 23 ms startup step). Admin reads under
+  6 ms; the endpoint list's last-hour strips 18 ms (4,305 samples through the time index). Found: Activity → Jobs kept
+  every run forever (278,000 rows in 25 days, about 8,000 a day): each job now prunes its own history after a run,
+  7 days and always its newest 30 (spec 01 §4.3).
 - [ ] Heavy linting and cross-file safety analysis, Go and Svelte.
 - [ ] Codex pass on the new parts (bugs and visuals), `bug-hunt/ROUND2.md` with `CODEX-BRIEF.md`'s safety rules.
 - [ ] Fix every finding.
