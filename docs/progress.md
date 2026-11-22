@@ -74,11 +74,22 @@ PR B, the editor:
   `make test-e2e` (2 passed) green on 2026-11-22; the contrast sweep found hidden outline rows too faint (3.42), now a
   dashed border with muted text instead of 60 % opacity.
 
-Next: 13.12 Public pages (above). No deploy
-before the full hunt (the owner, 2026-11-22): UI skills (unslop-ui and the like), a performance test of the whole app off
-prod, heavy linting and cross-file safety analysis for Go and Svelte, then the Codex pass (bugs and visuals); only then
-release and deploy. Then a last bug sweep, then `v1.0.0`. With 1.0, a better README (the owner, 2026-11-19): what Hashi
-is, screenshots, how to install and run it, what it needs.
+13.12 merged 2026-11-22 (PRs #75, #76, CI green). Not released: no deploy before the full hunt (the owner, 2026-11-22).
+
+**Full hunt** (before the next release). Findings are reproduced before they go into `bugs.md`, and this round fixes
+all of them.
+- [x] Hand checks written into 10c §8 (copy, Lighthouse, requests, speed on real data, accessibility, look).
+- [ ] 10c §8 on the new parts (Public pages editor, public status, service page, apps page, badges).
+- [ ] UI skills on the whole app (unslop-ui and the like).
+- [ ] Performance test of the whole app on a copy of prod data.
+- [ ] Heavy linting and cross-file safety analysis, Go and Svelte.
+- [ ] Codex pass on the new parts (bugs and visuals), `bug-hunt/ROUND2.md` with `CODEX-BRIEF.md`'s safety rules.
+- [ ] Fix every finding.
+- [ ] Release and deploy (the owner's OK), then the 13.12 gate on prod with the owner; confirm bug 161's lookup timeouts
+  are gone from Docker's DNS log.
+
+Then a last bug sweep, the owner's walk, `v1.0.0`. With 1.0, a better README (the owner, 2026-11-19): what Hashi is,
+screenshots, how to install and run it, what it needs.
 
 **13.11 speed and the last bugs** (2026-11-21, the owner: "easy wins and the medium ones, plus all bugs"). Measured
 first with Lighthouse 12.8.2 (apps page mobile 91 / desktop 99, status page 83 / 100) and against a copy of today's prod
