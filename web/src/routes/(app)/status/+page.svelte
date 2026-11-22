@@ -112,14 +112,14 @@
 			/>
 		</div>
 		<Select.Root type="single" bind:value={groupBy}>
-			<Select.Trigger class="w-44">{groupNames[groupBy]}</Select.Trigger>
+			<Select.Trigger class="w-44" aria-label="Group by">{groupNames[groupBy]}</Select.Trigger>
 			<Select.Content>
 				{#each Object.entries(groupNames) as [v, l] (v)}<Select.Item value={v}>{l}</Select.Item
 					>{/each}
 			</Select.Content>
 		</Select.Root>
 		<Select.Root type="single" bind:value={sortBy}>
-			<Select.Trigger class="w-44">{sortNames[sortBy]}</Select.Trigger>
+			<Select.Trigger class="w-44" aria-label="Sort by">{sortNames[sortBy]}</Select.Trigger>
 			<Select.Content>
 				{#each Object.entries(sortNames) as [v, l] (v)}<Select.Item value={v}>{l}</Select.Item
 					>{/each}

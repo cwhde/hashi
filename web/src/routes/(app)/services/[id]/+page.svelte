@@ -381,9 +381,9 @@
 							/>
 						</div>
 						<div class="space-y-1.5">
-							<Label>Minimum TLS version for visitors</Label>
+							<Label for="svc-tls-min">Minimum TLS version for visitors</Label>
 							<Select.Root type="single" bind:value={edit.tls_min_version}>
-								<Select.Trigger class="w-full"
+								<Select.Trigger id="svc-tls-min" class="w-full"
 									>{edit.tls_min_version === 'VersionTLS13'
 										? 'TLS 1.3'
 										: edit.tls_min_version === 'VersionTLS12'

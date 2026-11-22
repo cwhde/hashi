@@ -25,6 +25,8 @@
 		usedAsTarget?: boolean;
 		lockType?: boolean;
 	} = $props();
+	// Each label names its dropdown; the editor can be on a page twice, so the ids are this instance's own.
+	const uid = $props.id();
 	onMount(() => void Promise.all([pulseAgents.load(), firewallHosts.load()]));
 	const hosts = $derived(firewallHosts.list);
 	type T = ItemType;
@@ -96,9 +98,9 @@
 	{:else if form.type === 'pulse'}
 		<div class="grid gap-3 sm:grid-cols-2">
 			<div class="space-y-1.5">
-				<Label>Pulse agent</Label>
+				<Label for="{uid}-agent">Pulse agent</Label>
 				<Select.Root type="single" bind:value={form.agentId}>
-					<Select.Trigger class="w-full"
+					<Select.Trigger id="{uid}-agent" class="w-full"
 						>{pulseAgents.list.find((a) => a.id === form.agentId)?.name ??
 							'Choose an agent'}</Select.Trigger
 					>
@@ -109,9 +111,10 @@
 				</Select.Root>
 			</div>
 			<div class="space-y-1.5">
-				<Label>Which addresses</Label>
+				<Label for="{uid}-scope">Which addresses</Label>
 				<Select.Root type="single" bind:value={form.scope}>
-					<Select.Trigger class="w-full">{scopes.find((s) => s.v === form.scope)?.l}</Select.Trigger
+					<Select.Trigger id="{uid}-scope" class="w-full"
+						>{scopes.find((s) => s.v === form.scope)?.l}</Select.Trigger
 					>
 					<Select.Content>
 						{#each scopes as s (s.v)}<Select.Item value={s.v}>{s.l}</Select.Item>{/each}
@@ -128,9 +131,9 @@
 	{:else if form.type === 'host'}
 		<div class="grid gap-3 sm:grid-cols-2">
 			<div class="space-y-1.5">
-				<Label>Firewall or edge host</Label>
+				<Label for="{uid}-host">Firewall or edge host</Label>
 				<Select.Root type="single" bind:value={form.hostId}>
-					<Select.Trigger class="w-full"
+					<Select.Trigger id="{uid}-host" class="w-full"
 						>{hosts.find((h) => h.id === form.hostId)?.name ?? 'Choose a host'}</Select.Trigger
 					>
 					<Select.Content>
@@ -139,9 +142,10 @@
 				</Select.Root>
 			</div>
 			<div class="space-y-1.5">
-				<Label>Which addresses</Label>
+				<Label for="{uid}-scope">Which addresses</Label>
 				<Select.Root type="single" bind:value={form.scope}>
-					<Select.Trigger class="w-full">{scopes.find((s) => s.v === form.scope)?.l}</Select.Trigger
+					<Select.Trigger id="{uid}-scope" class="w-full"
+						>{scopes.find((s) => s.v === form.scope)?.l}</Select.Trigger
 					>
 					<Select.Content>
 						{#each scopes as s (s.v)}<Select.Item value={s.v}>{s.l}</Select.Item>{/each}
@@ -152,9 +156,9 @@
 	{:else if form.type === 'geo'}
 		<div class="grid gap-3 sm:grid-cols-[10rem_1fr]">
 			<div class="space-y-1.5">
-				<Label>Kind</Label>
+				<Label for="{uid}-kind">Kind</Label>
 				<Select.Root type="single" bind:value={form.geoKind}>
-					<Select.Trigger class="w-full"
+					<Select.Trigger id="{uid}-kind" class="w-full"
 						>{form.geoKind === 'asn' ? 'Network (AS number)' : 'Country'}</Select.Trigger
 					>
 					<Select.Content>
