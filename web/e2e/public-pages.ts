@@ -211,4 +211,18 @@ export async function publicPagesSeen(page: Page, appsURL: string, statusURL: st
 	expect(badge.status()).toBe(200);
 	expect(badge.headers()['content-type']).toBe('image/svg+xml');
 	expect(await badge.text()).toContain('<svg');
+	// Reduced motion: a looping animation runs once and stays still. At 0.01 ms and looping, spinners and loading
+	// placeholders jumped to a new frame on every repaint.
+	await page.emulateMedia({ reducedMotion: 'reduce' });
+	const loops = await page.evaluate(() =>
+		['animate-spin', 'animate-pulse'].map((c) => {
+			const el = document.body.appendChild(document.createElement('div'));
+			el.className = c;
+			const n = getComputedStyle(el).animationIterationCount;
+			el.remove();
+			return n;
+		})
+	);
+	expect(loops).toEqual(['1', '1']);
+	await page.emulateMedia({ reducedMotion: null });
 }

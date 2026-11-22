@@ -235,6 +235,9 @@
 	*::before,
 	*::after {
 		animation-duration: 0.01ms !important;
+		/* One run: a looping animation (spinner, loading placeholder) at 0.01 ms jumped to a new frame every repaint,
+		   a flicker worse than the motion (measured 2026-11-22). It now ends and stays still. */
+		animation-iteration-count: 1 !important;
 		transition-duration: 0.01ms !important;
 	}
 }
