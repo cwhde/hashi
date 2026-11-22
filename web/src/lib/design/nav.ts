@@ -42,7 +42,7 @@ export const nav = [
 		group: 'Watch',
 		items: [
 			{ label: 'Status', href: '/design/status', icon: Activity },
-			{ label: 'App display', href: '/design/app-display', icon: AppWindow }
+			{ label: 'Public pages', href: '/design/public-pages', icon: AppWindow }
 		]
 	},
 	{
@@ -72,7 +72,7 @@ const built = new Set([
 	'/ip-sets',
 	'/rule-sets',
 	'/status',
-	'/app-display',
+	'/public-pages',
 	'/activity',
 	'/connections',
 	'/pulse',

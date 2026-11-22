@@ -1,5 +1,5 @@
-// Fake data for the 13.x idea mocks (layout editor, public status groups, service detail, badges). Not approved mocks:
-// rough sketches to choose a direction from, removed once one is picked.
+// Fake data for the approved public pages mocks (07 §7–§8.1, 2026-11-22): layout editor, status page, service page,
+// badges, apps page.
 import type { Health } from '#lib/design/mock.ts';
 import { spark } from '#lib/design/mock.ts';
 
@@ -26,7 +26,7 @@ function strip(seed: number, n: number, down: number[] = [], slow: number[] = []
 			? 'down'
 			: slow.includes(i)
 				? 'degraded'
-				: (seed * (i + 7)) % 89 === 0
+				: (seed * 31 + i * 17) % 97 === 0
 					? 'degraded'
 					: 'up'
 	);
@@ -81,7 +81,12 @@ export const entries: Entry[] = raw.map(([name, group, kind, apps, status, check
 			s === 'down' ? [54, 55, 56, 57, 58, 59] : [],
 			s === 'degraded' ? [40, 41, 47, 52] : []
 		),
-		days: strip(i + 5, 90, i % 6 === 0 ? [61] : [], i % 4 === 0 ? [12, 77] : []),
+		days: strip(
+			i + 5,
+			90,
+			[...(i % 6 === 0 ? [61] : []), ...(s === 'down' ? [89] : [])],
+			[...(i % 4 === 0 ? [12, 77] : []), ...(s === 'degraded' ? [89] : [])]
+		),
 		letter: name[0]!,
 		hue: (i * 47) % 360
 	};
@@ -101,6 +106,9 @@ export function grouped(list: Entry[], order = groupOrder) {
 	return out.filter((g) => g.items.length);
 }
 
+/** The service page's address part (07 §7.2): the service's slug, else made from the name. */
+export const slug = (name: string) => name.toLowerCase().replace(/[^a-z0-9]+/g, '-');
+
 export const worst = (list: Entry[]): Health =>
 	list.some((e) => e.state === 'down')
 		? 'down'
@@ -115,6 +123,60 @@ export const downtimes = [
 	{ start: '19 Nov 09:23', end: '09:25', length: '2 min' },
 	{ start: '12 Nov 03:10', end: '03:41', length: '31 min' }
 ];
+
+const two = (v: number) => String(v).padStart(2, '0');
+const clock = (min: number) => `${two(Math.floor(min / 60) % 24)}:${two(min % 60)}`;
+
+/** What one bar of the 90-day strip says on hover (07 §7.2): the day, then the downtime or slow spell with its times. */
+export function dayDetail(e: Entry, i: number) {
+	const n = e.days.length;
+	const date = new Date(Date.UTC(2026, 10, 22 - (n - 1 - i)));
+	const when =
+		i === n - 1
+			? 'Today'
+			: date.toLocaleDateString('en-GB', {
+					weekday: 'short',
+					day: 'numeric',
+					month: 'short',
+					timeZone: 'UTC'
+				});
+	const seed = Number(e.id.slice(1)) * 7 + i * 13;
+	const start = (seed * 37) % 1380;
+	const state = e.days[i];
+	if (state === 'down') {
+		if (i === n - 1) return { when, text: 'Down since 13:36', extra: '6 min so far' };
+		const len = 1 + (seed % 31);
+		return {
+			when,
+			text: `Down ${clock(start)}–${clock(start + len)} (${len} min)`,
+			extra: `Uptime ${(100 - len / 14.4).toFixed(2)}%`
+		};
+	}
+	if (state === 'degraded') {
+		if (i === n - 1) return { when, text: 'Slow since 13:30', extra: 'Answers take about 2 s' };
+		const len = 5 + (seed % 40);
+		return {
+			when,
+			text: `Slow for ${len} min, ${clock(start)}–${clock(start + len)}`,
+			extra: 'Uptime 100%'
+		};
+	}
+	if (state === 'unknown') return { when, text: 'No data' };
+	return { when, text: 'No downtime', extra: 'Uptime 100%' };
+}
+
+/** The same for the last hour, one bar per minute. */
+export function minuteDetail(e: Entry, i: number) {
+	const n = e.history.length;
+	const when = i === n - 1 ? 'Now' : clock(13 * 60 + 42 - (n - 1 - i));
+	const state = e.history[i];
+	const ms = e.ms + ((i * 29) % 40);
+	if (state === 'down') return { when, text: 'Down', extra: 'No answer within 10 s' };
+	if (state === 'degraded')
+		return { when, text: 'Slow', extra: `${(1800 + i * 23).toLocaleString('en-GB')} ms` };
+	if (state === 'unknown') return { when, text: 'No data' };
+	return { when, text: 'Up', extra: `${ms} ms` };
+}
 
 /** Badges Hashi could serve, Gatus/Uptime Kuma style. */
 export const badges = [

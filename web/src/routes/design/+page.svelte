@@ -17,7 +17,7 @@
 		'/design/pulse': 'Agents table, install drawer',
 		'/design/status':
 			'Grouped endpoint cards with history strips, notifications · detail with charts',
-		'/design/app-display': 'What the public dashboard and status page show',
+		'/design/public-pages': 'One layout for both public pages: outline and preview, live drag',
 		'/design/security':
 			'Dashboard, counters (filter, edit, reset), challenge, sign-in providers, engine settings',
 		'/design/ip-sets':
