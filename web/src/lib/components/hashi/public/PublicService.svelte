@@ -15,7 +15,7 @@
 	import { api, type Schemas } from '#lib/api/client.ts';
 	import type { Health } from '#lib/design/mock.ts';
 	import { uptimeText } from '#lib/monitor.ts';
-	import { dayDetail, downtimeRow, sinceText } from '#lib/public.ts';
+	import { dayDetail, downtimeRow, sinceTile } from '#lib/public.ts';
 	import { theme } from '#lib/theme.svelte.ts';
 	import { ChartSync } from '#lib/chart-sync.svelte.ts';
 
@@ -70,11 +70,11 @@
 	const tiles = $derived(
 		e && data
 			? [
-					['Current state', sinceText(e.state, e.since, now)],
-					['24 hours', uptimeText(e.uptime_24h)],
-					['7 days', uptimeText(data.uptime_7d)],
-					['30 days', uptimeText(data.uptime_30d)],
-					['Response, 24 h', data.avg_ms_24h === undefined ? 'no data' : `${data.avg_ms_24h} ms`]
+					sinceTile(e.state, e.since, now),
+					['Uptime 24 h', uptimeText(e.uptime_24h)],
+					['Uptime 7 d', uptimeText(data.uptime_7d)],
+					['Uptime 30 d', uptimeText(data.uptime_30d)],
+					['Response 24 h', data.avg_ms_24h === undefined ? 'no data' : `${data.avg_ms_24h} ms`]
 				]
 			: []
 	);

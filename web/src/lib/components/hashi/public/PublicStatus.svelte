@@ -8,7 +8,7 @@
 	import { ChevronDown } from '@lucide/svelte';
 	import AppIcon from '#lib/components/hashi/AppIcon.svelte';
 	import DayStrip from '#lib/components/hashi/DayStrip.svelte';
-	import StatusBadge from '#lib/components/hashi/StatusBadge.svelte';
+	import { health } from '#lib/components/hashi/status.ts';
 	import StatusDot from '#lib/components/hashi/StatusDot.svelte';
 	import PublicHeader from './PublicHeader.svelte';
 	import { api, type Schemas } from '#lib/api/client.ts';
@@ -83,6 +83,7 @@
 		warn: 'border-warn/30 bg-warn/10 text-warn-text',
 		bad: 'border-bad/30 bg-bad/10 text-bad-text'
 	};
+	const stateWord: Record<string, string> = { down: 'Down', degraded: 'Slow', paused: 'Paused' };
 	const up = (list: Entry[]) => list.filter((e) => e.state === 'up').length;
 	const days = (e: Entry) => e.days.map((d) => d.state as Health);
 </script>
@@ -181,10 +182,7 @@
 				<span class="tnum text-sm text-muted-foreground"
 					>{up(g.entries)} of {g.entries.length} up</span
 				>
-				<!-- The group's dot sits in the rows' state column, so every dot on the page lines up. -->
-				<span class="flex w-[5.5rem] shrink-0 pl-px"
-					><StatusDot state={worst(g.entries.map((e) => e.state))} /></span
-				>
+				<StatusDot state={worst(g.entries.map((e) => e.state))} />
 			</button>
 			<!-- Folding animates the height through the grid row (0fr ↔ 1fr), so no row is measured and any length folds
 			     smoothly; folded rows are inert, out of the tab order and hidden from screen readers. -->
@@ -201,7 +199,7 @@
 							<li>
 								<a
 									href="/s/{e.slug}"
-									class="grid grid-cols-[minmax(0,1fr)_5.5rem] items-center gap-x-3 gap-y-1.5 px-4 py-2 hover:bg-surface-2/60 sm:grid-cols-[11rem_minmax(0,1fr)_4.5rem_5.5rem]"
+									class="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-3 gap-y-1.5 px-4 py-2 hover:bg-surface-2/60 sm:grid-cols-[11rem_minmax(0,1fr)_4.5rem_4.5rem]"
 								>
 									<span class="flex min-w-0 items-center gap-2 text-md font-medium">
 										<AppIcon
@@ -216,7 +214,18 @@
 												>DNS updating</span
 											>{/if}
 									</span>
-									<span class="sm:order-last"><StatusBadge state={e.state} /></span>
+									<!-- The dot ends the row, on the same right edge as the group's dot; a word only when
+									     something is wrong, so trouble never rests on colour alone. -->
+									<span
+										class="flex items-center justify-end gap-1.5 text-md font-medium sm:order-last {health[
+											e.state
+										].text}"
+									>
+										{#if e.state === 'up'}<span class="sr-only">Up</span>{:else}<span
+												>{stateWord[e.state] ?? 'No data'}</span
+											>{/if}
+										<StatusDot state={e.state} />
+									</span>
 									{#if span === 'days'}
 										<DayStrip
 											samples={days(e)}

@@ -92,17 +92,17 @@ export function minuteDetail(minutes: Minute[], i: number, slots = 60): Detail {
 	};
 }
 
-/** The service page's "Current state" tile: "Up for 14 h", "Down for 6 min", "Slow for 12 min". */
-export function sinceText(state: string, since: string, now = Date.now()): string {
+/** The service page's first tile: the state as the label, how long as the value ("Up for" / "17 h 41 min"). */
+export function sinceTile(state: string, since: string, now = Date.now()): [string, string] {
 	const words: Record<string, string> = {
-		up: 'Up',
-		down: 'Down',
-		degraded: 'Slow',
-		paused: 'Paused'
+		up: 'Up for',
+		down: 'Down for',
+		degraded: 'Slow for',
+		paused: 'Paused for'
 	};
 	const w = words[state];
-	if (!w) return 'No data yet';
-	return `${w} for ${duration(now - Date.parse(since))}`;
+	if (!w) return ['State', 'No data yet'];
+	return [w, duration(now - Date.parse(since))];
 }
 
 const rank: Record<string, number> = { down: 0, degraded: 1, unknown: 2, paused: 3, up: 4 };

@@ -38,19 +38,15 @@
 		})
 	);
 	const pct = (v: number) => `${v.toFixed(v === 100 ? 0 : 2)}%`;
-	const now = $derived(
-		e.state === 'down'
-			? 'Down for 6 min'
-			: e.state === 'degraded'
-				? 'Slow for 12 min'
-				: 'Up for 14 h'
+	const since = $derived(
+		e.state === 'down' ? 'Down for' : e.state === 'degraded' ? 'Slow for' : 'Up for'
 	);
 	const tiles = $derived([
-		['Now', now],
-		['24 hours', `${e.uptime.h24}%`],
-		['7 days', `${e.uptime.d7}%`],
-		['30 days', `${e.uptime.d30.toFixed(2)}%`],
-		['Response, 24 h', `${e.ms} ms`]
+		[since, e.state === 'down' ? '6 min' : e.state === 'degraded' ? '12 min' : '14 h'],
+		['Uptime 24 h', `${e.uptime.h24}%`],
+		['Uptime 7 d', `${e.uptime.d7}%`],
+		['Uptime 30 d', `${e.uptime.d30.toFixed(2)}%`],
+		['Response 24 h', `${e.ms} ms`]
 	]);
 </script>
 

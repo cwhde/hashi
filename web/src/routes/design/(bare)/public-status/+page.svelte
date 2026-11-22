@@ -5,7 +5,7 @@
 	// Public fields only: no targets, ports, protocols, codes or error text.
 	import AppIcon from '#lib/components/hashi/AppIcon.svelte';
 	import DayStrip from '#lib/components/hashi/DayStrip.svelte';
-	import StatusBadge from '#lib/components/hashi/StatusBadge.svelte';
+	import { health } from '#lib/components/hashi/status.ts';
 	import StatusDot from '#lib/components/hashi/StatusDot.svelte';
 	import * as ToggleGroup from '#lib/components/ui/toggle-group/index.ts';
 	import { ChevronDown } from '@lucide/svelte';
@@ -16,6 +16,7 @@
 	const down = pub.filter((e) => e.state === 'down');
 	const slow = pub.filter((e) => e.state === 'degraded');
 	let span = $state('days');
+	const stateWord: Record<string, string> = { down: 'Down', degraded: 'Slow', paused: 'Paused' };
 	// A group with trouble starts open; the rest as the visitor left them (open the first time).
 	let open = $state<Record<string, boolean>>({});
 	const isOpen = (name: string) => open[name] ?? true;
@@ -96,13 +97,22 @@
 						<li>
 							<a
 								href="/design/public-status/s/{slug(e.name)}"
-								class="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-3 gap-y-1.5 px-4 py-2 hover:bg-surface-2/60 sm:grid-cols-[11rem_minmax(0,1fr)_4.5rem_5.5rem]"
+								class="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-3 gap-y-1.5 px-4 py-2 hover:bg-surface-2/60 sm:grid-cols-[11rem_minmax(0,1fr)_4.5rem_4.5rem]"
 							>
 								<span class="flex min-w-0 items-center gap-2 text-md font-medium">
 									<AppIcon name={e.name} class="size-6 rounded-md text-xs" />
 									<span class="truncate">{e.name}</span>
 								</span>
-								<span class="sm:order-last sm:text-right"><StatusBadge state={e.state} /></span>
+								<span
+									class="flex items-center justify-end gap-1.5 text-md font-medium sm:order-last {health[
+										e.state
+									].text}"
+								>
+									{#if e.state === 'up'}<span class="sr-only">Up</span>{:else}<span
+											>{stateWord[e.state] ?? 'No data'}</span
+										>{/if}
+									<StatusDot state={e.state} />
+								</span>
 								<DayStrip
 									samples={span === 'days' ? e.days : e.history}
 									detail={(i) => (span === 'days' ? dayDetail(e, i) : minuteDetail(e, i))}
