@@ -160,13 +160,5 @@ func (s *Service) retain(ctx context.Context) (int64, error) {
 			}
 		}
 	}
-	// The check job runs every few seconds; its run history is only useful for a while.
-	for _, kind := range []string{JobChecks, JobRollup, "notify.deliver"} {
-		n, err := s.st.Q.DeleteOldJobRuns(ctx, db.DeleteOldJobRunsParams{Kind: kind, StartedAt: now.Add(-7 * 24 * time.Hour).UnixMilli()})
-		if err != nil {
-			return removed, err
-		}
-		removed += n
-	}
 	return removed, nil
 }

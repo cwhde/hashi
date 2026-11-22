@@ -87,6 +87,23 @@ func (q *Queries) InterruptRunningJobRuns(ctx context.Context, finishedAt sql.Nu
 	return result.RowsAffected()
 }
 
+const jobRunBatchEnd = `-- name: JobRunBatchEnd :one
+SELECT started_at FROM job_runs WHERE kind = ? AND started_at < ? ORDER BY started_at LIMIT 1 OFFSET 499
+`
+
+type JobRunBatchEndParams struct {
+	Kind      string
+	StartedAt int64
+}
+
+// Where a batch of 5,000 of a kind's runs before the cutoff ends (01 §4.3); no row when fewer are left.
+func (q *Queries) JobRunBatchEnd(ctx context.Context, arg JobRunBatchEndParams) (int64, error) {
+	row := q.db.QueryRowContext(ctx, jobRunBatchEnd, arg.Kind, arg.StartedAt)
+	var started_at int64
+	err := row.Scan(&started_at)
+	return started_at, err
+}
+
 const listJobsWithLastRun = `-- name: ListJobsWithLastRun :many
 SELECT j.kind, j.interval_seconds, j.enabled, j.next_run_at,
        r.id AS run_id, r.started_at, r.finished_at, r.status, r.duration_ms, r.summary, r.error
@@ -173,6 +190,18 @@ type StartJobRunParams struct {
 func (q *Queries) StartJobRun(ctx context.Context, arg StartJobRunParams) error {
 	_, err := q.db.ExecContext(ctx, startJobRun, arg.ID, arg.Kind, arg.StartedAt)
 	return err
+}
+
+const thirtiethJobRunStart = `-- name: ThirtiethJobRunStart :one
+SELECT started_at FROM job_runs WHERE kind = ? ORDER BY started_at DESC LIMIT 1 OFFSET 29
+`
+
+// When a kind's 30th newest run started; no row while it has fewer.
+func (q *Queries) ThirtiethJobRunStart(ctx context.Context, kind string) (int64, error) {
+	row := q.db.QueryRowContext(ctx, thirtiethJobRunStart, kind)
+	var started_at int64
+	err := row.Scan(&started_at)
+	return started_at, err
 }
 
 const upsertJob = `-- name: UpsertJob :exec

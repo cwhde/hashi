@@ -3,6 +3,7 @@ package jobs
 import (
 	"context"
 	"errors"
+	"fmt"
 	"io"
 	"log/slog"
 	"path/filepath"
@@ -160,5 +161,40 @@ func TestLockedVaultPausesJobsThatNeedSecrets(t *testing.T) {
 	runFor(t, r, 200*time.Millisecond)
 	if needs.Load() != 1 || free.Load() != 1 {
 		t.Fatalf("after unlock: needs=%d free=%d", needs.Load(), free.Load())
+	}
+}
+
+// Seven kinds kept every run forever (prod, 2026-11-22: 278,438 rows after 25 days, about 8,000 more a day). After a
+// run its kind keeps 7 days of history and at least its newest 30 runs, so a daily job still shows a month.
+func TestRunsPruneTheirOwnHistory(t *testing.T) {
+	r, s := newRunner(t)
+	ctx := context.Background()
+	old := time.Now().Add(-10 * 24 * time.Hour)
+	seed := func(kind string, n int) {
+		for i := range n {
+			must(t, s.Q.StartJobRun(ctx, db.StartJobRunParams{ID: fmt.Sprintf("%s-%03d", kind, i), Kind: kind,
+				StartedAt: old.Add(time.Duration(i) * time.Minute).UnixMilli()}))
+		}
+	}
+	noop := func(context.Context) (string, error) { return "", nil }
+	must(t, r.Register(ctx, Job{Kind: "busy", Interval: time.Hour, Run: noop}))
+	must(t, r.Register(ctx, Job{Kind: "rare", Interval: time.Hour, Run: noop}))
+	seed("busy", 50)
+	seed("rare", 10)
+	runFor(t, r, 300*time.Millisecond)
+	count := func(kind string) (n int) {
+		must(t, s.Reader.QueryRowContext(ctx, `SELECT count(*) FROM job_runs WHERE kind = ?`, kind).Scan(&n))
+		return n
+	}
+	if n := count("busy"); n != 30 {
+		t.Errorf("busy kept %d runs, want its newest 30", n)
+	}
+	var first int64
+	must(t, s.Reader.QueryRowContext(ctx, `SELECT min(started_at) FROM job_runs WHERE kind = 'busy'`).Scan(&first))
+	if want := old.Add(21 * time.Minute).UnixMilli(); first != want {
+		t.Errorf("oldest run kept started at %d, want %d (the 29 newest old runs and the new one)", first, want)
+	}
+	if n := count("rare"); n != 11 {
+		t.Errorf("rare kept %d runs, want all 11 (fewer than 30)", n)
 	}
 }

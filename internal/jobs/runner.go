@@ -5,6 +5,7 @@ import (
 	"context"
 	"crypto/rand"
 	"database/sql"
+	"errors"
 	"fmt"
 	"log/slog"
 	"sync"
@@ -167,12 +168,43 @@ func (r *Runner) runOnce(ctx context.Context, j Job) {
 	}); err != nil {
 		r.log.Error("record run finish", "job", j.Kind, "err", err)
 	}
+	r.prune(bg, j.Kind, end)
 	lvl := slog.LevelInfo
 	if runErr != nil {
 		lvl = slog.LevelError
 	}
 	r.log.Log(bg, lvl, "job finished", "job", j.Kind, "run_id", id, "status", status,
 		"duration_ms", end.Sub(start).Milliseconds(), "summary", summary, "err", errText)
+}
+
+// History is how long a kind keeps its runs; a kind always keeps its newest Keep runs, so a daily job shows a month.
+const (
+	History = 7 * 24 * time.Hour
+	Keep    = 30
+)
+
+// prune drops the kind's runs older than History beyond its newest Keep, at most 5,000 per run (01 §4.3): a backlog
+// clears over a few runs. Without it a kind that runs every 30 s kept every run forever.
+func (r *Runner) prune(ctx context.Context, kind string, now time.Time) {
+	cutoff := now.Add(-History).UnixMilli()
+	nth, err := r.q.ThirtiethJobRunStart(ctx, kind)
+	if errors.Is(err, sql.ErrNoRows) {
+		return // fewer than Keep runs
+	}
+	if err != nil {
+		r.log.Error("prune job runs", "job", kind, "err", err)
+		return
+	}
+	end, err := r.q.JobRunBatchEnd(ctx, db.JobRunBatchEndParams{Kind: kind, StartedAt: min(cutoff, nth)})
+	if errors.Is(err, sql.ErrNoRows) {
+		end = min(cutoff, nth)
+	} else if err != nil {
+		r.log.Error("prune job runs", "job", kind, "err", err)
+		return
+	}
+	if _, err := r.q.DeleteOldJobRuns(ctx, db.DeleteOldJobRunsParams{Kind: kind, StartedAt: end}); err != nil {
+		r.log.Error("prune job runs", "job", kind, "err", err)
+	}
 }
 
 // safeRun turns a panicking job into a failed run instead of a dead process.

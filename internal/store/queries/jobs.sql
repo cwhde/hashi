@@ -34,3 +34,11 @@ LEFT JOIN job_runs r ON r.id = (
     SELECT id FROM job_runs WHERE kind = j.kind ORDER BY started_at DESC, id DESC LIMIT 1
 )
 ORDER BY j.kind;
+
+-- name: ThirtiethJobRunStart :one
+-- When a kind's 30th newest run started; no row while it has fewer.
+SELECT started_at FROM job_runs WHERE kind = ? ORDER BY started_at DESC LIMIT 1 OFFSET 29;
+
+-- name: JobRunBatchEnd :one
+-- Where a batch of 5,000 of a kind's runs before the cutoff ends (01 §4.3); no row when fewer are left.
+SELECT started_at FROM job_runs WHERE kind = ? AND started_at < ? ORDER BY started_at LIMIT 1 OFFSET 4999;

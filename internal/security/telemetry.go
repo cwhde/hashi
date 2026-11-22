@@ -134,14 +134,6 @@ func (t *Telemetry) Retain(ctx context.Context) (int64, error) {
 			return removed, err
 		}
 	}
-	// These jobs run every few minutes; their run history is only useful for a while.
-	for _, kind := range []string{TelemetryJobKind, SweepJobKind} {
-		n, err := t.st.Q.DeleteOldJobRuns(ctx, db.DeleteOldJobRunsParams{Kind: kind, StartedAt: now.Add(-7 * 24 * time.Hour).UnixMilli()})
-		if err != nil {
-			return removed, err
-		}
-		removed += n
-	}
 	return removed, nil
 }
 
