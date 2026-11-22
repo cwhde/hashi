@@ -55,7 +55,7 @@
 		class="relative {className}"
 		role="img"
 		aria-label="Trend"
-		use:scrub
+		use:scrub={leave}
 		onpointermove={move}
 		onpointerdown={move}
 		onpointerleave={leave}

@@ -78,7 +78,7 @@
 			aria-valuenow={at ?? values.length - 1}
 			aria-valuetext={at === null ? undefined : `${labels[at]}: ${show(values[at] ?? 0)}`}
 			onpointermove={move}
-			use:scrub
+			use:scrub={leave}
 			onpointerdown={move}
 			onpointerleave={mouseOnly(leave)}
 			onkeydown={key}

@@ -56,7 +56,7 @@
 		role="slider"
 		tabindex="0"
 		aria-label={summary}
-		use:scrub
+		use:scrub={() => (at = null)}
 		aria-valuemin={0}
 		aria-valuemax={n - 1}
 		aria-valuenow={at ?? n - 1}
