@@ -47,7 +47,7 @@ func TestPublicHandler(t *testing.T) {
 		"_app/immutable/a.js": {Data: []byte("js")},
 		"secret.txt":          {Data: []byte("no")},
 	}
-	h := publicHandler(root, "status", func(*http.Request) string { return "" })
+	h := publicHandler(root, "status", func(*http.Request) Head { return Head{} })
 	get := func(p string) *httptest.ResponseRecorder {
 		rec := httptest.NewRecorder()
 		h.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, p, nil))
@@ -78,7 +78,7 @@ func TestPublicPageNamesItsIcon(t *testing.T) {
 		h.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, p, nil))
 		return rec
 	}
-	plain := publicHandler(root, "apps", func(*http.Request) string { return "" })
+	plain := publicHandler(root, "apps", func(*http.Request) Head { return Head{} })
 	if r := get(plain, "/apple-touch-icon.png"); r.Code != 200 || r.Body.String() != "png" {
 		t.Fatalf("Hashi's mark: %d %q", r.Code, r.Body)
 	}
@@ -90,7 +90,7 @@ func TestPublicPageNamesItsIcon(t *testing.T) {
 	if r := get(plain, "/"); !strings.Contains(r.Body.String(), `<link rel="icon" href="/apple-touch-icon.png">`) {
 		t.Errorf("no tab icon without an uploaded one: %s", r.Body)
 	}
-	own := publicHandler(root, "apps", func(*http.Request) string { return "/assets/icon?v=ab12" })
+	own := publicHandler(root, "apps", func(*http.Request) Head { return Head{Icon: "/assets/icon?v=ab12"} })
 	body := get(own, "/").Body.String()
 	for _, want := range []string{`<link rel="icon" href="/assets/icon?v=ab12">`, `<link rel="apple-touch-icon" href="/assets/icon?v=ab12">`} {
 		if !strings.Contains(body, want) {
@@ -99,5 +99,25 @@ func TestPublicPageNamesItsIcon(t *testing.T) {
 	}
 	if strings.Contains(body, "/apple-touch-icon.png") {
 		t.Errorf("Hashi's mark still named beside the owner's icon: %s", body)
+	}
+}
+
+// A shared link's preview and a bookmark read the page without running it, so the HTML names the page as its script
+// does ("Status · example.com"), escaped. Hashi's tags follow <meta charset>, which must open the head.
+func TestPublicPageNamesItsTitle(t *testing.T) {
+	root := fstest.MapFS{"index.html": {Data: []byte(`<html><head><meta charset="utf-8" /><title>x</title></head></html>`)}}
+	h := publicHandler(root, "status", func(*http.Request) Head { return Head{Title: `Status · <b>"A&B"</b>`} })
+	rec := httptest.NewRecorder()
+	h.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/", nil))
+	body := rec.Body.String()
+	want := `<title>Status · &lt;b&gt;&#34;A&amp;B&#34;&lt;/b&gt;</title><meta property="og:title" content="Status · &lt;b&gt;&#34;A&amp;B&#34;&lt;/b&gt;">`
+	if !strings.Contains(body, want) {
+		t.Errorf("no title in %s", body)
+	}
+	if !strings.HasPrefix(body, `<html><head><meta charset="utf-8" />`) {
+		t.Errorf("charset is not first: %s", body)
+	}
+	if strings.Contains(body, "<title>x</title>") {
+		t.Errorf("two titles: %s", body)
 	}
 }

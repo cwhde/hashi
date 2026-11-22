@@ -16,6 +16,18 @@ const markFile = "apple-touch-icon.png"
 
 var markLink = regexp.MustCompile(`<link rel="apple-touch-icon" href="/` + regexp.QuoteMeta(markFile) + `"\s*/?>`)
 
+var (
+	shellTitle = regexp.MustCompile(`<title>[^<]*</title>`)
+	charset    = regexp.MustCompile(`<meta charset="[^"]*"\s*/?>`)
+)
+
+// Head is what a public page's HTML names before its script runs: the title as the page sets it ("Status ·
+// example.com") and the owner's uploaded icon ("/assets/icon?v=…"), each "" when there is none.
+type Head struct {
+	Title string
+	Icon  string
+}
+
 //go:embed all:dist
 var dist embed.FS
 
@@ -31,19 +43,19 @@ func Handler() http.Handler {
 
 // Public serves the same SPA for a public listener. index.html names the page, so the SPA shows it at the root path
 // (07 §7, §8); every other path is a static asset or a 404: public listeners have no client-side routes.
-// icon names the owner's uploaded icon ("/assets/icon?v=…"), or "" when there is none.
-func Public(page string, icon func(*http.Request) string) http.Handler {
+// head names the page and its icon for the request.
+func Public(page string, head func(*http.Request) Head) http.Handler {
 	root, err := fs.Sub(dist, "dist")
 	if err != nil {
 		panic(err)
 	}
-	return publicHandler(root, page, icon)
+	return publicHandler(root, page, head)
 }
 
 // servicePage is a status page entry's own address (07 §7.2); the page itself says when the slug is unknown.
 var servicePage = regexp.MustCompile(`^/s/[a-z0-9-]{1,80}$`)
 
-func publicHandler(root fs.FS, page string, icon func(*http.Request) string) http.Handler {
+func publicHandler(root fs.FS, page string, head func(*http.Request) Head) http.Handler {
 	files := http.FileServerFS(root)
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path != "/" && (page != "status" || !servicePage.MatchString(r.URL.Path)) {
@@ -67,11 +79,17 @@ func publicHandler(root fs.FS, page string, icon func(*http.Request) string) htt
 		}
 		meta := `<meta name="hashi-public" content="` + page + `"><meta name="robots" content="noindex">`
 		html := string(index)
+		hd := head(r)
+		// A shared link's preview and a bookmark read the page without running it, so the HTML names it too.
+		if t := htmlpkg.EscapeString(hd.Title); t != "" {
+			meta += `<title>` + t + `</title><meta property="og:title" content="` + t + `">`
+			html = shellTitle.ReplaceAllString(html, "")
+		}
 		// The icon is named in the HTML, not only by the page's script, so whatever reads the page without running it
 		// (the app dashboard's icon finder, bug 160) finds the owner's icon, or Hashi's mark without one.
 		// Without one the mark is the tab icon too, or the browser asks for /favicon.ico first: a 404 in every visitor's
 		// console. The page's script then draws the mark in the theme's accent (bug 159).
-		if u := icon(r); u != "" {
+		if u := hd.Icon; u != "" {
 			u = htmlpkg.EscapeString(u)
 			meta += `<link rel="icon" href="` + u + `"><link rel="apple-touch-icon" href="` + u + `">`
 			html = markLink.ReplaceAllString(html, "")
@@ -80,7 +98,13 @@ func publicHandler(root fs.FS, page string, icon func(*http.Request) string) htt
 		}
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
 		w.Header().Set("Cache-Control", "no-cache")
-		_, _ = w.Write([]byte(strings.Replace(html, "<head>", "<head>"+meta, 1)))
+		// After <meta charset>, which has to open the head; at the head's start in a shell without one.
+		if at := charset.FindStringIndex(html); at != nil {
+			html = html[:at[1]] + meta + html[at[1]:]
+		} else {
+			html = strings.Replace(html, "<head>", "<head>"+meta, 1)
+		}
+		_, _ = w.Write([]byte(html))
 	})
 }
 

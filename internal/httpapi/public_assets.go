@@ -239,3 +239,34 @@ func (s *Server) PublicIconURL(r *http.Request) string {
 	}
 	return ""
 }
+
+// PublicTitle is a public page's title as the page's script sets it: "Status · example.com", "Apps · example.com",
+// and a service page's "Lamp · Status · example.com" (the status page's title when the slug is unknown). The page's
+// HTML carries it for link previews and bookmarks, which read the page without running it.
+func (s *Server) PublicTitle(r *http.Request, page string) string {
+	ctx := r.Context()
+	g, err := settings.Get[settings.General](ctx, s.Store.R)
+	if err != nil {
+		return ""
+	}
+	if page != "status" {
+		return "Apps · " + g.RootDomain
+	}
+	title := "Status · " + g.RootDomain
+	slug, ok := strings.CutPrefix(r.URL.Path, "/s/")
+	if !ok || s.Monitor == nil {
+		return title
+	}
+	v, err := s.Monitor.PublicStatus(ctx) // cached; the service page's own read is not
+	if err != nil {
+		return title
+	}
+	for _, grp := range v.Groups {
+		for _, e := range grp.Entries {
+			if e.Slug == slug {
+				return e.Name + " · " + title
+			}
+		}
+	}
+	return title
+}

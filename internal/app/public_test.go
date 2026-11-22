@@ -200,6 +200,21 @@ func TestStatusListenerServesServicePagesAndBadges(t *testing.T) {
 			t.Errorf("%s: %d, want 404", p, r.Code)
 		}
 	}
+	// The HTML names the page as its script does, for link previews and bookmarks.
+	if err := settings.Put(ctx, st.Q, settings.General{RootDomain: "example.com", AdminDomain: "hashi.example.com",
+		InternalURL: "http://192.0.2.10:3340", SyncIntervalSeconds: 3600}); err != nil {
+		t.Fatal(err)
+	}
+	for _, c := range []struct{ page, path, want string }{
+		{"status", "/", "Status · example.com"},
+		{"status", "/s/lamp", "Lamp · Status · example.com"},
+		{"status", "/s/gone", "Status · example.com"},
+		{"apps", "/", "Apps · example.com"},
+	} {
+		if got := api.PublicTitle(httptest.NewRequest(http.MethodGet, c.path, nil), c.page); got != c.want {
+			t.Errorf("%s %s: title %q, want %q", c.page, c.path, got, c.want)
+		}
+	}
 	// The page itself: served (503 where the web UI is not built, as in CI's check job), never on the apps listener.
 	if r := get(status, "/s/lamp"); r.Code == 404 {
 		t.Error("/s/lamp: 404 on the status listener")
