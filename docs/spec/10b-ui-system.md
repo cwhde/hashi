@@ -66,7 +66,7 @@ first paint. `dark:` variants follow `data-mode`, not the OS.
 | `/pulse/[id]` | Pulse agent | Addresses per interface and the main-address choice, its own settings (DNS name, reach port, trust), what follows it |
 | `/status` | Status | Endpoint cards grouped by group or status with history strips; Notifications tab (recent deliveries, where alerts go, link to their setup) |
 | `/status/{id}` | Endpoint | Summary metrics + strip, range switch, three equal charts, events |
-| `/app-display` | App display | What the public dashboard (8081) and status page (8082) show, order and visibility |
+| `/public-pages` | Public pages | Layout only: outline + live preview, live drag in both, one order for both pages; gear → Settings → Public pages for on/off, published where, default sort, titles, assets; 07 §8.1 |
 | `/security` | Security | Tabs: Dashboard (allowed/challenged/banned/WAF tiles with sparklines, L4 meter trips per host, top addresses, countries, targeted services, challenge → ban funnel, events, stale feeds/GeoIP), Counters (every address with a ban or challenge counter; filters: banned now, challenged now, any active, all; minimum counts, source, country/ASN, time; search by address/CIDR; edit, reset, bulk reset), Challenge (Cap), Sign-in providers, Engine (thresholds, ban function with curve, GeoIP) |
 | `/ip-sets` | IP sets | Every set in one table: name, kind (yours / system / feed / dynamic) with lock marker, size (items, resolved v4/v6), used by, status; search across all sets by address; add set / add feed |
 | `/ip-sets/{id}` | IP set | Summary strip (kind, resolved size, used by, status); tabs: Items (search, add/edit/remove with the shared item editor, note, expiry; dynamic sets: entries with source, expiry, failures, both counters, remove / add with duration / edit counters), Resolved (compiled prefixes with origin path), Used by, Feed (feed sets: source, format, runs), History |
@@ -84,8 +84,9 @@ switch), set badge (kind + lock), address link, rule item editor, flattened rule
 a rule uses them.
 | `/login` | Sign in | Passkey only; recovery hint |
 | `/setup` | Setup | 11 resumable steps (02 §1); host-key pinning shown at step 5 |
-| public `:8081/` | App dashboard | Grouped launcher cards with state, online counts, collapsed search |
-| public `:8082/` | Status page | Overall banner, grouped strips, staleness note; no hosts, IPs or errors |
+| public `:8081/` | App dashboard | Groups in layout order, launcher cards with icons, search, sort (07 §8) |
+| public `:8082/` | Status page | Banner, group tiles, folding group panels with dense rows and 90-day bars that explain themselves on hover, staleness note; no hosts, IPs or errors (07 §7.1) |
+| public `:8082/s/{slug}` | Service page | Tiles, 90-day bar with hover details, three charts with hover values, recent downtimes, one Badges button (07 §7.2) |
 | edge `/api/edge-challenge/start` | Visitor challenge | Minimal page, Cap widget, the domain being accessed |
 
 ## 4. Component rules

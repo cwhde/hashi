@@ -138,7 +138,7 @@ Test for every sentence: delete it. Would someone now make a real mistake or be 
 | Settings → Account holds passkeys, sessions, vault; Security holds session settings | §1.2 | Settings → Security; no Account category |
 | Status → Notifications tab + Settings → Notifications | §1.2, §1.5 | Settings → Monitoring and notifications for setup; deliveries in Activity or on the check |
 | DNS → Agent names tab + Settings → Internal agent DNS | §1.3 | Settings for the switch and domain; DNS shows the names read-only |
-| App display page switches + Settings → Appearance public pages on/off + Settings → Dashboard | §1.2, §5.1 | Settings → Public pages for page-wide options; per-service visibility stays an instant switch on App display |
+| App display page switches + Settings → Appearance public pages on/off + Settings → Dashboard | §1.2, §5.1 | Settings → Public pages for page-wide options; per-service visibility stays an instant switch on Public pages |
 | Traefik, firewall hosts, agents added on their own pages, AdGuard and DNS on Connections | §1 table | Connections adds every outside system; feature pages link there (bug 24) |
 | Service target: address or IP set only | §2 | Target picker with Agent (bug 17) |
 | ~200 help sentences, descriptions under titles and panels | §4 | Remove per the test; expected to drop below 40 (bugs 28, 93) |
