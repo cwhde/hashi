@@ -17,6 +17,7 @@ All open entries are planned into the 0.13 bug round (slices 13.1 onwards in `do
 
 | # | Kind | Status | Where | What | Reported |
 | --- | --- | --- | --- | --- | --- |
+| 180 | text | reported | Public status page, day hover | A downtime that started days ago reads "Today · Down since 09:23 · 3 d 11 h so far": the start has no day, so it reads as this morning. Name the day when it isn't today (seen on prod 2026-11-22, 13.12 gate) | Claude, 2026-11-22 |
 
 ## Details
 
