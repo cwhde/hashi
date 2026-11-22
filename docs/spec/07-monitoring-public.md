@@ -227,6 +227,10 @@ Each slot is empty, downloaded or uploaded; Settings → Public pages sets them.
   downloads it once into `/data/assets`. Visitors' browsers never load from the source.
 - Upload: png, webp, svg or ico, at most 5 MB (background) or 1 MB (others). SVG is served with
   `Content-Security-Policy: default-src 'none'; style-src 'unsafe-inline'` and `nosniff`.
+- A png or webp logo larger than 768×120 px is stored scaled down to fit that box, as png, whether downloaded or
+  uploaded: pages draw a logo at most 40 px tall and 256 px wide, and 3× keeps it sharp on a phone (a 4k source logo was
+  227 KiB for a 131 px header, 11 KiB fitted). Logos stored before this are fitted once on start. SVG, the icon and the
+  background are kept as given.
 - Served at `/assets/<slot>` on the admin and both public listeners, with an ETag; an empty slot answers 404.
 - Empty icon → Hashi's 橋 icon; empty logo → the page title as text. Background is off by default and, when on, sits
   behind a scrim that keeps text at its normal contrast (10-ui §2). Admin screens keep the theme canvas and the 橋 icon.
