@@ -125,7 +125,13 @@ all of them.
   its own safety rules), handed to the owner 2026-11-22.
   Ran 2026-11-22, 18:45–19:28: 19 findings. Each reproduced from the original data (browser or code): 18 hold, now
   bugs 162–179; one dropped (the editor has no group folding: the spec doesn't ask for it, the brief did by mistake).
-- [ ] Fix every finding.
+- [x] Fix every finding. 2026-11-22: bugs 162–179 fixed, each from a reproduction, in 9 commits (eeab49ef…). Editor:
+  a group brought back by Undo is sent as new, an unreachable server says so and keeps the outline, an entry the save
+  drops leaves the outline. Service slugs stay put when entries move (existing slugs may shift once on the first start).
+  Status page: hour view uptime, an honest banner when nothing is checked, long group names, taps on a strip. Service
+  page: a stale range answer is dropped, pausing starts its own time, an unknown slug is 404, the chart works by
+  keyboard. Settings → Public pages: files save first, one title for both pages (spec 07 §9). Public pages start in
+  their own theme, the state is read once, badges measure CJK and emoji. `make check` and `make test-e2e` green.
 - [ ] Release and deploy (the owner's OK), then the 13.12 gate on prod with the owner; confirm bug 161's lookup timeouts
   are gone from Docker's DNS log.
 
