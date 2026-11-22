@@ -16,6 +16,9 @@ UPDATE monitor_endpoints
 SET group_name = ?, paused = ?, interval_seconds = ?, timeout_seconds = ?, degraded_ms = ?, public = ?, route_provider_id = ?, updated_at = ?
 WHERE id = ?;
 
+-- name: SetMonitorEndpointStateSince :exec
+UPDATE monitor_endpoints SET state_since = ? WHERE id = ?;
+
 -- name: SetMonitorEndpointResult :exec
 UPDATE monitor_endpoints
 SET state = ?, state_since = ?, good_rounds = ?, bad_rounds = ?, last_check_at = ?, last_latency_ms = ?

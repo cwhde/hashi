@@ -1079,6 +1079,20 @@ func (q *Queries) SetMonitorEndpointResult(ctx context.Context, arg SetMonitorEn
 	return err
 }
 
+const setMonitorEndpointStateSince = `-- name: SetMonitorEndpointStateSince :exec
+UPDATE monitor_endpoints SET state_since = ? WHERE id = ?
+`
+
+type SetMonitorEndpointStateSinceParams struct {
+	StateSince int64
+	ID         string
+}
+
+func (q *Queries) SetMonitorEndpointStateSince(ctx context.Context, arg SetMonitorEndpointStateSinceParams) error {
+	_, err := q.db.ExecContext(ctx, setMonitorEndpointStateSince, arg.StateSince, arg.ID)
+	return err
+}
+
 const setServiceDashboard = `-- name: SetServiceDashboard :execrows
 UPDATE services SET dashboard_visible = ?, updated_at = ? WHERE id = ?
 `

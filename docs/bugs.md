@@ -17,12 +17,8 @@ All open entries are planned into the 0.13 bug round (slices 13.1 onwards in `do
 
 | # | Kind | Status | Where | What | Reported |
 | --- | --- | --- | --- | --- | --- |
-| 166 | function | reproduced | Service page | A slower answer for an earlier range replaces the chart of the range now chosen (7d then 30d: 30d selected, 7d's data shown). No check that an answer is still current. | Codex round 3, 2026-11-22 |
-| 169 | function | reproduced | Service page | Right after pausing, the service page says "Paused for 9 h 50 min": pausing keeps the time the last state began. | Codex round 3, 2026-11-22 |
 | 171 | function | reproduced | Settings → Public pages | A save with a rejected upload says only the upload's error, but the page switches and the apps page's sort were already saved. | Codex round 3, 2026-11-22 |
-| 172 | function | reproduced | Public pages | A service page that is switched off or unknown answers 200 (the page shell); only its data request answers 404. The spec says 404. | Codex round 3, 2026-11-22 |
 | 173 | function | reproduced | Settings → Public pages | No way to set the page titles, which the spec lists among the page-wide options (07 §8.1). | Codex round 3, 2026-11-22 |
-| 175 | visual | reproduced | Service page | The charts' moment-by-moment values can only be read with a pointer; keyboard users get only the latest value (same on the admin monitor page). | Codex round 3, 2026-11-22 |
 | 176 | visual | reproduced | Public pages | Screen readers hear the state twice in two words: "Slow Degraded", "No data Unknown", "Down Down": the dot keeps its admin name next to the visitor word. | Codex round 3, 2026-11-22 |
 | 178 | visual | reproduced | Public pages | A first-time visitor sees Graphite until the page's data arrives, then the configured theme (Warm Linen): a dark flash before the light page. | Codex round 3, 2026-11-22 |
 | 179 | visual | reproduced | Badges | Names in Japanese or other wide scripts overflow the badge: the label runs into the state value, and a long name past the badge's edge. Width is estimated per letter for Latin text only. | Codex round 3, 2026-11-22 |

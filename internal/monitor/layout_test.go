@@ -267,3 +267,31 @@ func TestSlugsKeepThroughMoves(t *testing.T) {
 		t.Fatalf("slugs %v", vals)
 	}
 }
+
+// "Paused for" counts from the pause (bug 169): pausing kept the time the last state began, so a check down for nine
+// hours said "Paused for 9 h" a second after the click.
+func TestPauseStartsItsOwnTime(t *testing.T) {
+	s, st, _, _ := fixture(t)
+	ctx := t.Context()
+	id, err := s.CreateUser(ctx, "Lamp", "Home", CheckSpec{Type: TypeTCP, Target: "127.0.0.1:1"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	before, err := st.R.GetMonitorEndpoint(ctx, id)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := s.Update(ctx, id, Settings{Group: "Home", Paused: true, IntervalSeconds: 60, TimeoutSeconds: 5}); err != nil {
+		t.Fatal(err)
+	}
+	after, err := st.R.GetMonitorEndpoint(ctx, id)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if after.StateSince <= before.StateSince || after.StateSince != after.UpdatedAt {
+		t.Fatalf("paused at %d, state since %d (before %d)", after.UpdatedAt, after.StateSince, before.StateSince)
+	}
+	if after.State != before.State || after.LastCheckAt != before.LastCheckAt {
+		t.Fatalf("pausing changed the stored result: %+v → %+v", before, after)
+	}
+}

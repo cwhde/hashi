@@ -218,6 +218,16 @@ export async function publicPagesSeen(page: Page, appsURL: string, statusURL: st
 	await expect(page).toHaveURL(/\?range=30d$/);
 	await page.getByRole('radio', { name: '24h' }).click();
 	await expect(page).toHaveURL(new RegExp(`/s/${slug}$`));
+	// The charts read by keyboard too (bug 175): Home goes to the first moment and names it.
+	const chart = page.getByRole('slider', { name: /^Response time, latest/ });
+	await chart.focus();
+	await page.keyboard.press('Home');
+	await expect(chart).toHaveAttribute('aria-valuenow', '0');
+	await expect(chart).toHaveAttribute('aria-valuetext', /\d/);
+	// A service page for nothing shown answers 404 and still says so (bug 172).
+	const gone = await page.request.get(`${statusURL}/s/no-such-service`);
+	expect(gone.status()).toBe(404);
+	expect(await gone.text()).toContain('<title>');
 	const svc = await (await page.request.get(`${statusURL}/api/public/status/${slug}`)).json();
 	const badge = await page.request.get(`${statusURL}/badge/${slug}/${svc.badges[0]}.svg`);
 	expect(badge.status()).toBe(200);

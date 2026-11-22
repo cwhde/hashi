@@ -678,7 +678,8 @@ func publicMux(api *httpapi.Server, page string, enabled *atomic.Bool) http.Hand
 		mux.HandleFunc("GET /api/public/apps", onlyIf(enabled, h.GetPublicApps))
 	}
 	mux.HandleFunc("GET /", onlyIf(enabled, web.Public(page, func(r *http.Request) web.Head {
-		return web.Head{Title: api.PublicTitle(r, page), Icon: api.PublicIconURL(r)}
+		title, missing := api.PublicTitle(r, page)
+		return web.Head{Title: title, Icon: api.PublicIconURL(r), Missing: missing}
 	}).ServeHTTP))
 	return mux
 }

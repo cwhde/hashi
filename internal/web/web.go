@@ -26,6 +26,9 @@ var (
 type Head struct {
 	Title string
 	Icon  string
+	// Missing: a service page for no entry shown on the status page. It answers 404 (07 §7.2) and is still drawn, so
+	// the visitor reads why.
+	Missing bool
 }
 
 //go:embed all:dist
@@ -103,6 +106,9 @@ func publicHandler(root fs.FS, page string, head func(*http.Request) Head) http.
 			html = html[:at[1]] + meta + html[at[1]:]
 		} else {
 			html = strings.Replace(html, "<head>", "<head>"+meta, 1)
+		}
+		if hd.Missing {
+			w.WriteHeader(http.StatusNotFound)
 		}
 		_, _ = w.Write([]byte(html))
 	})

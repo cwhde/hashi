@@ -205,14 +205,17 @@ func TestStatusListenerServesServicePagesAndBadges(t *testing.T) {
 		InternalURL: "http://192.0.2.10:3340", SyncIntervalSeconds: 3600}); err != nil {
 		t.Fatal(err)
 	}
-	for _, c := range []struct{ page, path, want string }{
-		{"status", "/", "Status · example.com"},
-		{"status", "/s/lamp", "Lamp · Status · example.com"},
-		{"status", "/s/gone", "Status · example.com"},
-		{"apps", "/", "Apps · example.com"},
+	for _, c := range []struct {
+		page, path, want string
+		missing          bool
+	}{
+		{"status", "/", "Status · example.com", false},
+		{"status", "/s/lamp", "Lamp · Status · example.com", false},
+		{"status", "/s/gone", "Status · example.com", true}, // answered 404 (bug 172)
+		{"apps", "/", "Apps · example.com", false},
 	} {
-		if got := api.PublicTitle(httptest.NewRequest(http.MethodGet, c.path, nil), c.page); got != c.want {
-			t.Errorf("%s %s: title %q, want %q", c.page, c.path, got, c.want)
+		if got, missing := api.PublicTitle(httptest.NewRequest(http.MethodGet, c.path, nil), c.page); got != c.want || missing != c.missing {
+			t.Errorf("%s %s: title %q missing %v, want %q %v", c.page, c.path, got, missing, c.want, c.missing)
 		}
 	}
 	// The page itself: served (503 where the web UI is not built, as in CI's check job), never on the apps listener.

@@ -253,6 +253,11 @@ func (s *Service) Update(ctx context.Context, id string, v Settings) error {
 		if v.Version != 0 && v.Version != e.UpdatedAt {
 			return ErrStale
 		}
+		if e.Paused == 0 && v.Paused { // "Paused for" counts from now (bug 169); the stored result stays
+			if err := q.SetMonitorEndpointStateSince(ctx, db.SetMonitorEndpointStateSinceParams{StateSince: now, ID: id}); err != nil {
+				return err
+			}
+		}
 		if e.Paused == 1 && !v.Paused {
 			if err := q.SetMonitorEndpointResult(ctx, db.SetMonitorEndpointResultParams{State: StateUnknown, StateSince: now, ID: id}); err != nil {
 				return err

@@ -42,10 +42,13 @@
 
 	async function load() {
 		now = Date.now();
+		const want = range;
 		try {
 			const r = await api.GET('/api/public/status/{slug}', {
-				params: { path: { slug }, query: { range } }
+				params: { path: { slug }, query: { range: want } }
 			});
+			// An answer for a range no longer chosen is dropped: it came back after the newer one (bug 166).
+			if (want !== range) return;
 			if (r.response.status === 404) {
 				missing = true;
 				return;

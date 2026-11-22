@@ -121,3 +121,14 @@ func TestPublicPageNamesItsTitle(t *testing.T) {
 		t.Errorf("two titles: %s", body)
 	}
 }
+
+// A service page for no shown entry answers 404 (07 §7.2, bug 172) and still draws the page, which says so.
+func TestMissingServicePageIs404(t *testing.T) {
+	root := fstest.MapFS{"index.html": {Data: []byte(`<html><head><meta charset="utf-8" /></head></html>`)}}
+	h := publicHandler(root, "status", func(*http.Request) Head { return Head{Title: "Status · example.com", Missing: true} })
+	rec := httptest.NewRecorder()
+	h.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/s/gone", nil))
+	if rec.Code != http.StatusNotFound || !strings.Contains(rec.Body.String(), "<title>Status · example.com</title>") {
+		t.Fatalf("%d %s", rec.Code, rec.Body)
+	}
+}

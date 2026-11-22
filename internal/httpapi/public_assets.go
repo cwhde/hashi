@@ -243,30 +243,32 @@ func (s *Server) PublicIconURL(r *http.Request) string {
 // PublicTitle is a public page's title as the page's script sets it: "Status · example.com", "Apps · example.com",
 // and a service page's "Lamp · Status · example.com" (the status page's title when the slug is unknown). The page's
 // HTML carries it for link previews and bookmarks, which read the page without running it.
-func (s *Server) PublicTitle(r *http.Request, page string) string {
+// It also says whether a service page names no shown entry (missing), which then answers 404 (bug 172). Only a
+// successful lookup decides that: when it fails, the page is served as usual.
+func (s *Server) PublicTitle(r *http.Request, page string) (title string, missing bool) {
 	ctx := r.Context()
 	g, err := settings.Get[settings.General](ctx, s.Store.R)
 	if err != nil {
-		return ""
+		return "", false
 	}
 	if page != "status" {
-		return "Apps · " + g.RootDomain
+		return "Apps · " + g.RootDomain, false
 	}
-	title := "Status · " + g.RootDomain
+	title = "Status · " + g.RootDomain
 	slug, ok := strings.CutPrefix(r.URL.Path, "/s/")
 	if !ok || s.Monitor == nil {
-		return title
+		return title, false
 	}
 	v, err := s.Monitor.PublicStatus(ctx) // cached; the service page's own read is not
 	if err != nil {
-		return title
+		return title, false
 	}
 	for _, grp := range v.Groups {
 		for _, e := range grp.Entries {
 			if e.Slug == slug {
-				return e.Name + " · " + title
+				return e.Name + " · " + title, false
 			}
 		}
 	}
-	return title
+	return title, true
 }
