@@ -222,6 +222,28 @@ describe('saving and undo', () => {
 		expect(s.last).toBeNull();
 	});
 
+	test('a group renamed before its first save answers still gets its id, and keeps it through undo', async () => {
+		const io = server();
+		let release!: () => void;
+		const first = new Promise<void>((r) => (release = r));
+		const put = io.put.getMockImplementation()!;
+		io.put.mockImplementationOnce(async (b) => {
+			await first;
+			return put(b);
+		});
+		const s = new LayoutState(layout(), io);
+		const key = s.addGroup();
+		s.rename(key, 'Games');
+		release();
+		await vi.waitFor(() => expect(io.put).toHaveBeenCalledTimes(2));
+		await settle();
+		expect(s.group(key)!.id).toBe('new2');
+		expect(io.got[1]!.groups[2]).toEqual({ id: 'new2', name: 'Games', entries: [] });
+		s.undo(); // back to "New group 1", which the server knows by its id now
+		await settle();
+		expect(io.got[2]!.groups[2]).toEqual({ id: 'new2', name: 'New group 1', entries: [] });
+	});
+
 	test('a new group gets its id from the answer; names follow the server rules', async () => {
 		const io = server();
 		const s = new LayoutState(layout(), io);

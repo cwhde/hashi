@@ -60,7 +60,6 @@ class Drag {
 		window.addEventListener('pointermove', this.move, { passive: false });
 		window.addEventListener('pointerup', this.up);
 		window.addEventListener('pointercancel', this.up);
-		window.addEventListener('touchmove', this.block, { passive: false });
 		window.addEventListener('contextmenu', this.block);
 		if (touchHold) this.hold = setTimeout(() => this.begin(), 350);
 	}
@@ -167,7 +166,6 @@ class Drag {
 		window.removeEventListener('pointermove', this.move);
 		window.removeEventListener('pointerup', this.up);
 		window.removeEventListener('pointercancel', this.up);
-		window.removeEventListener('touchmove', this.block);
 		window.removeEventListener('contextmenu', this.block);
 		if (current === this) current = null;
 	}
@@ -224,6 +222,17 @@ export const sortable: Action<HTMLElement, Params> = (node, initial) => {
 		);
 	}
 
+	// A finger's drag must not scroll the page. The browser decides whether a touch can be cancelled when the finger lands,
+	// by whether a blocking touchmove listener is there already, so this one is on every item from the start (a listener
+	// added on pointerdown came too late: the page scrolled and cancelled the drag). Touch events keep going to the element
+	// the finger landed on even after Svelte replaced it, so the listener stays on the old element too.
+	node.addEventListener(
+		'touchmove',
+		(ev) => current?.active && ev.cancelable && ev.preventDefault(),
+		{
+			passive: false
+		}
+	);
 	node.addEventListener('pointerdown', down);
 	return {
 		update(next) {

@@ -39,6 +39,8 @@ export class LayoutState implements DragHost {
 	/** The switches as last saved: only those that differ are sent. */
 	private savedSw: Switches = {};
 	private fresh = 0;
+	/** Each group's id by its editor key, once the server gave one (a snapshot taken earlier may lack it). */
+	private ids: Record<string, string> = {};
 
 	constructor(
 		layout: Layout,
@@ -122,27 +124,31 @@ export class LayoutState implements DragHost {
 			do {
 				this.again = false;
 				const body = this.body();
+				// The keys of the named groups, in the order sent: the answer lists them in the same order.
+				const keys = this.groups.filter((g) => g.key !== OTHER_KEY).map((g) => g.key);
 				const r = await this.io.put(body);
 				if (!r.data) {
 					await this.failed(r);
 					return;
 				}
-				this.saved(r.data, body);
+				this.saved(r.data, body, keys);
 			} while (this.again);
 		} finally {
 			this.saving = false;
 		}
 	}
-	private saved(l: Layout, sent: Save) {
+	private saved(l: Layout, sent: Save, keys: string[]) {
 		this.version = l.version;
 		for (const s of sent.switches ?? [])
 			this.savedSw[s.entry] = { apps: !!s.apps, status: !!s.status };
-		// New groups get their id from the answer (names are unique, so the name finds them).
-		for (const g of l.groups) {
-			if (!g.id) continue;
-			const mine = this.groups.find((x) => !x.id && x.name.toLowerCase() === g.name.toLowerCase());
-			if (mine) mine.id = g.id;
-		}
+		// New groups get their id from the answer, by place: the group may have been renamed since it was sent.
+		sent.groups.forEach((g, i) => {
+			const id = l.groups[i]?.id;
+			if (g.id || !id) return;
+			this.ids[keys[i]!] = id;
+			const mine = this.group(keys[i]!);
+			if (mine && !mine.id) mine.id = id;
+		});
 	}
 	private async failed(r: Answer) {
 		this.again = false;
@@ -159,7 +165,7 @@ export class LayoutState implements DragHost {
 		const l = this.last;
 		if (!l) return;
 		const sw = l.before.sw;
-		this.groups = clone(l.before.groups);
+		this.groups = clone(l.before.groups).map((g) => ({ ...g, id: g.id ?? this.ids[g.key] }));
 		for (const [k, v] of Object.entries(sw)) {
 			const e = this.items[k];
 			if (e) Object.assign(e, v);
