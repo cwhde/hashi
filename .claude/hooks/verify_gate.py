@@ -6,12 +6,15 @@ tell it to record the failure under "Blocked" in docs/progress.md instead of try
 """
 import json
 import os
+import signal
 import subprocess
 import sys
 
 PROJECT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 MAX_BLOCKS = 3
-TIMEOUT_S = 300
+# A full `make check` on the laptop takes several minutes (the Go race tests alone need ~20 CPU-minutes). Keep the
+# hook's own timeout in .claude/settings.json above this one.
+TIMEOUT_S = 720
 
 
 def changed_code(project):
@@ -36,6 +39,22 @@ def has_check_target(project):
         return any(line.startswith("check:") for line in f)
 
 
+def run_check(project):
+    # In its own process group, so a timeout stops the whole run: killing only `make` left its `go test` running,
+    # and that slowed down the next check.
+    proc = subprocess.Popen(
+        ["make", "check"], cwd=project, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True,
+        start_new_session=True,
+    )
+    try:
+        out, _ = proc.communicate(timeout=TIMEOUT_S)
+        return proc.returncode == 0, out or ""
+    except subprocess.TimeoutExpired:
+        os.killpg(proc.pid, signal.SIGKILL)
+        proc.communicate()
+        return False, "make check timed out after %ss" % TIMEOUT_S
+
+
 def main():
     data = json.load(sys.stdin)
     project = PROJECT
@@ -47,13 +66,7 @@ def main():
     state = os.path.join(state_dir, "verify-blocks-%s" % data.get("session_id", "default"))
     blocks = int(open(state).read().strip() or 0) if os.path.exists(state) else 0
 
-    try:
-        res = subprocess.run(
-            ["make", "check"], cwd=project, capture_output=True, text=True, timeout=TIMEOUT_S
-        )
-        ok, output = res.returncode == 0, (res.stdout or "") + (res.stderr or "")
-    except subprocess.TimeoutExpired:
-        ok, output = False, "make check timed out after %ss" % TIMEOUT_S
+    ok, output = run_check(project)
 
     if ok:
         if os.path.exists(state):
