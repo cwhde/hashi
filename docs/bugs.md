@@ -17,7 +17,6 @@ All open entries are planned into the 0.13 bug round (slices 13.1 onwards in `do
 
 | # | Kind | Status | Where | What | Reported |
 | --- | --- | --- | --- | --- | --- |
-| 162 | function | reproduced | Public pages editor | Moving an apps-only entry (a DNS link) can take a monitored service's address: after moving the Jellyfin link, `/s/jellyfin` answers 404 and the check moves to `/s/jellyfin-2`, breaking shared links and badges. Slugs are handed out over all rows in layout order (`internal/monitor/layout.go`). | Codex round 3, 2026-11-22 |
 | 165 | function | reproduced | Public status | The Last hour view shows the 24-hour uptime beside the hour's bars (Lamp: every minute down, "71.73%"). The spec says uptime for the bar's span. | Codex round 3, 2026-11-22 |
 | 166 | function | reproduced | Service page | A slower answer for an earlier range replaces the chart of the range now chosen (7d then 30d: 30d selected, 7d's data shown). No check that an answer is still current. | Codex round 3, 2026-11-22 |
 | 167 | function | reproduced | Public status | On a phone, tapping a history bar opens the service page instead of showing that bar's details: the strip sits inside the row's link. | Codex round 3, 2026-11-22 |

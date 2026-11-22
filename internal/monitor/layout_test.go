@@ -2,6 +2,7 @@ package monitor
 
 import (
 	"errors"
+	"maps"
 	"slices"
 	"strings"
 	"testing"
@@ -218,5 +219,51 @@ func TestSlugify(t *testing.T) {
 		if got := Slugify(in); got != want {
 			t.Errorf("Slugify(%q) = %q, want %q", in, got, want)
 		}
+	}
+}
+
+// A service page's address doesn't depend on the layout's order (bug 162): moving one of two entries with the same name
+// in front of the other used to hand it the shorter address, so shared links and badges of the other broke.
+func TestSlugsKeepThroughMoves(t *testing.T) {
+	s, _, _, _ := fixture(t)
+	ctx := t.Context()
+	for _, n := range []string{"Jellyfin", "Jellyfin!"} { // one address part, "jellyfin"
+		if _, err := s.CreateUser(ctx, n, "Media", CheckSpec{Type: TypeTCP, Target: "127.0.0.1:1"}); err != nil {
+			t.Fatal(err)
+		}
+		time.Sleep(2 * time.Millisecond) // created one after the other
+	}
+	if err := s.Sync(ctx); err != nil {
+		t.Fatal(err)
+	}
+	slugs := func(l Layout) map[string]string {
+		out := map[string]string{}
+		for _, g := range l.Groups {
+			for _, e := range g.Entries {
+				if strings.HasPrefix(e.Name, "Jellyfin") {
+					out[e.Key] = e.Slug
+				}
+			}
+		}
+		return out
+	}
+	l := mustLayout(t, s)
+	before := slugs(l)
+	var media LayoutGroup
+	for _, g := range l.Groups {
+		if g.Name == "Media" {
+			media = g
+		}
+	}
+	keys := []string{media.Entries[1].Key, media.Entries[0].Key} // the second in front
+	got, err := s.SaveLayout(ctx, LayoutSave{Version: l.Version, Groups: []LayoutSaveGroup{{ID: media.ID, Name: "Media", Entries: keys}}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if after := slugs(got); !maps.Equal(after, before) {
+		t.Fatalf("slugs after the move %v, before %v", after, before)
+	}
+	if vals := slices.Sorted(maps.Values(before)); !slices.Equal(vals, []string{"jellyfin", "jellyfin-2"}) {
+		t.Fatalf("slugs %v", vals)
 	}
 }

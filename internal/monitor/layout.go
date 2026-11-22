@@ -159,20 +159,49 @@ func readLayout(ctx context.Context, q *db.Queries) (Layout, error) {
 		out.Groups = append(out.Groups, LayoutGroup{ID: g.ID, Name: g.Name, Entries: []LayoutEntry{}})
 	}
 	out.Groups = append(out.Groups, LayoutGroup{Name: OtherGroup, Entries: []LayoutEntry{}})
-	slugs := map[string]int{}
 	for _, r := range rows {
 		e, ok := all[r.SubjectType+":"+r.SubjectID]
 		if !ok {
 			continue
 		}
-		e.Slug = uniqueSlug(slugs, cmp.Or(e.Slug, Slugify(e.Name)))
 		i := len(out.Groups) - 1
 		if j, ok := at[r.GroupID.String]; r.GroupID.Valid && ok {
 			i = j
 		}
 		out.Groups[i].Entries = append(out.Groups[i].Entries, e)
 	}
+	assignSlugs(out)
 	return out, nil
+}
+
+// assignSlugs gives each entry with a check its service page address (07 §7.2). The order never depends on the
+// layout's (bug 162: moving an entry handed it another's address): a service's own slug first, then the oldest
+// endpoint first. An entry without a check has no service page and no address.
+func assignSlugs(l Layout) {
+	var list []*LayoutEntry
+	for gi := range l.Groups {
+		for ei := range l.Groups[gi].Entries {
+			e := &l.Groups[gi].Entries[ei]
+			if e.endpoint == nil {
+				e.Slug = ""
+				continue
+			}
+			list = append(list, e)
+		}
+	}
+	own := func(e *LayoutEntry) int {
+		if e.Kind == EntryService && e.Slug != "" {
+			return 0
+		}
+		return 1
+	}
+	slices.SortStableFunc(list, func(a, b *LayoutEntry) int {
+		return cmp.Or(cmp.Compare(own(a), own(b)), cmp.Compare(a.endpoint.CreatedAt, b.endpoint.CreatedAt), cmp.Compare(a.Key, b.Key))
+	})
+	seen := map[string]bool{}
+	for _, e := range list {
+		e.Slug = uniqueSlug(seen, cmp.Or(e.Slug, Slugify(e.Name)))
+	}
 }
 
 // Slugify makes a service page's address part from a name: lowercase letters and digits joined by single dashes.
@@ -193,12 +222,14 @@ func Slugify(name string) string {
 	return cmp.Or(b.String(), "entry")
 }
 
-func uniqueSlug(seen map[string]int, s string) string {
-	seen[s]++
-	if n := seen[s]; n > 1 {
-		return fmt.Sprintf("%s-%d", s, n)
+// uniqueSlug returns s, or s-2, s-3, … when taken; an entry named "Jellyfin 2" can't collide with the second "Jellyfin".
+func uniqueSlug(seen map[string]bool, s string) string {
+	out := s
+	for n := 2; seen[out]; n++ {
+		out = fmt.Sprintf("%s-%d", s, n)
 	}
-	return s
+	seen[out] = true
+	return out
 }
 
 // syncLayout keeps the layout complete (07 §7): the first run fills it from the endpoints' groups and the old category
