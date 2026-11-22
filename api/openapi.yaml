@@ -1355,6 +1355,44 @@ paths:
           description: Status
           content: { application/json: { schema: { $ref: "#/components/schemas/PublicStatus" } } }
         default: { $ref: "#/components/responses/Problem" }
+  /api/public/status/{slug}:
+    get:
+      operationId: getPublicService
+      summary: One service page of the status page (cached with the status page's data); public fields only
+      tags: [public]
+      x-hashi-scopes: []
+      parameters:
+        - { name: slug, in: path, required: true, schema: { type: string } }
+        - { name: range, in: query, schema: { type: string, enum: [24h, 7d, 30d], default: 24h } }
+      responses:
+        "200":
+          description: The service
+          content: { application/json: { schema: { $ref: "#/components/schemas/PublicService" } } }
+        default: { $ref: "#/components/responses/Problem" }
+  /api/public-layout:
+    get:
+      operationId: getPublicLayout
+      summary: The one layout of both public pages (07 §7) with every entry and what is possible for it
+      tags: [monitor]
+      x-hashi-scopes: [admin.read]
+      responses:
+        "200":
+          description: The layout
+          content: { application/json: { schema: { $ref: "#/components/schemas/PublicLayout" } } }
+        default: { $ref: "#/components/responses/Problem" }
+    put:
+      operationId: putPublicLayout
+      summary: Save the whole order and any switch changes; 409 when the layout changed since it was loaded
+      tags: [monitor]
+      x-hashi-scopes: [admin.write]
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: "#/components/schemas/PublicLayoutSave" } } }
+      responses:
+        "200":
+          description: The saved layout
+          content: { application/json: { schema: { $ref: "#/components/schemas/PublicLayout" } } }
+        default: { $ref: "#/components/responses/Problem" }
   /api/public/apps:
     get:
       operationId: getPublicApps
@@ -4264,17 +4302,143 @@ components:
       required: [deliveries]
       properties:
         deliveries: { type: array, items: { $ref: "#/components/schemas/NotificationDelivery" } }
-    PublicEndpoint:
+    PublicStatusGroup:
       type: object
       additionalProperties: false
-      required: [name, group, state, strip]
+      required: [name, entries]
       properties:
-        pending_dns: { type: boolean, description: "Its address changed and DNS may still be catching up" }
         name: { type: string }
-        group: { type: string }
+        entries: { type: array, items: { $ref: "#/components/schemas/PublicStatusEntry" } }
+    PublicStatusEntry:
+      type: object
+      additionalProperties: false
+      required: [name, slug, state, since, minutes, days]
+      properties:
+        name: { type: string }
+        slug: { type: string, description: "The service page's address part: /s/{slug}" }
         state: { $ref: "#/components/schemas/MonitorState" }
-        strip: { type: array, items: { $ref: "#/components/schemas/MonitorStripSample" } }
+        since: { type: string, format: date-time }
+        pending_dns: { type: boolean, description: "Its address changed and DNS may still be catching up" }
+        minutes: { type: array, items: { $ref: "#/components/schemas/PublicMinute" }, description: "The last hour's rounds, oldest first" }
+        days: { type: array, items: { $ref: "#/components/schemas/PublicDay" }, description: "90 days, oldest first, in Hashi's time zone" }
         uptime_24h: { type: number, format: double }
+        uptime_90d: { type: number, format: double }
+        icon: { type: string, description: "Hashi's address of the app's icon; missing: show the letter" }
+        icon_light: { type: string, description: "Its white variant for dark themes" }
+    PublicMinute:
+      type: object
+      additionalProperties: false
+      required: [at, state, latency_ms]
+      properties:
+        at: { type: string, format: date-time }
+        state: { type: string, enum: [up, degraded, down] }
+        latency_ms: { type: integer, format: int64 }
+    PublicDay:
+      type: object
+      additionalProperties: false
+      required: [date, state, spells]
+      properties:
+        date: { type: string, format: date }
+        state: { type: string, enum: [up, degraded, down, unknown], description: "unknown: no data that day" }
+        uptime: { type: number, format: double }
+        spells: { type: array, items: { $ref: "#/components/schemas/PublicSpell" }, description: "Downtimes and slow spells that touch the day" }
+    PublicSpell:
+      type: object
+      additionalProperties: false
+      required: [state, start]
+      properties:
+        state: { type: string, enum: [down, degraded] }
+        start: { type: string, format: date-time }
+        end: { type: string, format: date-time, description: "Missing while it lasts" }
+    PublicService:
+      type: object
+      additionalProperties: false
+      required: [title, theme, entry, group, series, downtimes, badges]
+      properties:
+        title: { type: string }
+        theme: { type: string }
+        custom_theme: { $ref: "#/components/schemas/CustomTheme" }
+        assets: { $ref: "#/components/schemas/PublicPageAssets" }
+        entry: { $ref: "#/components/schemas/PublicStatusEntry" }
+        group: { type: string }
+        uptime_7d: { type: number, format: double }
+        uptime_30d: { type: number, format: double }
+        avg_ms_24h: { type: integer, format: int64 }
+        series: { type: array, items: { $ref: "#/components/schemas/PublicPoint" } }
+        downtimes: { type: array, items: { $ref: "#/components/schemas/PublicSpell" }, description: "The last 10 within 90 days, newest first" }
+        badges: { type: array, items: { type: string }, description: "The badge kinds this entry has: /badge/{slug}/{kind}.svg" }
+    PublicPoint:
+      type: object
+      additionalProperties: false
+      required: [at, avg_ms, p95_ms, availability]
+      properties:
+        at: { type: string, format: date-time }
+        avg_ms: { type: integer, format: int64 }
+        p95_ms: { type: integer, format: int64 }
+        availability: { type: number, format: double }
+    PublicLayout:
+      type: object
+      additionalProperties: false
+      required: [version, groups]
+      properties:
+        version: { type: integer, format: int64 }
+        groups: { type: array, items: { $ref: "#/components/schemas/PublicLayoutGroup" }, description: "Named groups in order, then Other (no id)" }
+    PublicLayoutGroup:
+      type: object
+      additionalProperties: false
+      required: [name, entries]
+      properties:
+        id: { type: string, description: "Missing for Other" }
+        name: { type: string }
+        entries: { type: array, items: { $ref: "#/components/schemas/PublicLayoutEntry" } }
+    PublicLayoutEntry:
+      type: object
+      additionalProperties: false
+      required: [key, name, type, apps, status, can_apps, can_status, slug]
+      properties:
+        key: { type: string, description: "kind:id, the entry's identity" }
+        name: { type: string }
+        type: { type: string, enum: [web, link, tcp, udp, check] }
+        apps: { type: boolean }
+        status: { type: boolean }
+        can_apps: { type: boolean, description: "It has a web address" }
+        can_status: { type: boolean, description: "It has a check" }
+        url: { type: string }
+        slug: { type: string }
+        icon_app: { type: string, description: "The app icon's key (app icon picker); missing for entries without one" }
+        icon: { type: string }
+        icon_light: { type: string }
+        state: { $ref: "#/components/schemas/MonitorState" }
+        days: { type: array, items: { $ref: "#/components/schemas/PublicDay" }, description: "For the status page preview" }
+    PublicLayoutSave:
+      type: object
+      additionalProperties: false
+      required: [version, groups, other]
+      properties:
+        version: { type: integer, format: int64 }
+        groups:
+          type: array
+          maxItems: 200
+          items:
+            type: object
+            additionalProperties: false
+            required: [name, entries]
+            properties:
+              id: { type: string, description: "Missing for a new group" }
+              name: { type: string, maxLength: 60 }
+              entries: { type: array, maxItems: 5000, items: { type: string } }
+        other: { type: array, maxItems: 5000, items: { type: string } }
+        switches:
+          type: array
+          maxItems: 5000
+          items:
+            type: object
+            additionalProperties: false
+            required: [entry]
+            properties:
+              entry: { type: string }
+              apps: { type: boolean }
+              status: { type: boolean }
     PublicAssets:
       type: object
       required: [source, background, slots]
@@ -4361,37 +4525,43 @@ components:
     PublicStatus:
       type: object
       additionalProperties: false
-      required: [title, theme, endpoints]
+      required: [title, theme, groups]
       properties:
         title: { type: string }
         theme: { type: string }
         custom_theme: { $ref: "#/components/schemas/CustomTheme" }
         updated_at: { type: string, format: date-time }
-        grouped: { type: boolean, description: "Show the endpoints under their categories, in the order given" }
         assets: { $ref: "#/components/schemas/PublicPageAssets" }
-        endpoints: { type: array, items: { $ref: "#/components/schemas/PublicEndpoint" } }
+        groups: { type: array, items: { $ref: "#/components/schemas/PublicStatusGroup" }, description: "In the layout's order; only groups with an entry shown" }
     PublicApp:
       type: object
       additionalProperties: false
-      required: [name, group, url, state]
+      required: [name, url, state, has_check]
       properties:
         name: { type: string }
-        group: { type: string }
         url: { type: string }
         state: { $ref: "#/components/schemas/MonitorState" }
+        has_check: { type: boolean, description: "Without a check the state means nothing: no dot" }
         icon: { type: string, description: "Hashi's address of the app's icon; missing: show the letter" }
         icon_light: { type: string, description: "Its white variant for dark themes" }
     PublicApps:
       type: object
       additionalProperties: false
-      required: [title, theme, default_sort, apps]
+      required: [title, theme, default_sort, groups]
       properties:
         title: { type: string }
         theme: { type: string }
         custom_theme: { $ref: "#/components/schemas/CustomTheme" }
-        default_sort: { type: string, enum: [name, group, status], description: "The order the page starts with (Dashboard settings)" }
+        default_sort: { type: string, enum: [name, group, status], description: "The order the page starts with (Dashboard settings); group is the layout's order" }
         updated_at: { type: string, format: date-time }
         assets: { $ref: "#/components/schemas/PublicPageAssets" }
+        groups: { type: array, items: { $ref: "#/components/schemas/PublicAppGroup" }, description: "In the layout's order; only groups with an app" }
+    PublicAppGroup:
+      type: object
+      additionalProperties: false
+      required: [name, apps]
+      properties:
+        name: { type: string }
         apps: { type: array, items: { $ref: "#/components/schemas/PublicApp" } }
     Problem:
       type: object
@@ -5245,9 +5415,8 @@ components:
         new_services_visible: { type: boolean, description: "New services show on the public dashboard" }
     StatusPageSettings:
       type: object
-      required: [grouped, order, hidden]
+      required: [order, hidden]
       properties:
-        grouped: { type: boolean, description: "Show categories; false shows one list sorted by name" }
         order: { type: array, maxItems: 500, items: { type: string }, description: "Category names, first to last; others follow by name" }
         hidden: { type: array, maxItems: 500, items: { type: string }, description: "Categories left out of the public page" }
     FirewallDefaultsSettings:

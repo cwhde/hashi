@@ -16,6 +16,22 @@
 			"port": 5173
 		},
 		{
+			"name": "web-lan",
+			"runtimeExecutable": "pnpm",
+			"runtimeArgs": [
+				"--dir",
+				"web",
+				"run",
+				"dev",
+				"--host",
+				"0.0.0.0",
+				"--port",
+				"5173",
+				"--strictPort"
+			],
+			"port": 5173
+		},
+		{
 			"name": "hashi-dev",
 			"runtimeExecutable": "make",
 			"runtimeArgs": [

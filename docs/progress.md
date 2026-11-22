@@ -38,23 +38,29 @@ first, structure before text, search after the settings regroup.
 **13.12 Public pages** (decided 2026-11-21; spec `docs(spec)` 07cc4cf6, mocks approved by the owner 2026-11-22
 (e699bba5), ADR 0004). Gate on prod, after the full hunt: the owner arranges the layout by dragging in the outline and in
 the preview; both public pages follow it; a service page and its badges are served; a down day explains itself on hover.
-PR A, layout and public data:
-- [ ] Migration: `public_groups`, `public_entries`, layout `version`; filled from endpoint groups, the status page's
-  category order and hidden list, `dashboard_visible`, DNS `dashboard` and endpoint `public` (07 §7 Storage). The
-  entry table becomes the only truth for what the public pages show; the old switches write to it.
-- [ ] Reconcile: every service, DNS entry with a public address and other endpoint is in the layout exactly once; new
-  ones join the end of "Other", removed ones leave. Endpoint Group field moves the entry.
-- [ ] `GET`/`PUT /api/public-layout` with `version` (409 when stale), impossible switches refused, one audit event per save.
-- [ ] `/api/public/status` and `/api/public/apps` in layout order with groups; day and minute details (downtimes, slow
-  spells, uptime, response); `/api/public/status/{slug}` with the three chart series; `/badge/{slug}/{kind}.svg`
-  (fixed look of §7.3, width table, CSP, 404 rules); the status listener serves `/s/{slug}`.
-- [ ] Tests of 07 §10 for the layout, the public APIs and the badges.
-PR B, pages:
+PR A, layout, public data and the public pages (the public pages read the new API, so they ship with it):
+- [x] Migration 00035: `public_layout` (version), `public_groups`, `public_entries`; seeded once from endpoint groups,
+  the status page's category order and hidden list (07 §7 Storage, amended a930fedc: the tables hold order and groups
+  only; the switches stay in `dashboard_visible`, DNS `dashboard` and endpoint `public`).
+- [x] Reconcile on every monitor sync and endpoint write: every service, DNS entry with a public address and other
+  endpoint is in the layout exactly once; new ones join the end of "Other" (user monitors their group), removed ones
+  leave; the endpoint's Group field moves the entry.
+- [x] `GET`/`PUT /api/public-layout` with `version` (409 when stale), impossible switches refused, one audit event
+  (`public_layout.saved`) per save.
+- [x] `/api/public/status` and `/api/public/apps` in layout order with groups; 90 days in Hashi's time zone with
+  downtimes and slow spells, the last hour's rounds; `/api/public/status/{slug}` with the three chart series (cached
+  15 s per slug and range, unknown slugs answered from the cached page); `/badge/{slug}/{kind}.svg` (§7.3 look, width
+  table, CSP, 60 s cache, 404 rules); the status listener serves `/s/{slug}` and app icons.
+- [x] Tests of 07 §10: layout seed and reconcile, save rules, public field allow-list, listener routes and 404s,
+  badge look, day history.
+- [x] Public status page, service page (hover strip, three charts, Badges panel with the served images) and apps page
+  as the mocks; `DayStrip` moved into `lib`; wording in `lib/public.ts` with unit tests. Seen on a local build with a
+  seeded copy of the dev data at 1440 and 390 px.
+PR B, the editor:
 - [ ] `web/src/lib/sortable.ts` from the mock, with unit tests of the move rules (ADR 0004).
 - [ ] Admin `/public-pages` replaces `/app-display` (old address redirects): outline, preview, live drag, selection
   bar, Undo, phone sheet; a row's icon opens the icon picker (bug 149, kept from App display). Gear → Settings →
-  Public pages, which loses "Group the list" and the hidden categories.
-- [ ] Public status page, service page (hover strip, three charts, Badges panel) and apps page as the mocks.
+  Public pages, which loses the hidden categories and the category order.
 - [ ] Admin Status page groups by the layout's groups in its order.
 - [ ] e2e: drag with mouse and with touch (hold, swipe), keyboard Alt+arrows, both public pages and a service page at
   390 and 1440 px, badge SVG served.

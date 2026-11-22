@@ -11,6 +11,7 @@
 	import { Skeleton } from '#lib/components/ui/skeleton/index.ts';
 	import { country, dateTime, time } from '#lib/format.ts';
 	import { eventLabel, sourceLabel } from './labels';
+	import { ChartSync } from '#lib/chart-sync.svelte.ts';
 
 	type Range = '1h' | '24h' | '7d' | '30d';
 	let range = $state<Range>('24h');
@@ -34,6 +35,9 @@
 		}
 		d = res.data;
 	}
+	// The tiles' sparklines share one pointer: the same moment shows in all four.
+	const sync = new ChartSync();
+	const pointTimes = $derived((d?.series ?? []).map((p) => (p.at ? Date.parse(p.at) : 0)));
 	// Each series point's time, for the values shown on hover (bug 119).
 	const pointLabels = $derived(
 		(d?.series ?? []).map((p) =>
@@ -118,6 +122,8 @@
 							values={d.series.map((p) => p[t.key])}
 							width={200}
 							labels={pointLabels}
+							times={pointTimes}
+							{sync}
 							class="{t.tone} mt-1 w-full"
 						/>
 					</div>

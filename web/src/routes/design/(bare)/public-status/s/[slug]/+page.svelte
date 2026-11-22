@@ -6,11 +6,11 @@
 	import { page } from '$app/state';
 	import AppIcon from '#lib/components/hashi/AppIcon.svelte';
 	import LineChart from '#lib/components/hashi/LineChart.svelte';
-	import StatusBadge from '#lib/components/hashi/StatusBadge.svelte';
+	import PublicState from '#lib/components/hashi/public/PublicState.svelte';
 	import * as ToggleGroup from '#lib/components/ui/toggle-group/index.ts';
 	import { ArrowLeft } from '@lucide/svelte';
 	import BadgesButton from '../../../../BadgesButton.svelte';
-	import DayStrip from '../../../../DayStrip.svelte';
+	import DayStrip from '#lib/components/hashi/DayStrip.svelte';
 	import { dayDetail, downtimes, entries, responseSeries, slug } from '../../../../ideas.ts';
 
 	const e = $derived(entries.find((x) => slug(x.name) === page.params.slug) ?? entries[0]!);
@@ -38,19 +38,15 @@
 		})
 	);
 	const pct = (v: number) => `${v.toFixed(v === 100 ? 0 : 2)}%`;
-	const now = $derived(
-		e.state === 'down'
-			? 'Down for 6 min'
-			: e.state === 'degraded'
-				? 'Slow for 12 min'
-				: 'Up for 14 h'
+	const since = $derived(
+		e.state === 'down' ? 'Down for' : e.state === 'degraded' ? 'Slow for' : 'Up for'
 	);
 	const tiles = $derived([
-		['Now', now],
-		['24 hours', `${e.uptime.h24}%`],
-		['7 days', `${e.uptime.d7}%`],
-		['30 days', `${e.uptime.d30.toFixed(2)}%`],
-		['Response, 24 h', `${e.ms} ms`]
+		[since, e.state === 'down' ? '6 min' : e.state === 'degraded' ? '12 min' : '14 h'],
+		['Uptime 24 h', `${e.uptime.h24}%`],
+		['Uptime 7 d', `${e.uptime.d7}%`],
+		['Uptime 30 d', `${e.uptime.d30.toFixed(2)}%`],
+		['Response 24 h', `${e.ms} ms`]
 	]);
 </script>
 
@@ -67,7 +63,7 @@
 			<h1 class="truncate text-title font-semibold">{e.name}</h1>
 			<p class="text-md text-muted-foreground">{e.group || 'Other'}</p>
 		</div>
-		<StatusBadge state={e.state} />
+		<PublicState state={e.state} />
 		<BadgesButton {e} />
 	</header>
 

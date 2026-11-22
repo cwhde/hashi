@@ -296,12 +296,6 @@ export const settings: SettingEntry[] = [
 		component: 'settings/PublicPages'
 	},
 	{
-		label: 'Show categories',
-		category: 'public',
-		component: 'settings/PublicPages',
-		words: 'dashboard'
-	},
-	{
 		label: 'Theme',
 		category: 'appearance',
 		component: 'settings/AppearanceSettings',

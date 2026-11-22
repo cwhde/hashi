@@ -40,10 +40,13 @@ func Public(page string, icon func(*http.Request) string) http.Handler {
 	return publicHandler(root, page, icon)
 }
 
+// servicePage is a status page entry's own address (07 §7.2); the page itself says when the slug is unknown.
+var servicePage = regexp.MustCompile(`^/s/[a-z0-9-]{1,80}$`)
+
 func publicHandler(root fs.FS, page string, icon func(*http.Request) string) http.Handler {
 	files := http.FileServerFS(root)
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path != "/" {
+		if r.URL.Path != "/" && (page != "status" || !servicePage.MatchString(r.URL.Path)) {
 			name := strings.TrimPrefix(path.Clean(r.URL.Path), "/")
 			if strings.HasPrefix(name, "_app/") || name == markFile {
 				if st, err := fs.Stat(root, name); err == nil && !st.IsDir() {

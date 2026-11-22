@@ -1,9 +1,9 @@
 <script lang="ts">
 	// Approved mock (07 §8, 2026-11-22): the apps page in the shared layout's order. Groups as headings in the
-	// owner's order, cards in the owner's order inside each; search always shown; sort: your order, name or status.
+	// owner's order, cards in the owner's order inside each; search always shown; sort: group, name or status.
 	// No up/down counts (bug 147), no admin controls.
 	import AppIcon from '#lib/components/hashi/AppIcon.svelte';
-	import StatusDot from '#lib/components/hashi/StatusDot.svelte';
+	import PublicState from '#lib/components/hashi/public/PublicState.svelte';
 	import { Input } from '#lib/components/ui/input/index.ts';
 	import * as Select from '#lib/components/ui/select/index.ts';
 	import { Search } from '@lucide/svelte';
@@ -12,7 +12,7 @@
 	const apps = entries.filter((e) => e.apps);
 	let q = $state('');
 	let sort = $state('order');
-	const sorts = { order: 'Your order', name: 'Name', status: 'Status' } as const;
+	const sorts = { order: 'Group', name: 'Name', status: 'Status' } as const;
 	const rank = { down: 0, degraded: 1, up: 2, unknown: 3, paused: 4 } as const;
 	const domain = (name: string) => `${name.toLowerCase().replace(/[^a-z0-9]+/g, '')}.example.com`;
 	const shown = $derived.by(() => {
@@ -40,7 +40,7 @@
 		</label>
 		<Select.Root type="single" bind:value={sort}>
 			<Select.Trigger class="w-36" aria-label="Sort"
-				>{sorts[sort as keyof typeof sorts]}</Select.Trigger
+				>Sort: {sorts[sort as keyof typeof sorts]}</Select.Trigger
 			>
 			<Select.Content>
 				{#each Object.entries(sorts) as [v, l] (v)}<Select.Item value={v}>{l}</Select.Item>{/each}
@@ -59,10 +59,12 @@
 						<AppIcon name={a.name} class="size-10 rounded-xl text-lg" />
 						<span class="min-w-0 flex-1"
 							><span class="block truncate text-base font-medium">{a.name}</span><span
-								class="block truncate text-sm text-muted-foreground">{domain(a.name)}</span
+								class="flex items-center gap-2"
+								><span class="min-w-0 flex-1 truncate text-sm text-muted-foreground"
+									>{domain(a.name)}</span
+								>{#if a.check}<PublicState state={a.state} class="shrink-0 text-sm" />{/if}</span
 							></span
 						>
-						{#if a.check}<StatusDot state={a.state} />{/if}
 					</a>
 				{/each}
 			</div>

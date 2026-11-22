@@ -4,8 +4,8 @@
 	// bar says what happened then; a row opens the service page. Always grouped, always with icons (owner, 2026-11-22).
 	// Public fields only: no targets, ports, protocols, codes or error text.
 	import AppIcon from '#lib/components/hashi/AppIcon.svelte';
-	import DayStrip from '../../DayStrip.svelte';
-	import StatusBadge from '#lib/components/hashi/StatusBadge.svelte';
+	import DayStrip from '#lib/components/hashi/DayStrip.svelte';
+	import PublicState from '#lib/components/hashi/public/PublicState.svelte';
 	import StatusDot from '#lib/components/hashi/StatusDot.svelte';
 	import * as ToggleGroup from '#lib/components/ui/toggle-group/index.ts';
 	import { ChevronDown } from '@lucide/svelte';
@@ -19,10 +19,6 @@
 	// A group with trouble starts open; the rest as the visitor left them (open the first time).
 	let open = $state<Record<string, boolean>>({});
 	const isOpen = (name: string) => open[name] ?? true;
-	function jump(name: string) {
-		open[name] = true;
-		document.getElementById(`g-${name}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-	}
 	const up = (list: typeof pub) => list.filter((e) => e.state === 'up').length;
 </script>
 
@@ -47,31 +43,28 @@
 	</div>
 
 	{#if groups.length > 1}
-		<nav
+		<ul
 			aria-label="Groups"
 			class="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-[repeat(auto-fit,minmax(8.5rem,1fr))]"
 		>
 			{#each groups as g (g.name)}
 				{@const w = worst(g.items)}
-				<button
-					type="button"
-					onclick={() => jump(g.name)}
-					class="rounded-xl border bg-card px-3 py-2.5 text-left transition-colors hover:border-muted-foreground/40 {w ===
-					'down'
+				<li
+					class="rounded-xl border bg-card px-3 py-2.5 {w === 'down'
 						? 'border-bad/40'
 						: w === 'degraded'
 							? 'border-warn/40'
 							: ''}"
 				>
-					<span class="flex items-center gap-2 text-md font-medium"
-						><StatusDot state={w} /><span class="truncate">{g.name}</span></span
+					<span class="flex items-center justify-between gap-2 text-md font-medium"
+						><span class="truncate">{g.name}</span><StatusDot state={w} /></span
 					>
 					<span class="tnum mt-0.5 block text-sm text-muted-foreground"
 						>{up(g.items)} of {g.items.length} up</span
 					>
-				</button>
+				</li>
 			{/each}
-		</nav>
+		</ul>
 	{/if}
 
 	<div class="mt-6 flex justify-end">
@@ -103,13 +96,13 @@
 						<li>
 							<a
 								href="/design/public-status/s/{slug(e.name)}"
-								class="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-3 gap-y-1.5 px-4 py-2 hover:bg-surface-2/60 sm:grid-cols-[11rem_minmax(0,1fr)_4.5rem_5.5rem]"
+								class="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-3 gap-y-1.5 px-4 py-2 hover:bg-surface-2/60 sm:grid-cols-[11rem_minmax(0,1fr)_4.5rem_4.5rem]"
 							>
 								<span class="flex min-w-0 items-center gap-2 text-md font-medium">
 									<AppIcon name={e.name} class="size-6 rounded-md text-xs" />
 									<span class="truncate">{e.name}</span>
 								</span>
-								<span class="sm:order-last sm:text-right"><StatusBadge state={e.state} /></span>
+								<PublicState state={e.state} class="sm:order-last" />
 								<DayStrip
 									samples={span === 'days' ? e.days : e.history}
 									detail={(i) => (span === 'days' ? dayDetail(e, i) : minuteDetail(e, i))}

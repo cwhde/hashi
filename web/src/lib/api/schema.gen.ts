@@ -1454,6 +1454,41 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/public/status/{slug}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** One service page of the status page (cached with the status page's data); public fields only */
+        get: operations["getPublicService"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/public-layout": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** The one layout of both public pages (07 §7) with every entry and what is possible for it */
+        get: operations["getPublicLayout"];
+        /** Save the whole order and any switch changes; 409 when the layout changed since it was loaded */
+        put: operations["putPublicLayout"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/public/apps": {
         parameters: {
             query?: never;
@@ -4339,15 +4374,142 @@ export interface components {
         NotificationDeliveryList: {
             deliveries: components["schemas"]["NotificationDelivery"][];
         };
-        PublicEndpoint: {
+        PublicStatusGroup: {
+            name: string;
+            entries: components["schemas"]["PublicStatusEntry"][];
+        };
+        PublicStatusEntry: {
+            name: string;
+            /** @description The service page's address part: /s/{slug} */
+            slug: string;
+            state: components["schemas"]["MonitorState"];
+            /** Format: date-time */
+            since: string;
             /** @description Its address changed and DNS may still be catching up */
             pending_dns?: boolean;
-            name: string;
-            group: string;
-            state: components["schemas"]["MonitorState"];
-            strip: components["schemas"]["MonitorStripSample"][];
+            /** @description The last hour's rounds, oldest first */
+            minutes: components["schemas"]["PublicMinute"][];
+            /** @description 90 days, oldest first, in Hashi's time zone */
+            days: components["schemas"]["PublicDay"][];
             /** Format: double */
             uptime_24h?: number;
+            /** Format: double */
+            uptime_90d?: number;
+            /** @description Hashi's address of the app's icon; missing: show the letter */
+            icon?: string;
+            /** @description Its white variant for dark themes */
+            icon_light?: string;
+        };
+        PublicMinute: {
+            /** Format: date-time */
+            at: string;
+            /** @enum {string} */
+            state: "up" | "degraded" | "down";
+            /** Format: int64 */
+            latency_ms: number;
+        };
+        PublicDay: {
+            /** Format: date */
+            date: string;
+            /**
+             * @description unknown: no data that day
+             * @enum {string}
+             */
+            state: "up" | "degraded" | "down" | "unknown";
+            /** Format: double */
+            uptime?: number;
+            /** @description Downtimes and slow spells that touch the day */
+            spells: components["schemas"]["PublicSpell"][];
+        };
+        PublicSpell: {
+            /** @enum {string} */
+            state: "down" | "degraded";
+            /** Format: date-time */
+            start: string;
+            /**
+             * Format: date-time
+             * @description Missing while it lasts
+             */
+            end?: string;
+        };
+        PublicService: {
+            title: string;
+            theme: string;
+            custom_theme?: components["schemas"]["CustomTheme"];
+            assets?: components["schemas"]["PublicPageAssets"];
+            entry: components["schemas"]["PublicStatusEntry"];
+            group: string;
+            /** Format: double */
+            uptime_7d?: number;
+            /** Format: double */
+            uptime_30d?: number;
+            /** Format: int64 */
+            avg_ms_24h?: number;
+            series: components["schemas"]["PublicPoint"][];
+            /** @description The last 10 within 90 days, newest first */
+            downtimes: components["schemas"]["PublicSpell"][];
+            /** @description The badge kinds this entry has: /badge/{slug}/{kind}.svg */
+            badges: string[];
+        };
+        PublicPoint: {
+            /** Format: date-time */
+            at: string;
+            /** Format: int64 */
+            avg_ms: number;
+            /** Format: int64 */
+            p95_ms: number;
+            /** Format: double */
+            availability: number;
+        };
+        PublicLayout: {
+            /** Format: int64 */
+            version: number;
+            /** @description Named groups in order, then Other (no id) */
+            groups: components["schemas"]["PublicLayoutGroup"][];
+        };
+        PublicLayoutGroup: {
+            /** @description Missing for Other */
+            id?: string;
+            name: string;
+            entries: components["schemas"]["PublicLayoutEntry"][];
+        };
+        PublicLayoutEntry: {
+            /** @description kind:id, the entry's identity */
+            key: string;
+            name: string;
+            /** @enum {string} */
+            type: "web" | "link" | "tcp" | "udp" | "check";
+            apps: boolean;
+            status: boolean;
+            /** @description It has a web address */
+            can_apps: boolean;
+            /** @description It has a check */
+            can_status: boolean;
+            url?: string;
+            slug: string;
+            /** @description The app icon's key (app icon picker); missing for entries without one */
+            icon_app?: string;
+            icon?: string;
+            icon_light?: string;
+            state?: components["schemas"]["MonitorState"];
+            /** @description For the status page preview */
+            days?: components["schemas"]["PublicDay"][];
+        };
+        PublicLayoutSave: {
+            /** Format: int64 */
+            version: number;
+            groups: {
+                /** @description Missing for a new group */
+                id?: string;
+                name: string;
+                entries: string[];
+            }[];
+            other: string[];
+            switches?: {
+                entry: string;
+                apps?: boolean;
+                status?: boolean;
+            }[];
         };
         PublicAssets: {
             /** @description Base address of the owner's asset folder; empty when none */
@@ -4439,16 +4601,16 @@ export interface components {
             custom_theme?: components["schemas"]["CustomTheme"];
             /** Format: date-time */
             updated_at?: string;
-            /** @description Show the endpoints under their categories, in the order given */
-            grouped?: boolean;
             assets?: components["schemas"]["PublicPageAssets"];
-            endpoints: components["schemas"]["PublicEndpoint"][];
+            /** @description In the layout's order; only groups with an entry shown */
+            groups: components["schemas"]["PublicStatusGroup"][];
         };
         PublicApp: {
             name: string;
-            group: string;
             url: string;
             state: components["schemas"]["MonitorState"];
+            /** @description Without a check the state means nothing: no dot */
+            has_check: boolean;
             /** @description Hashi's address of the app's icon; missing: show the letter */
             icon?: string;
             /** @description Its white variant for dark themes */
@@ -4459,13 +4621,18 @@ export interface components {
             theme: string;
             custom_theme?: components["schemas"]["CustomTheme"];
             /**
-             * @description The order the page starts with (Dashboard settings)
+             * @description The order the page starts with (Dashboard settings); group is the layout's order
              * @enum {string}
              */
             default_sort: "name" | "group" | "status";
             /** Format: date-time */
             updated_at?: string;
             assets?: components["schemas"]["PublicPageAssets"];
+            /** @description In the layout's order; only groups with an app */
+            groups: components["schemas"]["PublicAppGroup"][];
+        };
+        PublicAppGroup: {
+            name: string;
             apps: components["schemas"]["PublicApp"][];
         };
         Problem: {
@@ -5344,8 +5511,6 @@ export interface components {
             new_services_visible: boolean;
         };
         StatusPageSettings: {
-            /** @description Show categories; false shows one list sorted by name */
-            grouped: boolean;
             /** @description Category names, first to last; others follow by name */
             order: string[];
             /** @description Categories left out of the public page */
@@ -8344,6 +8509,77 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["PublicStatus"];
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    getPublicService: {
+        parameters: {
+            query?: {
+                range?: "24h" | "7d" | "30d";
+            };
+            header?: never;
+            path: {
+                slug: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The service */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PublicService"];
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    getPublicLayout: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The layout */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PublicLayout"];
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    putPublicLayout: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PublicLayoutSave"];
+            };
+        };
+        responses: {
+            /** @description The saved layout */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PublicLayout"];
                 };
             };
             default: components["responses"]["Problem"];

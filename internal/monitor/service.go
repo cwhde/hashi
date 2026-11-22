@@ -69,6 +69,7 @@ type Service struct {
 
 	statusCache cache[PublicStatus]
 	appsCache   cache[PublicApps]
+	pageCache   pages[PublicService]
 
 	// defaults are the Monitoring settings (09 §2): new endpoints and checks start with them; retention follows them.
 	defaults atomic.Pointer[settings.Monitoring]
@@ -354,7 +355,7 @@ func (s *Service) Sync(ctx context.Context) error {
 				return err
 			}
 		}
-		return nil
+		return syncLayout(ctx, q, now) // the public layout follows its subjects (07 §7)
 	})
 }
 

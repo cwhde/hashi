@@ -73,9 +73,10 @@ of groups, each holding an ordered list of entries. Each page shows the entries 
 order, and skips the rest. Nothing on a public page knows whether the visitor is signed in to Hashi: no admin
 detection, no edit links.
 
-**Entries.** Every service, every manual DNS entry with a public address, and every endpoint that belongs to neither
-(user monitors, hosts, agents, Hashi itself) is one entry, kept in the layout automatically: a new one joins the end of
-"Other", a removed one leaves. An entry has two switches:
+**Entries.** Every service (except Hashi's own system ones), every DNS entry that is on the dashboard or monitored
+(the manual entries of 03 §7), and every endpoint that belongs to neither (user monitors, hosts, agents, Hashi itself)
+is one entry, kept in the layout automatically by the monitor's source sync: a new one joins the end of "Other", a
+removed one leaves. An entry has two switches:
 
 | Switch | Possible when | New entries |
 | --- | --- | --- |
@@ -91,14 +92,27 @@ groups in the same order (and never hides anything). The group is the endpoint's
 settings' Group field edits the entry's place in the layout.
 
 **Storage.** `public_groups` (id, name unique, position) and `public_entries` (id, subject kind `service` | `dns` |
-`endpoint` + subject id unique, group id or null for "Other", position, apps, status), one `version` for the whole layout.
+`endpoint` + subject id unique, group id or null for "Other", position), one `version` for the whole layout. The layout
+holds order and groups only. The two switches stay where they already live and other pages already write them (one
+truth, nothing to keep in step; changed 2026-11-22 while building): Apps is the service's `dashboard_visible` or the DNS
+entry's `dashboard`, Status is the entry's endpoint's `public`. Turning Apps off on a DNS entry that is not monitored
+takes it out of the layout; the DNS page brings it back. An entry's group is written to its endpoint's `group_name` in
+the same transaction ("Other" for none), so notifications and older readers see the same group.
 Migration: groups from the endpoints' group names in the old category order (then by name), entries in each group by
-name, apps from `dashboard_visible`/`dashboard`, status from the endpoint's `public`; the hidden-categories and
-categories-off settings go (switch the entries off instead; both pages always show groups, 2026-11-22).
+name (an entry without an endpoint in "Services" or "DNS entries", as the old apps page grouped them); the
+hidden-categories and categories-off settings go: entries of a hidden category get Status off, and both pages always
+show groups (2026-11-22).
 
 **API.** `GET /api/public-layout` returns groups, entries (with name, kind, icon, what is possible) and `version`.
 `PUT /api/public-layout` takes the whole order (groups with entry ids) and switch changes with `version`; a newer stored
 version refuses the save (409) and the editor reloads. Audit: one event per save, naming what moved or changed.
+
+### 7.0 How a state reads on the public pages
+
+Everywhere a public page shows one entry's state (status rows, the service page head, app cards) it is the same: the
+word, then the dot, in the state's colour, the dot ending on the right. The words are the visitors': Up, Slow, Down,
+Paused, No data. Every state has its word, Up included, so no state rests on colour alone and none reads differently
+(the owner, 2026-11-22). Group summaries keep their own words ("x of n up") with the dot after them.
 
 ### 7.1 Status page (port 8082, root path)
 
@@ -106,12 +120,15 @@ Enabled by default (setting). Only entries with Status on; never internal hostna
 error text or admin links.
 
 - **Banner**: "N services are down." / slow / everything works, with "Updated" from public checks only (as since 13.5).
-- **Group tiles**: one per group shown, in layout order: the group's name, a state dot (worst of its entries), "x of n
-  up". A click scrolls to the group and opens it. Hidden when only one group is shown.
+- **Group tiles**: one per group shown, in layout order: the group's name with a state dot on the right (worst of its
+  entries), "x of n up" below. A summary only: no hover, no click (the owner, 2026-11-22: the groups are right below). Hidden when only one
+  group is shown.
 - **Group panels**: each group in its own panel that folds. A group with an entry down or slow starts open; the others
-  start as the visitor left them (kept in the browser), open the first time.
+  start as the visitor left them (kept in the browser), open the first time. Folding animates the panel's height
+  (about 200 ms, none with reduced motion); folded rows are out of the tab order. Only a folded or moving panel clips
+  its rows, so the bar details of a group's first row show above it.
 - **Rows** (dense): icon (the app icon of §9.1, else the letter; always shown), name, history bar, uptime for the
-  bar's span, state badge. Bars: 90 days, one per day, by default; a 90 days / Last hour switch above the groups shows
+  bar's span, and the state last, on the same right edge as the group's dot. Bars: 90 days, one per day, by default; a 90 days / Last hour switch above the groups shows
   the last 60 minutes, one per minute, instead. No caption explains the bars; the details are on hover.
 - **Bar details**: pointing at a bar (or tapping it, or arrow keys on the focused bar) raises that bar, dims the rest
   and shows a bubble with what happened then. A day: the date, then each downtime with its times and length ("Down
@@ -131,12 +148,14 @@ error text or admin links.
 One page per entry with Status on, with an address to share. The slug is the service's, else made from the name; an
 entry switched off answers 404.
 
-- Head: icon, name, group, state badge, and one **Badges** button (§7.3).
-- Tiles: Now ("Up for 14 h", "Down for 6 min"), uptime 24 h, 7 d, 30 d, average response 24 h.
+- Head: icon, name, group, the state (§7.0), and one **Badges** button (§7.3).
+- Tiles, each a label over a value: the state as the label with how long as the value ("Up for" / "14 h", "Down for" /
+  "6 min"; "No data yet" before the first check), then "Uptime 24 h", "Uptime 7 d", "Uptime 30 d" and "Response 24 h"
+  (the average).
 - 90-day bar with its dates and the bar details of §7.1.
 - Three charts side by side (stacked on a phone), one 24 h / 7 d / 30 d switch for all: **Response time** (average),
   **Slowest responses** (p95), **Availability**. Pointing at a chart shows that moment's time and value beside the
-  pointer, as the admin endpoint page's charts do (`LineChart` with labels).
+  pointer, as the admin endpoint page's charts do (`LineChart` with labels); the three share the pointer (10b).
 - Recent downtimes: the last 10 within 90 days, start, end and length; none: "No downtime in the last 90 days."
 - Back link to the status page. `GET /api/public/status/<slug>` (cached 15 s), the same public fields only.
 
@@ -162,8 +181,10 @@ Launcher of the entries with Apps on, enabled by default (setting), no admin con
 
 - Groups as headings in layout order; cards in layout order inside each. Sorting by Name or Status drops the
   headings and shows one list.
-- Each card: app icon (§9.1), name, the public address; links to it. No up/down counts in the header (bug 147).
-- Search field always shown (bug 146); sort selector: Your order (default), Name, Status.
+- Each card: app icon (§9.1), name, the public address; links to it. An entry with a check shows its state (§7.0) at
+  the end of the address line, so the name keeps the full width. No up/down counts in the header (bug 147).
+- Search field always shown (bug 146); sort selector "Sort: Group" (default: the groups
+  and cards as the owner arranged them), Name, Status. Visitors never see the owner's wording ("Your order").
 - `GET /api/public/apps` (cached 15 s).
 
 ### 8.1 Public pages editor (admin `/public-pages`, renamed from App display)

@@ -12,6 +12,7 @@ import (
 
 	"git.juzo.io/juzo/hashi/internal/assets"
 	"git.juzo.io/juzo/hashi/internal/httpapi"
+	"git.juzo.io/juzo/hashi/internal/monitor"
 	"git.juzo.io/juzo/hashi/internal/pulse"
 	"git.juzo.io/juzo/hashi/internal/settings"
 	"git.juzo.io/juzo/hashi/internal/store/storetest"
@@ -144,6 +145,74 @@ func TestPublicMuxServesAssets(t *testing.T) {
 		h.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/assets/icon", nil))
 		if rec.Code != 404 {
 			t.Errorf("%s off: %d", page, rec.Code)
+		}
+	}
+}
+
+// 07 §7.2, §7.3: the status listener serves each entry's service page and badges; an entry with Status off, an
+// unknown kind and a kind the entry lacks answer 404, and the apps listener serves neither.
+func TestStatusListenerServesServicePagesAndBadges(t *testing.T) {
+	st := storetest.New(t)
+	ctx := t.Context()
+	mon := monitor.New(st, func(context.Context) error { return nil }, nil, nil)
+	id, err := mon.CreateUser(ctx, "Lamp", "Home", monitor.CheckSpec{Type: monitor.TypeTCP, Target: "127.0.0.1:1"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	public := func(on bool) {
+		t.Helper()
+		if err := mon.Update(ctx, id, monitor.Settings{Group: "Home", IntervalSeconds: 60, TimeoutSeconds: 5, Public: on}); err != nil {
+			t.Fatal(err)
+		}
+	}
+	public(true)
+	api := &httpapi.Server{Store: st, Monitor: mon, Log: slog.New(slog.DiscardHandler)}
+	var on atomic.Bool
+	on.Store(true)
+	status, apps := publicMux(api, "status", &on), publicMux(api, "apps", &on)
+	get := func(h http.Handler, path string) *httptest.ResponseRecorder {
+		rec := httptest.NewRecorder()
+		h.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, path, nil))
+		return rec
+	}
+	if r := get(status, "/api/public/status/lamp?range=7d"); r.Code != 200 || !strings.Contains(r.Body.String(), `"slug":"lamp"`) {
+		t.Fatalf("service page: %d %s", r.Code, r.Body)
+	}
+	if r := get(status, "/api/public/status/lamp?range=1y"); r.Code != 200 {
+		t.Fatalf("an unknown range shows the 24 h page: %d", r.Code)
+	}
+	r := get(status, "/badge/lamp/status.svg")
+	if r.Code != 200 || !strings.HasPrefix(r.Body.String(), "<svg") {
+		t.Fatalf("badge: %d %s", r.Code, r.Body)
+	}
+	h := r.Header()
+	if h.Get("Content-Type") != "image/svg+xml" || h.Get("X-Content-Type-Options") != "nosniff" || h.Get("Cache-Control") != "public, max-age=60" ||
+		h.Get("Content-Security-Policy") != "default-src 'none'; style-src 'unsafe-inline'" {
+		t.Fatalf("badge headers %v", h)
+	}
+	for _, p := range []string{"/badge/lamp/uptime-24h.svg", "/badge/lamp/response-24h.svg"} {
+		if r := get(status, p); r.Code != 200 {
+			t.Errorf("%s: %d", p, r.Code)
+		}
+	}
+	for _, p := range []string{"/badge/lamp/certificate.svg", "/badge/lamp/nope.svg", "/badge/lamp/status.png", "/badge/gone/status.svg", "/api/public/status/gone"} {
+		if r := get(status, p); r.Code != 404 {
+			t.Errorf("%s: %d, want 404", p, r.Code)
+		}
+	}
+	// The page itself: served (503 where the web UI is not built, as in CI's check job), never on the apps listener.
+	if r := get(status, "/s/lamp"); r.Code == 404 {
+		t.Error("/s/lamp: 404 on the status listener")
+	}
+	for _, p := range []string{"/s/lamp", "/badge/lamp/status.svg", "/api/public/status/lamp"} {
+		if r := get(apps, p); r.Code != 404 {
+			t.Errorf("apps listener %s: %d", p, r.Code)
+		}
+	}
+	public(false)
+	for _, p := range []string{"/badge/lamp/status.svg", "/api/public/status/lamp"} {
+		if r := get(status, p); r.Code != 404 {
+			t.Errorf("Status off %s: %d, want 404", p, r.Code)
 		}
 	}
 }

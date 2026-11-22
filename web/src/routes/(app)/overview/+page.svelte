@@ -17,6 +17,7 @@
 	import { arrange, widgetNames, type WidgetId } from '#lib/overview.ts';
 	import { theme } from '#lib/theme.svelte.ts';
 	import type { Health } from '#lib/design/mock.ts';
+	import { ChartSync } from '#lib/chart-sync.svelte.ts';
 
 	// The start page (10-ui.md §3, bug 31): what needs the owner first, then the rest, as widgets in the order and
 	// selection kept in Settings → Appearance. Each widget loads its own data, so a slow one never holds up the others.
@@ -175,6 +176,8 @@
 			.filter((c) => c.not_after)
 			.toSorted((a, b) => a.not_after!.localeCompare(b.not_after!))
 	);
+	// The security card's three sparklines share one pointer (allowed, challenged, blocked at the same moment).
+	const secSync = new ChartSync();
 </script>
 
 <svelte:head><title>Overview · Hashi</title></svelte:head>
@@ -328,6 +331,8 @@
 						<Sparkline
 							values={sec.series.map((p) => p[k])}
 							labels={sec.series.map((p) => dateTime(p.at))}
+							times={sec.series.map((p) => (p.at ? Date.parse(p.at) : 0))}
+							sync={secSync}
 							width={240}
 							height={36}
 							class="w-full {tone}"

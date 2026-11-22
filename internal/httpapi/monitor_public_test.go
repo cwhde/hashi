@@ -15,11 +15,17 @@ func TestPublicSchemasExposeOnlySelectedFields(t *testing.T) {
 		v    any
 		want []string
 	}{
-		{gen.PublicStatus{}, []string{"assets", "custom_theme", "endpoints", "grouped", "theme", "title", "updated_at"}},
-		{gen.PublicEndpoint{}, []string{"group", "name", "pending_dns", "state", "strip", "uptime_24h"}},
-		{gen.MonitorStripSample{}, []string{"at", "verdict"}},
-		{gen.PublicApps{}, []string{"apps", "assets", "custom_theme", "default_sort", "theme", "title", "updated_at"}},
-		{gen.PublicApp{}, []string{"group", "icon", "icon_light", "name", "state", "url"}},
+		{gen.PublicStatus{}, []string{"assets", "custom_theme", "groups", "theme", "title", "updated_at"}},
+		{gen.PublicStatusGroup{}, []string{"entries", "name"}},
+		{gen.PublicStatusEntry{}, []string{"days", "icon", "icon_light", "minutes", "name", "pending_dns", "since", "slug", "state", "uptime_24h", "uptime_90d"}},
+		{gen.PublicMinute{}, []string{"at", "latency_ms", "state"}},
+		{gen.PublicDay{}, []string{"date", "spells", "state", "uptime"}},
+		{gen.PublicSpell{}, []string{"end", "start", "state"}},
+		{gen.PublicService{}, []string{"assets", "avg_ms_24h", "badges", "custom_theme", "downtimes", "entry", "group", "series", "theme", "title", "uptime_30d", "uptime_7d"}},
+		{gen.PublicPoint{}, []string{"at", "availability", "avg_ms", "p95_ms"}},
+		{gen.PublicApps{}, []string{"assets", "custom_theme", "default_sort", "groups", "theme", "title", "updated_at"}},
+		{gen.PublicAppGroup{}, []string{"apps", "name"}},
+		{gen.PublicApp{}, []string{"has_check", "icon", "icon_light", "name", "state", "url"}},
 		// Hashi's own addresses of the public assets (07 §9), never the source they were copied from.
 		{gen.PublicPageAssets{}, []string{"background", "icon", "logo_dark", "logo_light"}},
 		{gen.CustomTheme{}, []string{"accent", "border", "canvas", "charts", "muted", "roundness", "surface", "text"}},
