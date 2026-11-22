@@ -100,6 +100,8 @@ func (s *Store) Put(slot Slot, data []byte) (contentType, etag string, err error
 	if err != nil {
 		return "", "", err
 	}
+	// Uploads and files copied from the source both land here, so both are stored at the size pages show.
+	data, ct = fit(slot, data, ct)
 	tmp, err := os.CreateTemp(s.dir, "."+string(slot)+"-*")
 	if err != nil {
 		return "", "", fmt.Errorf("store %s: %w", slot, err)
@@ -269,4 +271,25 @@ func ParseListing(page []byte) Listing {
 		}
 	}
 	return l
+}
+
+// Refit stores a slot's file again at its shown size (logos stored before Hashi fitted them, 0.13.14). changed is
+// false when the file was fitted already, or the slot is empty.
+func (s *Store) Refit(slot Slot) (contentType, etag string, changed bool, err error) {
+	data, err := os.ReadFile(s.path(slot))
+	if errors.Is(err, os.ErrNotExist) {
+		return "", "", false, nil
+	}
+	if err != nil {
+		return "", "", false, fmt.Errorf("refit %s: %w", slot, err)
+	}
+	ct, err := Sniff(data)
+	if err != nil {
+		return "", "", false, nil //nolint:nilerr // a file Hashi can't read is served as it is
+	}
+	if out, _ := fit(slot, data, ct); len(out) == len(data) {
+		return "", "", false, nil
+	}
+	ct, etag, err = s.Put(slot, data)
+	return ct, etag, err == nil, err
 }

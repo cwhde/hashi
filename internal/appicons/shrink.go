@@ -4,11 +4,11 @@ import (
 	"bytes"
 	"context"
 	"image"
-	"image/color"
 	"image/jpeg"
 	pngenc "image/png"
 	"os"
 
+	"git.juzo.io/juzo/hashi/internal/imgfit"
 	"git.juzo.io/juzo/hashi/internal/store/db"
 )
 
@@ -39,42 +39,11 @@ func shrink(f Found) Found {
 		return f
 	}
 	var b bytes.Buffer
-	if err := enc(&b, scaleDown(src, maxSide)); err != nil || b.Len() >= len(f.Data) {
+	if err := enc(&b, imgfit.Fit(src, maxSide, maxSide)); err != nil || b.Len() >= len(f.Data) {
 		return f
 	}
 	f.Data = b.Bytes()
 	return f
-}
-
-// scaleDown fits src into side×side by averaging the source pixels under each target pixel (area averaging, in
-// premultiplied colour so transparent edges don't darken).
-func scaleDown(src image.Image, side int) image.Image {
-	r := src.Bounds()
-	w, h := r.Dx(), r.Dy()
-	tw, th := side, side
-	if w > h {
-		th = max(1, h*side/w)
-	} else {
-		tw = max(1, w*side/h)
-	}
-	dst := image.NewNRGBA(image.Rect(0, 0, tw, th))
-	for y := range th {
-		y0, y1 := r.Min.Y+y*h/th, r.Min.Y+max((y+1)*h/th, y*h/th+1)
-		for x := range tw {
-			x0, x1 := r.Min.X+x*w/tw, r.Min.X+max((x+1)*w/tw, x*w/tw+1)
-			var sr, sg, sb, sa, n uint64
-			for sy := y0; sy < y1; sy++ {
-				for sx := x0; sx < x1; sx++ {
-					cr, cg, cb, ca := src.At(sx, sy).RGBA() // premultiplied, 16 bit
-					sr, sg, sb, sa, n = sr+uint64(cr), sg+uint64(cg), sb+uint64(cb), sa+uint64(ca), n+1
-				}
-			}
-			// Each sum holds n values of at most 0xffff, so every average fits 16 bits.
-			px := color.RGBA64{R: uint16(sr / n), G: uint16(sg / n), B: uint16(sb / n), A: uint16(sa / n)} //nolint:gosec // see above
-			dst.Set(x, y, px)
-		}
-	}
-	return dst
 }
 
 // shrinkStored scales down the icons stored before Hashi shrank them (0.13.11): library icons and uploads are never

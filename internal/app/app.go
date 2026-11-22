@@ -487,6 +487,9 @@ func Run(ctx context.Context, cfg Config, log *slog.Logger, ready func(adminAddr
 	if err != nil {
 		return err
 	}
+	if err := refitLogos(ctx, st, assetStore, cfgSettings, log.With("component", "assets")); err != nil {
+		log.Warn("public page logos kept as they were", "err", err) // they still serve, only larger
+	}
 	iconSvc, err := appicons.New(st, filepath.Join(cfg.DataDir, "assets", "apps"), appicons.NewFinder(),
 		appicons.NewLibrary(appicons.LibraryBase, &http.Client{Timeout: 30 * time.Second}), log.With("component", "app-icons"))
 	if err != nil {

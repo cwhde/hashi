@@ -1,8 +1,13 @@
 package assets
 
 import (
+	"bytes"
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"errors"
+	"image"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -141,5 +146,68 @@ func TestSourceListsAndFetches(t *testing.T) {
 	}
 	if hits.Load() != 3 {
 		t.Fatalf("requests: %d", hits.Load())
+	}
+}
+
+// A logo is stored at the size pages draw it: a 3840 px WebP (a real one on prod was 227 KiB) comes out a PNG inside
+// 768×120, whether it was uploaded or copied from the source (both go through Put). Icons and backgrounds stay as given.
+func TestLogoIsStoredAtItsShownSize(t *testing.T) {
+	big, err := os.ReadFile("testdata/wide-logo.webp")
+	if err != nil {
+		t.Fatal(err)
+	}
+	s, err := NewStore(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	ct, etag, err := s.Put(LogoDark, big)
+	if err != nil {
+		t.Fatal(err)
+	}
+	f, err := s.Open(LogoDark)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer f.Close()
+	stored, _ := io.ReadAll(f)
+	cfg, format, err := image.DecodeConfig(bytes.NewReader(stored))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if ct != "image/png" || format != "png" || cfg.Width > 768 || cfg.Height > 120 || len(stored) >= len(big)/2 {
+		t.Errorf("stored %s (%s) %d×%d, %d bytes from %d", ct, format, cfg.Width, cfg.Height, len(stored), len(big))
+	}
+	if sum := sha256.Sum256(stored); etag != hex.EncodeToString(sum[:8]) {
+		t.Errorf("etag %s is not the stored file's", etag)
+	}
+	// A background keeps its pixels.
+	if ct, _, err := s.Put(Background, big); err != nil || ct != "image/webp" {
+		t.Errorf("background: %s %v", ct, err)
+	}
+}
+
+// A logo stored before Hashi fitted logos is fitted once; a second pass and an empty slot change nothing.
+func TestRefitStoredLogo(t *testing.T) {
+	big, err := os.ReadFile("testdata/wide-logo.webp")
+	if err != nil {
+		t.Fatal(err)
+	}
+	dir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(dir, string(LogoLight)), big, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	s, err := NewStore(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	ct, etag, changed, err := s.Refit(LogoLight)
+	if err != nil || !changed || ct != "image/png" || etag == "" {
+		t.Fatalf("first refit: %s %s %v %v", ct, etag, changed, err)
+	}
+	if _, _, changed, err := s.Refit(LogoLight); err != nil || changed {
+		t.Errorf("second refit changed it again: %v %v", changed, err)
+	}
+	if _, _, changed, err := s.Refit(LogoDark); err != nil || changed {
+		t.Errorf("empty slot: %v %v", changed, err)
 	}
 }

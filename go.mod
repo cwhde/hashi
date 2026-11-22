@@ -21,6 +21,7 @@ require (
 	go.yaml.in/yaml/v3 v3.0.5
 	go4.org/netipx v0.0.0-20260823151212-3075585bcbeb
 	golang.org/x/crypto v0.59.0
+	golang.org/x/image v0.48.0
 	golang.org/x/oauth2 v0.37.0
 	golang.org/x/sync v0.25.0
 	golang.org/x/text v0.44.0
