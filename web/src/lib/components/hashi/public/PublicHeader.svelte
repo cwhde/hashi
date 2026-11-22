@@ -40,11 +40,12 @@
 {/if}
 
 {#if heading}<h1 class="flex min-w-48 flex-1 items-center gap-3 text-title font-semibold">
+		<!-- A name reads "example.com status" with a plain space; only a logo keeps the gap to the word after it. -->
 		{#if logo}<img
 				src={logo}
 				alt={title}
 				class="h-10 w-auto max-w-64 object-contain"
-			/>{:else}{title}{/if}
-		{#if suffix}<span>{suffix}</span>{/if}
+			/>{#if suffix}<span>{suffix}</span>{/if}{:else}<span>{title}{suffix ? ` ${suffix}` : ''}</span
+			>{/if}
 		{@render children?.()}
 	</h1>{/if}

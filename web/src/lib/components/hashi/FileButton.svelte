@@ -16,7 +16,7 @@
 <label
 	class={cn(
 		buttonVariants({ variant: 'outline', size: 'sm' }),
-		'relative cursor-pointer focus-within:ring-2 focus-within:ring-ring',
+		'relative cursor-pointer has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-ring',
 		disabled && 'pointer-events-none opacity-50'
 	)}
 >
