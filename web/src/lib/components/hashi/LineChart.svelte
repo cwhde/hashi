@@ -45,6 +45,9 @@
 		e.preventDefault();
 		point((at ?? n - 1) + by);
 	}
+	// On touch (bug 182): a sideways slide reads the chart and an upright one scrolls the page (touch-action: pan-y); a
+	// tap shows that moment, and a long press opens no browser menu.
+	let touch = false;
 	function leave() {
 		if (shared) sync!.at = null;
 		else own = null;
@@ -68,7 +71,7 @@
 	</figcaption>
 	{#if labels}
 		<div
-			class="relative rounded-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
+			class="relative touch-pan-y rounded-sm outline-none select-none [-webkit-touch-callout:none] focus-visible:ring-2 focus-visible:ring-ring"
 			role="slider"
 			tabindex="0"
 			aria-label="{title}, latest {current ?? show(values.at(-1) ?? 0)}"
@@ -77,7 +80,9 @@
 			aria-valuenow={at ?? values.length - 1}
 			aria-valuetext={at === null ? undefined : `${labels[at]}: ${show(values[at] ?? 0)}`}
 			onpointermove={move}
-			onpointerleave={leave}
+			onpointerdown={(e) => ((touch = e.pointerType !== 'mouse'), move(e))}
+			onpointerleave={(e) => e.pointerType === 'mouse' && leave()}
+			oncontextmenu={(e) => touch && e.preventDefault()}
 			onkeydown={key}
 			onfocus={() => at === null && point(values.length - 1)}
 			onblur={leave}

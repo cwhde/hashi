@@ -37,7 +37,11 @@
 	const d = $derived(at === null ? null : detail(at));
 	const share = $derived(at === null ? 0 : (at + 0.4) / n);
 
+	// On touch (bug 182): a sideways slide walks the bars and an upright one scrolls the page (touch-action: pan-y), and a
+	// long press keeps the bubble instead of opening the browser's link menu (the row around the strip is a link).
+	let touch = false;
 	function point(e: PointerEvent) {
+		touch = e.pointerType !== 'mouse';
 		const r = (e.currentTarget as HTMLElement).getBoundingClientRect();
 		at = Math.max(0, Math.min(n - 1, Math.floor(((e.clientX - r.left) / r.width) * n)));
 	}
@@ -51,10 +55,11 @@
 
 <div class={cn('min-w-0', className)}>
 	<div
-		class="relative rounded-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
+		class="relative touch-pan-y rounded-sm outline-none select-none [-webkit-touch-callout:none] focus-visible:ring-2 focus-visible:ring-ring"
 		role="slider"
 		tabindex="0"
 		aria-label={summary}
+		oncontextmenu={(e) => touch && e.preventDefault()}
 		aria-valuemin={0}
 		aria-valuemax={n - 1}
 		aria-valuenow={at ?? n - 1}

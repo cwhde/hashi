@@ -252,6 +252,20 @@ export async function publicPagesSeen(page: Page, appsURL: string, statusURL: st
 	await page.keyboard.press('Home');
 	await expect(chart).toHaveAttribute('aria-valuenow', '0');
 	await expect(chart).toHaveAttribute('aria-valuetext', /\d/);
+	// On a phone (bug 182) a sideways slide reads the chart and the strips, an upright one scrolls the page, and a long
+	// press after a touch opens no browser menu.
+	for (const el of [chart, page.getByRole('slider', { name: /^\d+ days?|^No data/ }).first()]) {
+		expect(await el.evaluate((e) => getComputedStyle(e).touchAction)).toBe('pan-y');
+		const held = await el.evaluate((e) => {
+			const at = e.getBoundingClientRect();
+			const o = { bubbles: true, pointerType: 'touch', clientX: at.left + 4, clientY: at.top + 4 };
+			e.dispatchEvent(new PointerEvent('pointerdown', o));
+			const menu = new MouseEvent('contextmenu', { bubbles: true, cancelable: true });
+			e.dispatchEvent(menu);
+			return menu.defaultPrevented;
+		});
+		expect(held).toBe(true);
+	}
 	// A service page for nothing shown answers 404 and still says so (bug 172).
 	const gone = await page.request.get(`${statusURL}/s/no-such-service`);
 	expect(gone.status()).toBe(404);
