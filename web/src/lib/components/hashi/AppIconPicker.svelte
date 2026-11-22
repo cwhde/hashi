@@ -8,8 +8,16 @@
 	import { api, problemText, type Schemas } from '#lib/api/client.ts';
 	import AppIcon from './AppIcon.svelte';
 
-	let { app, onchange }: { app: Schemas['AppIcon']; onchange: (a: Schemas['AppIcon']) => void } =
-		$props();
+	let {
+		app,
+		onchange,
+		size = 'size-7 text-xs'
+	}: {
+		app: Schemas['AppIcon'];
+		onchange: (a: Schemas['AppIcon']) => void;
+		/** The trigger icon's size classes (a dense outline row uses a smaller one). */
+		size?: string;
+	} = $props();
 
 	let open = $state(false);
 	let query = $state('');
@@ -88,7 +96,7 @@
 	onclick={() => start(true)}
 	aria-label="Icon of {app.name}"
 >
-	<AppIcon name={app.name} icon={app.icon} light={app.icon_light} class="size-7 text-xs" />
+	<AppIcon name={app.name} icon={app.icon} light={app.icon_light} class={size} />
 </button>
 
 <Dialog.Root bind:open={() => open, start}>
