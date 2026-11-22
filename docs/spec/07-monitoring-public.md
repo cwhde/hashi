@@ -228,6 +228,8 @@ Each slot is empty, downloaded or uploaded; Settings → Public pages sets them.
 - Served at `/assets/<slot>` on the admin and both public listeners, with an ETag; an empty slot answers 404.
 - Empty icon → Hashi's 橋 icon; empty logo → the page title as text. Background is off by default and, when on, sits
   behind a scrim that keeps text at its normal contrast (10-ui §2). Admin screens keep the theme canvas and the 橋 icon.
+- A public page's HTML names its title ("Status · example.com", "Jellyfin · Status · example.com", "Apps · example.com",
+  also as `og:title`) and its icon, so a shared link's preview and a bookmark show them without running the page.
 
 ### 9.1 App icons (bug 149)
 
