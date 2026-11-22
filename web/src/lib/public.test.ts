@@ -11,6 +11,7 @@ import {
 	stripText,
 	when,
 	worst,
+	downtimeRow,
 	type Day
 } from './public.ts';
 
@@ -69,6 +70,22 @@ test('day details', () => {
 			Date.parse(at('13:42'))
 		)
 	).toEqual({ when: 'Today', text: 'Down since 13:36', extra: '6 min so far' });
+	// An outage that began days ago names its start day, or it reads as this morning (bug 180).
+	expect(
+		dayDetail(
+			day({ state: 'down', spells: [{ state: 'down', start: at('09:23') }] }),
+			true,
+			Date.parse(at('09:23')) + (3 * 24 + 11) * 3600_000
+		)
+	).toEqual({ when: 'Today', text: 'Down since 20 Nov, 09:23', extra: '3 d 11 h so far' });
+	expect(downtimeRow({ state: 'down', start: at('09:23'), end: at('09:50') }).end).toBe('09:50');
+	expect(
+		downtimeRow({
+			state: 'down',
+			start: at('23:50'),
+			end: new Date(Date.parse(at('23:50')) + 20 * 60_000).toISOString()
+		}).end
+	).toBe('21 Nov, 00:10');
 	expect(dayDetail(day({ uptime: 98.96 }), false)).toEqual({
 		when: 'Fri 20 Nov',
 		text: 'Some checks failed',

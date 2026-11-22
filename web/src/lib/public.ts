@@ -67,7 +67,7 @@ const word = { down: 'Down', degraded: 'Slow' } as const;
 function spellText(s: Spell, now: number): { text: string; extra?: string } {
 	if (!s.end) {
 		return {
-			text: `${word[s.state]} since ${clock(s.start)}`,
+			text: `${word[s.state]} since ${when(s.start, now)}`,
 			extra: `${duration(now - Date.parse(s.start))} so far`
 		};
 	}
@@ -159,7 +159,8 @@ export function worst(states: string[]): Health {
 export function downtimeRow(s: Spell, now = Date.now()) {
 	return {
 		start: stamp(s.start),
-		end: s.end ? clock(s.end) : 'ongoing',
+		// The end's date too when it is another day than the start (bug 180).
+		end: s.end ? when(s.end, Date.parse(s.start)) : 'ongoing',
 		length: duration((s.end ? Date.parse(s.end) : now) - Date.parse(s.start))
 	};
 }
