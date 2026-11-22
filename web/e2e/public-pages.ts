@@ -111,6 +111,34 @@ export async function publicPagesEditor(page: Page, base: string) {
 	await page.getByRole('button', { name: 'Undo' }).click();
 	await expect.poll(async () => groupOf(await layout(page, base), key)).toBe(from);
 
+	// A fast release: Chrome hands a held-back move and the release over in one go. Every item settles into its place and
+	// keeps no lifted look (on prod the frame queued by that move put the lift back for good). Undo restores the order.
+	const c = await centre(
+		outline.locator('[data-sort-kind="item"][data-sort-id]').nth(1).locator('span.truncate')
+	);
+	await m.down(c);
+	for (let i = 1; i <= 6; i++) await m.move({ x: c.x + i * 12, y: c.y + i * 10 });
+	await page.evaluate(
+		([x, y]) => {
+			const o = { pointerId: 1, pointerType: 'mouse', isPrimary: true, clientX: x, clientY: y };
+			window.dispatchEvent(new PointerEvent('pointermove', o));
+			window.dispatchEvent(new PointerEvent('pointerup', o));
+		},
+		[c.x + 90, c.y + 80]
+	);
+	await m.up();
+	await page.waitForTimeout(400);
+	const lifted = () =>
+		page.evaluate(() =>
+			[...document.querySelectorAll<HTMLElement>('[data-sort-id]')]
+				.filter((e) => e.style.transform)
+				.map((e) => e.textContent?.trim())
+		);
+	expect(await lifted()).toEqual([]);
+	const undo = page.getByRole('button', { name: 'Undo' });
+	if (await undo.isEnabled()) await undo.click();
+	await expect.poll(async () => groupOf(await layout(page, base), key)).toBe(from);
+
 	// Keyboard: Alt+Down on the grip moves it one place (into the next group when it was last); it keeps the focus.
 	// By the key: two entries may share a name (a web and a TCP service of one app).
 	const mine = outline.locator(`[data-sort-id="${key}"]`);

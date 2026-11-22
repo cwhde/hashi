@@ -53,6 +53,7 @@ class Drag {
 	off = { x: 0, y: 0 };
 	last: { x: number; y: number };
 	hold: ReturnType<typeof setTimeout> | undefined;
+	frame = 0;
 
 	constructor(
 		node: HTMLElement,
@@ -82,7 +83,9 @@ class Drag {
 	}
 	private place() {
 		const n = this.node;
-		if (!n) return;
+		// Only while the drag goes on: a frame queued by the last move ran after a release in the same task (Chrome flushes a
+		// held-back move right before the release) and put the lift back for good.
+		if (!n || !this.active) return;
 		const b = slot(n);
 		n.style.transform = `translate(${this.last.x - this.off.x - b.left}px, ${this.last.y - this.off.y - b.top}px) scale(1.03)`;
 	}
@@ -132,7 +135,8 @@ class Drag {
 		e.preventDefault();
 		this.place();
 		this.hit();
-		requestAnimationFrame(() => this.place());
+		cancelAnimationFrame(this.frame);
+		this.frame = requestAnimationFrame(() => this.place());
 	};
 
 	// Hit testing uses each item's slot (where it is going), not where it is drawn: while the others slide, the drawn
@@ -167,6 +171,7 @@ class Drag {
 
 	private stop() {
 		clearTimeout(this.hold);
+		cancelAnimationFrame(this.frame);
 		this.hold = undefined;
 		window.removeEventListener('pointermove', this.move);
 		window.removeEventListener('pointerup', this.up);
