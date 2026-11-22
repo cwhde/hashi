@@ -121,7 +121,9 @@ error text or admin links.
   (about 200 ms, none with reduced motion); folded rows are out of the tab order. Only a folded or moving panel clips
   its rows, so the bar details of a group's first row show above it.
 - **Rows** (dense): icon (the app icon of §9.1, else the letter; always shown), name, history bar, uptime for the
-  bar's span, state badge. Bars: 90 days, one per day, by default; a 90 days / Last hour switch above the groups shows
+  bar's span, and the state dot last, on the same right edge as the group's dot. A word sits before the dot only when
+  something is wrong (Down, Slow, Paused, No data), so trouble never rests on colour alone; Up is the dot alone
+  (the owner, 2026-11-22: the badges did not line up). Bars: 90 days, one per day, by default; a 90 days / Last hour switch above the groups shows
   the last 60 minutes, one per minute, instead. No caption explains the bars; the details are on hover.
 - **Bar details**: pointing at a bar (or tapping it, or arrow keys on the focused bar) raises that bar, dims the rest
   and shows a bubble with what happened then. A day: the date, then each downtime with its times and length ("Down
@@ -142,7 +144,9 @@ One page per entry with Status on, with an address to share. The slug is the ser
 entry switched off answers 404.
 
 - Head: icon, name, group, state badge, and one **Badges** button (§7.3).
-- Tiles: Current state ("Up for 14 h", "Down for 6 min"), uptime 24 h, 7 d, 30 d, average response 24 h.
+- Tiles, each a label over a value: the state as the label with how long as the value ("Up for" / "14 h", "Down for" /
+  "6 min"; "No data yet" before the first check), then "Uptime 24 h", "Uptime 7 d", "Uptime 30 d" and "Response 24 h"
+  (the average).
 - 90-day bar with its dates and the bar details of §7.1.
 - Three charts side by side (stacked on a phone), one 24 h / 7 d / 30 d switch for all: **Response time** (average),
   **Slowest responses** (p95), **Availability**. Pointing at a chart shows that moment's time and value beside the
