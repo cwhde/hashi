@@ -40,7 +40,7 @@ first paint. `dark:` variants follow `data-mode`, not the OS.
 - Left navigation: 64 px icon rail; expands to 240 px on hover or keyboard focus (overlaying content), or stays open when
   pinned (preference stored per browser). Below 768 px it becomes a drawer opened from the top bar.
 - Groups (sentence case, no caps labels): **Overview** · **Routing**: Services, DNS, Traefik, Firewall hosts, Pulse ·
-  **Protect**: Security, IP sets, Rule sets · **Watch**: Status, App display · **Operate**: Scripts, Activity ·
+  **Protect**: Security, IP sets, Rule sets · **Watch**: Status, Public pages · **Operate**: Scripts, Activity ·
   **Configure**: Connections, Settings.
 - Top bar (sticky): page title · search (⌘K: one search for everything, keyboard only: an address or CIDR → address page and
   the IP set items holding it; every stored object (services, DNS records, AdGuard rewrites, IP sets, rule sets, firewall
