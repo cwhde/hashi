@@ -19,7 +19,7 @@
 	let error = $state('');
 	const saver = new Saver();
 	onMount(async () => {
-		const r = await api.GET('/api/settings/appearance');
+		const r = await theme.load(); // shared with the layout's read as the page loads
 		if (!r.data) error = problemText(r.error);
 		else a = r.data;
 	});

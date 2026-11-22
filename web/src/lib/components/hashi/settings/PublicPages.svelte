@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { theme } from '#lib/theme.svelte.ts';
 	import { Skeleton } from '#lib/components/ui/skeleton/index.ts';
 	// Settings → Public pages (07 §8.1, 10c §1.2, bug 65): the page-wide options. Each page on or off and where it is
 	// published (bug 64), how the apps page starts, and the look (§9). The order, the groups and what shows on each page
@@ -33,7 +34,7 @@
 	onMount(async () => {
 		void api.GET('/api/app-display/pages').then((r) => (links = r.data ?? null));
 		const [a, b, f] = await Promise.all([
-			api.GET('/api/settings/appearance'),
+			theme.load(), // shared with the layout's read as the page loads
 			api.GET('/api/settings/dashboard'),
 			api.GET('/api/public-assets')
 		]);
