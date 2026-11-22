@@ -114,12 +114,12 @@ error text or admin links.
 
 - **Banner**: "N services are down." / slow / everything works, with "Updated" from public checks only (as since 13.5).
 - **Group tiles**: one per group shown, in layout order: the group's name, a state dot (worst of its entries), "x of n
-  up". A click takes the visitor to the group: it opens if folded, scrolls into view, takes the keyboard focus and is
-  outlined for about a second, so the jump shows even when the group is already on screen. Hidden when only one group
-  is shown.
+  up". A summary only: no hover, no click (the owner, 2026-11-22: the groups are right below). Hidden when only one
+  group is shown.
 - **Group panels**: each group in its own panel that folds. A group with an entry down or slow starts open; the others
   start as the visitor left them (kept in the browser), open the first time. Folding animates the panel's height
-  (about 200 ms, none with reduced motion); folded rows are out of the tab order.
+  (about 200 ms, none with reduced motion); folded rows are out of the tab order. Only a folded or moving panel clips
+  its rows, so the bar details of a group's first row show above it.
 - **Rows** (dense): icon (the app icon of §9.1, else the letter; always shown), name, history bar, uptime for the
   bar's span, state badge. Bars: 90 days, one per day, by default; a 90 days / Last hour switch above the groups shows
   the last 60 minutes, one per minute, instead. No caption explains the bars; the details are on hover.
