@@ -168,7 +168,7 @@ func TestLogoIsStoredAtItsShownSize(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer f.Close()
+	defer func() { _ = f.Close() }()
 	stored, _ := io.ReadAll(f)
 	cfg, format, err := image.DecodeConfig(bytes.NewReader(stored))
 	if err != nil {
