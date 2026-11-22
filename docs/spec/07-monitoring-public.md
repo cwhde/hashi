@@ -54,7 +54,7 @@ Routing: global default route, per-endpoint override, severity thresholds, coold
 high-risk sync plans and vault-lock events can also notify. Deliveries recorded in `notification_deliveries` with retry/backoff.
 
 The cooldown is per check: a second alert for the same check within it waits for its end and goes only if the check is
-still in alarm. Alerts are grouped: a new alert waits a short window (route setting, default 15 s, 0 = off), each further
+still in alarm. Alerts are grouped: a new alert waits a short window (route setting, default 30 s, 0 = off; checks run every 60 s, so one outage's alerts arrive tens of seconds apart), each further
 alert for the same provider restarts it, and when it ends the waiting alerts go as one message listing them. No alert
 waits longer than 2 minutes for grouping. Recoveries are not delayed. When a host's own check (Traefik host, firewall host, Pulse
 agent) is in the group, the message leads with it and names it in the subject ("edge-a and 12 other checks are down").
