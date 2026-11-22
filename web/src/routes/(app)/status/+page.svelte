@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { every } from '#lib/poll.ts';
 	import { onMount } from 'svelte';
 	import PageHeader from '#lib/components/hashi/PageHeader.svelte';
 	import StatusBadge from '#lib/components/hashi/StatusBadge.svelte';
@@ -40,8 +41,7 @@
 	onMount(() => {
 		load().catch((e) => (error = problemText(e)));
 		api.GET('/api/public-layout').then((r) => (order = r.data?.groups.map((g) => g.name) ?? []));
-		const t = setInterval(() => load().catch(() => {}), 20_000);
-		return () => clearInterval(t);
+		return every(20_000, () => void load().catch(() => {}));
 	});
 
 	const groupKey = (e: Endpoint) =>

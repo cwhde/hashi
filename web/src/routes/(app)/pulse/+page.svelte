@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { every } from '#lib/poll.ts';
 	import { onMount } from 'svelte';
 	import PageHeader from '#lib/components/hashi/PageHeader.svelte';
 	import Mono from '#lib/components/hashi/Mono.svelte';
@@ -28,8 +29,7 @@
 			error = problemText(e);
 			loaded = true;
 		});
-		const t = setInterval(() => void load().catch(() => {}), 30000);
-		return () => clearInterval(t);
+		return every(30_000, () => void load().catch(() => {}));
 	});
 </script>
 

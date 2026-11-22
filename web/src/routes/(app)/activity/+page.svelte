@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { every } from '#lib/poll.ts';
 	import { actionText, actorText } from '#lib/activity.ts';
 	import { page } from '$app/state';
 	import { goto } from '$app/navigation';
@@ -112,11 +113,10 @@
 	onMount(() => {
 		loadJobs();
 		pollLog();
-		const t = setInterval(() => {
+		return every(2000, () => {
 			if (tab === 'log') pollLog();
 			if (tab === 'jobs') loadJobs();
-		}, 2000);
-		return () => clearInterval(t);
+		});
 	});
 
 	// Counter changes show their before and after values (06 §16), so a mistaken edit or reset can be undone by hand.

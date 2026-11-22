@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { every } from '#lib/poll.ts';
 	import { onMount, type Snippet } from 'svelte';
 	import { page } from '$app/state';
 	import { afterNavigate, goto } from '$app/navigation';
@@ -46,8 +47,7 @@
 	afterNavigate(refreshPending);
 	onMount(() => {
 		refreshPending();
-		const timer = setInterval(refreshPending, 30_000);
-		return () => clearInterval(timer);
+		return every(30_000, refreshPending);
 	});
 	const s = $derived(session.current);
 

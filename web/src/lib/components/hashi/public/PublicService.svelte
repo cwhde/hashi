@@ -2,6 +2,7 @@
 	// One service on the status listener, with an address to share (07 §7.2, approved mock design/public-status/s).
 	// Public fields only: state, uptime, response times, downtimes with times and lengths. Three charts that show the
 	// value under the pointer; the 90-day strip says what happened on each day; one Badges button holds every badge.
+	import { every } from '#lib/poll.ts';
 	import { Skeleton } from '#lib/components/ui/skeleton/index.ts';
 	import * as ToggleGroup from '#lib/components/ui/toggle-group/index.ts';
 	import { onMount } from 'svelte';
@@ -44,10 +45,7 @@
 			failed = true;
 		}
 	}
-	onMount(() => {
-		const t = setInterval(load, 30_000);
-		return () => clearInterval(t);
-	});
+	onMount(() => every(30_000, load));
 	// Every range change loads again (and the first run is the first load).
 	$effect(() => {
 		void range;

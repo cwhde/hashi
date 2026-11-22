@@ -2,6 +2,7 @@
 	// The public status page (07 §7.1, approved mock design/public-status): group tiles on top, each group in a panel
 	// that folds, dense rows with the app icon, 90 days by default with a Last hour switch. Pointing at a bar says what
 	// happened then; a row opens the service page. Public fields only: names, states, history, uptime.
+	import { every } from '#lib/poll.ts';
 	import { Skeleton } from '#lib/components/ui/skeleton/index.ts';
 	import * as ToggleGroup from '#lib/components/ui/toggle-group/index.ts';
 	import { onMount } from 'svelte';
@@ -66,8 +67,7 @@
 	}
 	onMount(() => {
 		load();
-		const t = setInterval(load, 30_000);
-		return () => clearInterval(t);
+		return every(30_000, load);
 	});
 
 	const STALE_MS = 5 * 60_000;

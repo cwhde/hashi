@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { every } from '#lib/poll.ts';
 	import { Skeleton } from '#lib/components/ui/skeleton/index.ts';
 	import { onMount } from 'svelte';
 	import PublicState from './PublicState.svelte';
@@ -32,8 +33,7 @@
 	}
 	onMount(() => {
 		load();
-		const t = setInterval(load, 30_000);
-		return () => clearInterval(t);
+		return every(30_000, load);
 	});
 
 	// "group" is the stored name of the layout's own order (07 §8): groups and cards as the owner placed them.
