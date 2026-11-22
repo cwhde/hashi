@@ -37,7 +37,7 @@ closed buckets. History strips keep per-sample timestamps.
 ## 5. Admin UI
 
 Status list: compact row/card per endpoint, last-60-minutes strip, state, last check, response time, group; search; group
-by host / firewall host / status / service type; sort by name / state / latency / uptime / last event.
+by host / firewall host / status / service type (by group: the groups in the public layout's order, §8.1); sort by name / state / latency / uptime / last event.
 
 Detail: current status, last check, response min/max/avg, uptime (1 h, 24 h, 7 d, 30 d), latency chart (1 h, 24 h, 7 d,
 30 d), incident/event timeline, endpoint settings.
@@ -101,7 +101,7 @@ the same transaction ("Other" for none), so notifications and older readers see 
 Migration: groups from the endpoints' group names in the old category order (then by name), entries in each group by
 name (an entry without an endpoint in "Services" or "DNS entries", as the old apps page grouped them); the
 hidden-categories and categories-off settings go: entries of a hidden category get Status off, and both pages always
-show groups (2026-11-22).
+show groups (2026-11-22). The old setting stays stored only as that seed; its API is gone.
 
 **API.** `GET /api/public-layout` returns groups, entries (with name, kind, icon, what is possible) and `version`.
 `PUT /api/public-layout` takes the whole order (groups with entry ids) and switch changes with `version`; a newer stored

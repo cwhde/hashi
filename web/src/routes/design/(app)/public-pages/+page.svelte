@@ -24,7 +24,7 @@
 	} from '@lucide/svelte';
 	import LayoutRow from '../../LayoutRow.svelte';
 	import { LayoutState, type Page } from '../../ideaLayout.svelte.ts';
-	import { slide, sortable } from '../../sortable.ts';
+	import { slide, sortable } from '#lib/sortable.ts';
 
 	const s = new LayoutState();
 	let preview = $state<Page>('apps');

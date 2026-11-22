@@ -41,7 +41,7 @@ page whose settings live here links to its category with a gear in its header.
 | Firewall | NetBird mode a new host starts with, MSS clamping on NetBird-routed traffic and narrow bridges (05 §3) (allow/block and host access are IP set bindings on the Firewall page, not settings). Opening a port is always a high-risk plan, the interface is detected or entered and never assumed (05 §5), routed networks are per host |
 | Pulse | heartbeat interval, stale threshold, update agents automatically (default on, ADR 0003) |
 | Monitoring and notifications | monitor defaults (interval, timeout, allowed HTTP codes, latency thresholds, retention), notification channels, default route, cooldowns. Deliveries are history: Activity, or the check that sent them |
-| Public pages | public dashboard on/off, default sort, visibility defaults; public status page on/off. Which service shows on a page is an instant switch on App display |
+| Public pages | public dashboard on/off and where it is published, default sort, visibility defaults; public status page on/off and where it is published; the look (07 §9). The order, the groups and which entry shows on which page are the Public pages editor's (07 §8.1) |
 | Appearance | theme, custom theme, reduced transparency (all save on choice, 10c §5.1). overview widgets: which show and in what order (10-ui §3). Logo, icon and public page assets wait for the asset system (07 §9, bug 30) |
 
 API: `GET /api/settings`, `GET|PUT /api/settings/{category}`.

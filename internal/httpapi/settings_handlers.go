@@ -250,22 +250,6 @@ func (s *Server) PutMonitoringSettings(ctx context.Context, req gen.PutMonitorin
 	return gen.PutMonitoringSettings200JSONResponse(monitoringBody(v)), nil
 }
 
-func (s *Server) GetStatusPageSettings(ctx context.Context, _ gen.GetStatusPageSettingsRequestObject) (gen.GetStatusPageSettingsResponseObject, error) {
-	v, err := settings.Get[settings.StatusPage](ctx, s.Store.R)
-	if err != nil {
-		return nil, err
-	}
-	return gen.GetStatusPageSettings200JSONResponse{Order: v.Order, Hidden: v.Hidden}, nil
-}
-
-func (s *Server) PutStatusPageSettings(ctx context.Context, req gen.PutStatusPageSettingsRequestObject) (gen.PutStatusPageSettingsResponseObject, error) {
-	v := settings.StatusPage{Order: req.Body.Order, Hidden: req.Body.Hidden}
-	if err := saveSetting(ctx, s, v, nil); err != nil {
-		return nil, err
-	}
-	return gen.PutStatusPageSettings200JSONResponse(*req.Body), nil
-}
-
 func (s *Server) GetDashboardSettings(ctx context.Context, _ gen.GetDashboardSettingsRequestObject) (gen.GetDashboardSettingsResponseObject, error) {
 	v, err := settings.Get[settings.Dashboard](ctx, s.Store.R)
 	if err != nil {

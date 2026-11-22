@@ -57,13 +57,22 @@ PR A, layout, public data and the public pages (the public pages read the new AP
   as the mocks; `DayStrip` moved into `lib`; wording in `lib/public.ts` with unit tests. Seen on a local build with a
   seeded copy of the dev data at 1440 and 390 px.
 PR B, the editor:
-- [ ] `web/src/lib/sortable.ts` from the mock, with unit tests of the move rules (ADR 0004).
-- [ ] Admin `/public-pages` replaces `/app-display` (old address redirects): outline, preview, live drag, selection
-  bar, Undo, phone sheet; a row's icon opens the icon picker (bug 149, kept from App display). Gear → Settings →
-  Public pages, which loses the hidden categories and the category order.
-- [ ] Admin Status page groups by the layout's groups in its order.
-- [ ] e2e: drag with mouse and with touch (hold, swipe), keyboard Alt+arrows, both public pages and a service page at
-  390 and 1440 px, badge SVG served.
+- [x] `web/src/lib/sortable.ts` from the mock (one drag session per page, so an item that changes group keeps its drag;
+  a blocking touchmove listener on every item from the start, or a finger drag turned into a scroll), move rules in
+  `LayoutState` with 13 unit tests (direction, across groups, several checked, groups, keyboard, Move to, switches,
+  save queue, Undo, 409, new group ids).
+- [x] Admin `/public-pages` replaces `/app-display` (old address redirects 308): outline, preview, live drag, selection
+  bar, Undo, phone sheet; a row's icon opens the icon picker (bug 149). Gear → Settings → Public pages, which keeps
+  the page-wide options and the published links; the status-page settings API is gone (the old setting stays only as
+  the layout's seed).
+- [x] Admin Status page groups by the layout's groups in its order.
+- [x] e2e (`web/e2e/public-pages.ts`, called from the main journey): mouse drag into a new group (in that group before
+  the release), Undo, Alt+arrows keep the focus, a swipe saves nothing, a finger held then dragged moves the entry,
+  Move to, delete the group, phone preview; apps, status and a service page at 390 and 1440 px without overflow; a badge
+  served as `image/svg+xml`. The finger gestures run in a tab of their own: touch emulation on the journey's page left
+  its virtual passkey unable to answer the vault step later (reproduced twice, passes without them). `make check` and
+  `make test-e2e` (2 passed) green on 2026-11-22; the contrast sweep found hidden outline rows too faint (3.42), now a
+  dashed border with muted text instead of 60 % opacity.
 
 Next: 13.12 Public pages (above). No deploy
 before the full hunt (the owner, 2026-11-22): UI skills (unslop-ui and the like), a performance test of the whole app off

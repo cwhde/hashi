@@ -1,7 +1,7 @@
 // Mock state for the layout editor (07 §8.1): ONE order for both public pages. Every entry (service, DNS link, check) has a
 // place in one group; each page shows the entries switched on for it and skips the rest, keeping the shared order.
 import { entries, groupOrder, type Entry } from './ideas.ts';
-import type { DragHost, Hit, Kind } from './sortable.ts';
+import type { DragHost, Hit, Kind } from '#lib/sortable.ts';
 
 export type Page = 'apps' | 'status';
 export type Group = { name: string; ids: string[] };

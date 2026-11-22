@@ -1718,28 +1718,6 @@ paths:
           description: Saved
           content: { application/json: { schema: { $ref: "#/components/schemas/DashboardSettings" } } }
         default: { $ref: "#/components/responses/Problem" }
-  /api/settings/status-page:
-    get:
-      operationId: getStatusPageSettings
-      tags: [settings]
-      x-hashi-scopes: [admin.read]
-      responses:
-        "200":
-          description: Categories of the public status page
-          content: { application/json: { schema: { $ref: "#/components/schemas/StatusPageSettings" } } }
-        default: { $ref: "#/components/responses/Problem" }
-    put:
-      operationId: putStatusPageSettings
-      tags: [settings]
-      x-hashi-scopes: [settings.manage]
-      requestBody:
-        required: true
-        content: { application/json: { schema: { $ref: "#/components/schemas/StatusPageSettings" } } }
-      responses:
-        "200":
-          description: Saved
-          content: { application/json: { schema: { $ref: "#/components/schemas/StatusPageSettings" } } }
-        default: { $ref: "#/components/responses/Problem" }
   /api/settings/firewall-defaults:
     get:
       operationId: getFirewallDefaultsSettings
@@ -5413,12 +5391,6 @@ components:
       properties:
         default_sort: { type: string, enum: [name, group, status], description: "Order of the public app dashboard" }
         new_services_visible: { type: boolean, description: "New services show on the public dashboard" }
-    StatusPageSettings:
-      type: object
-      required: [order, hidden]
-      properties:
-        order: { type: array, maxItems: 500, items: { type: string }, description: "Category names, first to last; others follow by name" }
-        hidden: { type: array, maxItems: 500, items: { type: string }, description: "Categories left out of the public page" }
     FirewallDefaultsSettings:
       type: object
       required: [netbird_mode, mss_clamp]

@@ -5,6 +5,7 @@ import { execFileSync, spawn } from 'node:child_process';
 import { createServer } from 'node:http';
 import type { AddressInfo } from 'node:net';
 import { logPath, statePath } from './global-setup';
+import { publicPagesEditor, publicPagesSeen } from './public-pages';
 
 // S1 gate (11-delivery.md §3): passkey registration and login pass with a virtual authenticator, end to end through
 // the real binary: bootstrap → base settings → passkey → recovery key → finish → passkey sign-in → account pages.
@@ -1045,8 +1046,11 @@ test('setup with a passkey, then sign in with it', async ({ page, request }) => 
 	await expect(page.locator('html')).toHaveAttribute('data-theme', 'violet');
 	// The tab icon is drawn in the theme's accent, here Violet Night's (bug 159).
 	await expect(page.locator('link[rel="icon"][data-hashi]')).toHaveAttribute('href', /%23e6cf62/i);
-	await page.goto(`${state.baseURL}/app-display`);
-	await expect(page.getByRole('switch', { name: 'Show E2E port publicly' })).toBeChecked();
+	await page.goto(`${state.baseURL}/public-pages`);
+	await expect(page.getByRole('button', { name: 'E2E port on the status page' })).toHaveAttribute(
+		'aria-pressed',
+		'true'
+	);
 
 	// S11 settings (09 §2, 10-ui §2). A custom theme: unreadable text cannot be saved; a readable one applies here,
 	// survives a reload before first paint and reaches the public pages.
@@ -1194,9 +1198,9 @@ test('setup with a passkey, then sign in with it', async ({ page, request }) => 
 	expect(icon.headers()['content-security-policy']).toContain("default-src 'none'");
 	expect(sourceHits.slice(seenBefore), 'the public page loaded from the source').toEqual([]);
 	source.close();
-	// App icons (07 §9.1, bug 149): an uploaded icon replaces the letter on App display and on the dashboard card,
-	// served by Hashi.
-	await page.goto(`${state.baseURL}/app-display`);
+	// App icons (07 §9.1, bug 149): an uploaded icon replaces the letter in the Public pages outline and on the
+	// dashboard card, served by Hashi.
+	await page.goto(`${state.baseURL}/public-pages`);
 	await page.getByRole('button', { name: 'Icon of Guarded' }).click();
 	await expect(page.getByRole('dialog')).toContainText('selfh.st');
 	await page
@@ -1229,6 +1233,9 @@ test('setup with a passkey, then sign in with it', async ({ page, request }) => 
 		expect(crashes, `${url} threw in the browser`).toEqual([]);
 		page.removeAllListeners('pageerror');
 	}
+	// 13.12: arranging the public pages (mouse, finger, keyboard, Undo) and how they look on a phone and a desktop.
+	await publicPagesEditor(page, state.baseURL);
+	await publicPagesSeen(page, state.appsURL, state.statusURL);
 	await page.goto(`${state.baseURL}/services`);
 	await page.getByRole('button', { name: 'Add service' }).click();
 	// The switch differs from no default here, so More options stays plain (10c §3.1).
@@ -1263,7 +1270,7 @@ test('setup with a passkey, then sign in with it', async ({ page, request }) => 
 		'/ip-sets/address',
 		'/rule-sets',
 		'/status',
-		'/app-display',
+		'/public-pages',
 		'/scripts',
 		'/activity',
 		'/connections',
