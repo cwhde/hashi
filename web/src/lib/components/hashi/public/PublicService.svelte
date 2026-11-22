@@ -6,6 +6,8 @@
 	import { Skeleton } from '#lib/components/ui/skeleton/index.ts';
 	import * as ToggleGroup from '#lib/components/ui/toggle-group/index.ts';
 	import { onMount } from 'svelte';
+	import { page } from '$app/state';
+	import { replaceState } from '$app/navigation';
 	import { ArrowLeft } from '@lucide/svelte';
 	import AppIcon from '#lib/components/hashi/AppIcon.svelte';
 	import DayStrip from '#lib/components/hashi/DayStrip.svelte';
@@ -24,7 +26,18 @@
 	let data = $state<Schemas['PublicService'] | null>(null);
 	let missing = $state(false);
 	let failed = $state(false);
-	let range = $state<'24h' | '7d' | '30d'>('24h');
+	// The range is in the address (?range=7d), so a shared link or a reload shows the same one; 24 h leaves none.
+	const ranges = ['24h', '7d', '30d'] as const;
+	type Range = (typeof ranges)[number];
+	const asked = page.url.searchParams.get('range') as Range | null;
+	let range = $state<Range>(asked && ranges.includes(asked) ? asked : '24h');
+	function pick(v: Range) {
+		range = v;
+		const u = new URL(page.url.href);
+		if (v === '24h') u.searchParams.delete('range');
+		else u.searchParams.set('range', v);
+		replaceState(u, {});
+	}
 	let now = $state(Date.now());
 
 	async function load() {
@@ -144,7 +157,7 @@
 				<ToggleGroup.Root
 					type="single"
 					value={range}
-					onValueChange={(v) => v && (range = v as typeof range)}
+					onValueChange={(v) => v && pick(v as Range)}
 					variant="outline"
 					size="sm"
 				>

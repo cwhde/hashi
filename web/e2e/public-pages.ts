@@ -206,6 +206,13 @@ export async function publicPagesSeen(page: Page, appsURL: string, statusURL: st
 			await page.screenshot({ path: `test-results/13-12-${file}-${w}.png`, fullPage: true });
 		}
 	}
+	// The service page's range is in the address: a shared link opens the same range, picking one updates it.
+	await page.goto(`${statusURL}/s/${slug}?range=7d`);
+	await expect(page.getByRole('radio', { name: '7d' })).toBeChecked();
+	await page.getByRole('radio', { name: '30d' }).click();
+	await expect(page).toHaveURL(/\?range=30d$/);
+	await page.getByRole('radio', { name: '24h' }).click();
+	await expect(page).toHaveURL(new RegExp(`/s/${slug}$`));
 	const svc = await (await page.request.get(`${statusURL}/api/public/status/${slug}`)).json();
 	const badge = await page.request.get(`${statusURL}/badge/${slug}/${svc.badges[0]}.svg`);
 	expect(badge.status()).toBe(200);
