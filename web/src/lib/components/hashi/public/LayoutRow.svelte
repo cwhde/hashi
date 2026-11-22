@@ -51,7 +51,7 @@
 <div
 	id="o-{id}"
 	class="flex h-7 cursor-grab items-center gap-1.5 rounded-lg border bg-card px-1 active:cursor-grabbing {off
-		? 'border-dashed opacity-60'
+		? 'border-dashed text-muted-foreground'
 		: ''} {sel ? 'ring-2 ring-primary' : ''} {flash ? 'ring-2 ring-warn' : ''}"
 >
 	<button
