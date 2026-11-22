@@ -62,6 +62,8 @@ type Executor struct {
 	Self func(context.Context) error
 	// Agent answers a Pulse agent's freshness; a self check with a target "pulse:<id>" asks it.
 	Agent func(ctx context.Context, id string) error
+	// Names caches the lookups of HTTP, TCP, UDP and TLS checks (bug 161); nil resolves on every dial.
+	Names *Names
 	now   func() time.Time
 }
 
@@ -78,16 +80,16 @@ func (e Executor) Run(ctx context.Context, c Check, timeout time.Duration) Resul
 func (e Executor) run(ctx context.Context, c Check) Result {
 	switch c.Type {
 	case TypeHTTP, TypeHTTPS, TypeH2C:
-		return runHTTP(ctx, c)
+		return e.runHTTP(ctx, c)
 	case TypeTCP:
-		conn, err := (&net.Dialer{}).DialContext(ctx, "tcp", c.Target)
+		conn, err := e.dial(ctx, "tcp", c.Target)
 		if err != nil {
 			return failed(err)
 		}
 		_ = conn.Close()
 		return Result{OK: true}
 	case TypeUDP:
-		return runUDP(ctx, c)
+		return e.runUDP(ctx, c)
 	case TypeDNS:
 		return runDNS(ctx, c)
 	case TypeTLS:
@@ -115,8 +117,8 @@ func (e Executor) run(ctx context.Context, c Check) Result {
 
 func failed(err error) Result { return Result{Detail: err.Error()} }
 
-func runHTTP(ctx context.Context, c Check) Result {
-	tr := &http.Transport{TLSClientConfig: &tls.Config{InsecureSkipVerify: c.SkipVerify}, DisableKeepAlives: true} // #nosec G402 -- the admin's per-check choice, matching the service's upstream setting
+func (e Executor) runHTTP(ctx context.Context, c Check) Result {
+	tr := &http.Transport{TLSClientConfig: &tls.Config{InsecureSkipVerify: c.SkipVerify}, DisableKeepAlives: true, DialContext: e.dial} // #nosec G402 -- the admin's per-check choice, matching the service's upstream setting
 	if c.Type == TypeH2C {
 		tr.Protocols = new(http.Protocols)
 		tr.Protocols.SetUnencryptedHTTP2(true)
@@ -145,11 +147,11 @@ func runHTTP(ctx context.Context, c Check) Result {
 }
 
 // runUDP needs a payload and an expected response: "no response" is never healthy (07 §2).
-func runUDP(ctx context.Context, c Check) Result {
+func (e Executor) runUDP(ctx context.Context, c Check) Result {
 	if c.Probe == "" || c.Expect == "" {
 		return Result{Detail: "a UDP check needs a probe payload and an expected response"}
 	}
-	conn, err := (&net.Dialer{}).DialContext(ctx, "udp", c.Target)
+	conn, err := e.dial(ctx, "udp", c.Target)
 	if err != nil {
 		return failed(err)
 	}
@@ -223,15 +225,14 @@ func (e Executor) runTLS(ctx context.Context, c Check) Result {
 	if err != nil {
 		return failed(err)
 	}
-	d := tls.Dialer{Config: &tls.Config{ServerName: host, InsecureSkipVerify: c.SkipVerify}} // #nosec G402 -- the admin's per-check choice
-	conn, err := d.DialContext(ctx, "tcp", c.Target)
+	raw, err := e.dial(ctx, "tcp", c.Target)
 	if err != nil {
 		return failed(err)
 	}
-	defer func() { _ = conn.Close() }()
-	tc, ok := conn.(*tls.Conn)
-	if !ok {
-		return Result{Detail: "not a TLS connection"}
+	tc := tls.Client(raw, &tls.Config{ServerName: host, InsecureSkipVerify: c.SkipVerify}) // #nosec G402 -- the admin's per-check choice
+	defer func() { _ = tc.Close() }()
+	if err := tc.HandshakeContext(ctx); err != nil {
+		return failed(err)
 	}
 	certs := tc.ConnectionState().PeerCertificates
 	if len(certs) == 0 {

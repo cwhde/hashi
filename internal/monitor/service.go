@@ -86,7 +86,7 @@ func (s *Service) cfg() settings.Monitoring {
 
 // New returns the service. self answers Hashi's own endpoint.
 func New(st *store.Store, self func(context.Context) error, resolve services.TargetResolver, n Notifier) *Service {
-	return &Service{st: st, exec: Executor{Self: self, Agent: func(ctx context.Context, id string) error { return agentFresh(ctx, st, time.Now(), id) }}, resolve: resolve, notifier: n, now: time.Now}
+	return &Service{st: st, exec: Executor{Self: self, Names: NewNames(), Agent: func(ctx context.Context, id string) error { return agentFresh(ctx, st, time.Now(), id) }}, resolve: resolve, notifier: n, now: time.Now}
 }
 
 // hostChecks checks a host where Hashi reaches it: its literal address, or with an address set each of those too, any one
