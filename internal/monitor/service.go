@@ -354,7 +354,7 @@ func (s *Service) Sync(ctx context.Context) error {
 				return err
 			}
 		}
-		return nil
+		return syncLayout(ctx, q, now) // the public layout follows its subjects (07 §7)
 	})
 }
 

@@ -578,6 +578,25 @@ type PasskeyCredential struct {
 	LastUsedAt     sql.NullInt64
 }
 
+type PublicEntry struct {
+	SubjectType string
+	SubjectID   string
+	GroupID     sql.NullString
+	Position    int64
+}
+
+type PublicGroup struct {
+	ID       string
+	Name     string
+	Position int64
+}
+
+type PublicLayout struct {
+	ID      int64
+	Version int64
+	Seeded  int64
+}
+
 type PulseAgent struct {
 	ID              string
 	Name            string

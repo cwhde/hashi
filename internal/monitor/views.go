@@ -261,9 +261,12 @@ func (s *Service) Update(ctx context.Context, id string, v Settings) error {
 				return err
 			}
 		}
-		return q.UpdateMonitorEndpointSettings(ctx, db.UpdateMonitorEndpointSettingsParams{GroupName: v.Group, Paused: flag(v.Paused), IntervalSeconds: v.IntervalSeconds,
+		if err := q.UpdateMonitorEndpointSettings(ctx, db.UpdateMonitorEndpointSettingsParams{GroupName: v.Group, Paused: flag(v.Paused), IntervalSeconds: v.IntervalSeconds,
 			TimeoutSeconds: v.TimeoutSeconds, DegradedMs: v.DegradedMs, Public: flag(v.Public),
-			RouteProviderID: sql.NullString{String: v.RouteProviderID, Valid: v.RouteProviderID != ""}, UpdatedAt: now, ID: id})
+			RouteProviderID: sql.NullString{String: v.RouteProviderID, Valid: v.RouteProviderID != ""}, UpdatedAt: now, ID: id}); err != nil {
+			return err
+		}
+		return syncLayout(ctx, q, now) // the Group field is the entry's place in the public layout (07 §7)
 	})
 }
 
@@ -296,7 +299,10 @@ func (s *Service) CreateUser(ctx context.Context, name, group string, c CheckSpe
 			StateSince: now, CreatedAt: now, UpdatedAt: now}); err != nil {
 			return err
 		}
-		return insertChecks(ctx, q, id, []CheckSpec{c}, m)
+		if err := insertChecks(ctx, q, id, []CheckSpec{c}, m); err != nil {
+			return err
+		}
+		return syncLayout(ctx, q, now)
 	})
 	return id, err
 }
@@ -339,7 +345,10 @@ func (s *Service) DeleteUser(ctx context.Context, id string) error {
 		if e.SourceType != SourceUser {
 			return ErrSourced
 		}
-		return q.DeleteMonitorEndpoint(ctx, id)
+		if err := q.DeleteMonitorEndpoint(ctx, id); err != nil {
+			return err
+		}
+		return syncLayout(ctx, q, s.now().UnixMilli())
 	})
 }
 
@@ -385,6 +394,13 @@ type cache[T any] struct {
 }
 
 const publicCache = 15 * time.Second
+
+// reset makes the next read load again: an editor save shows at once, not after 15 s.
+func (c *cache[T]) reset() {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	c.at = time.Time{}
+}
 
 func (c *cache[T]) get(now time.Time, load func() (T, error)) (T, error) {
 	c.mu.Lock()
