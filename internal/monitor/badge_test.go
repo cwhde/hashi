@@ -3,6 +3,7 @@ package monitor
 import (
 	"bytes"
 	"encoding/xml"
+	"errors"
 	"io"
 	"strings"
 	"testing"
@@ -24,7 +25,7 @@ func TestBadges(t *testing.T) {
 		}
 		d := xml.NewDecoder(bytes.NewReader(svg))
 		for {
-			if _, err := d.Token(); err == io.EOF {
+			if _, err := d.Token(); errors.Is(err, io.EOF) {
 				break
 			} else if err != nil {
 				t.Fatalf("%s: not XML: %v\n%s", kind, err, svg)

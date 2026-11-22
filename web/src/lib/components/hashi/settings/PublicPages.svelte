@@ -160,9 +160,6 @@
 	</Panel>
 	<Panel title="Status page">
 		<div class="space-y-3 text-md">
-			<label class="flex items-center justify-between gap-3"
-				>Show categories<Switch bind:checked={sp.grouped} /></label
-			>
 			{#if cats.length === 0}
 				<p class="text-muted-foreground">No checks are on the status page yet.</p>
 			{:else}
@@ -170,22 +167,20 @@
 					{#each cats as g, i (g)}
 						<li class="flex items-center gap-2 px-3 py-1.5">
 							<span class="min-w-0 flex-1 truncate">{g}</span>
-							{#if sp.grouped}
-								<Button
-									variant="ghost"
-									size="icon-sm"
-									disabled={i === 0}
-									onclick={() => move(i, -1)}
-									aria-label="Move {g} up"><ArrowUp /></Button
-								>
-								<Button
-									variant="ghost"
-									size="icon-sm"
-									disabled={i === cats.length - 1}
-									onclick={() => move(i, 1)}
-									aria-label="Move {g} down"><ArrowDown /></Button
-								>
-							{/if}
+							<Button
+								variant="ghost"
+								size="icon-sm"
+								disabled={i === 0}
+								onclick={() => move(i, -1)}
+								aria-label="Move {g} up"><ArrowUp /></Button
+							>
+							<Button
+								variant="ghost"
+								size="icon-sm"
+								disabled={i === cats.length - 1}
+								onclick={() => move(i, 1)}
+								aria-label="Move {g} down"><ArrowDown /></Button
+							>
 							<Switch
 								checked={!sp.hidden.includes(g)}
 								onCheckedChange={(on) => show(g, on)}

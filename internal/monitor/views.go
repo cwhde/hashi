@@ -227,6 +227,7 @@ type Settings struct {
 
 // Update stores an endpoint's settings. Resuming starts the state over: the pause says nothing about what happened.
 func (s *Service) Update(ctx context.Context, id string, v Settings) error {
+	defer s.resetPublic()
 	v.Group = strings.TrimSpace(v.Group)
 	if v.Group == "" {
 		return errInvalid("a group is required")
@@ -330,6 +331,7 @@ func validateSpec(c CheckSpec) error {
 
 // DeleteUser removes a user monitor; sourced endpoints follow their source.
 func (s *Service) DeleteUser(ctx context.Context, id string) error {
+	defer s.resetPublic()
 	return s.st.Tx(ctx, func(q *db.Queries) error {
 		e, err := q.GetMonitorEndpoint(ctx, id)
 		if errors.Is(err, sql.ErrNoRows) {
@@ -376,4 +378,37 @@ func (c *cache[T]) get(now time.Time, load func() (T, error)) (T, error) {
 	}
 	c.val, c.at = v, now
 	return v, nil
+}
+
+// resetPublic makes the public pages show an admin's change at once, not after 15 s.
+func (s *Service) resetPublic() {
+	s.statusCache.reset()
+	s.appsCache.reset()
+	s.pageCache.reset()
+}
+
+// pages keeps one cached answer per key; only keys that exist are stored, so a visitor cannot grow it.
+type pages[T any] struct {
+	mu sync.Mutex
+	m  map[string]*cache[T]
+}
+
+func (p *pages[T]) of(key string) *cache[T] {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	if p.m == nil {
+		p.m = map[string]*cache[T]{}
+	}
+	c, ok := p.m[key]
+	if !ok {
+		c = &cache[T]{}
+		p.m[key] = c
+	}
+	return c
+}
+
+func (p *pages[T]) reset() {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	p.m = nil
 }

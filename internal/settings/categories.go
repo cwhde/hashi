@@ -97,12 +97,11 @@ const (
 	AssetUploaded   = "upload"
 )
 
-// StatusPage: the public status page's categories, the endpoints' groups (07 §7). Order lists category names first to
-// last; categories not in it follow by name. Hidden ones are left out. Grouped false shows one list sorted by name.
+// StatusPage: the old status page's categories, the endpoints' groups. Order lists category names first to last; Hidden
+// ones were left out. Since 13.12 they only seed the public layout once (07 §7 Migration); the layout is the truth.
 type StatusPage struct {
-	Grouped bool     `json:"grouped"`
-	Order   []string `json:"order"`
-	Hidden  []string `json:"hidden"`
+	Order  []string `json:"order"`
+	Hidden []string `json:"hidden"`
 }
 
 // FirewallDefaults: what a new firewall host starts with, and MSS clamping on NetBird-routed traffic (05 §8, 09 §2).
@@ -232,7 +231,7 @@ func defaults(c Category) Category {
 	case Dashboard:
 		return Dashboard{DefaultSort: SortGroup, NewServicesVisible: true}
 	case StatusPage:
-		return StatusPage{Grouped: true, Order: []string{}, Hidden: []string{}}
+		return StatusPage{Order: []string{}, Hidden: []string{}}
 	case PublicAssets:
 		return PublicAssets{Slots: map[string]AssetSlot{}}
 	case FirewallDefaults:

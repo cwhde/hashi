@@ -4,7 +4,7 @@
 	// bar says what happened then; a row opens the service page. Always grouped, always with icons (owner, 2026-11-22).
 	// Public fields only: no targets, ports, protocols, codes or error text.
 	import AppIcon from '#lib/components/hashi/AppIcon.svelte';
-	import DayStrip from '../../DayStrip.svelte';
+	import DayStrip from '#lib/components/hashi/DayStrip.svelte';
 	import StatusBadge from '#lib/components/hashi/StatusBadge.svelte';
 	import StatusDot from '#lib/components/hashi/StatusDot.svelte';
 	import * as ToggleGroup from '#lib/components/ui/toggle-group/index.ts';

@@ -69,6 +69,7 @@ type Service struct {
 
 	statusCache cache[PublicStatus]
 	appsCache   cache[PublicApps]
+	pageCache   pages[PublicService]
 
 	// defaults are the Monitoring settings (09 §2): new endpoints and checks start with them; retention follows them.
 	defaults atomic.Pointer[settings.Monitoring]

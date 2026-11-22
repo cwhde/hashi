@@ -654,18 +654,28 @@ func (p *publicToggles) update(c settings.Category) {
 func publicMux(api *httpapi.Server, page string, enabled *atomic.Bool) http.Handler {
 	mux := http.NewServeMux()
 	// Anonymous visitors never see an error's text (07 §7): it is logged, and they get a plain 500.
-	fail := func(w http.ResponseWriter, _ *http.Request, err error) {
+	fail := func(w http.ResponseWriter, r *http.Request, err error) {
+		if p, ok := errors.AsType[*httpapi.Problem](err); ok && p.Status == http.StatusNotFound {
+			http.NotFound(w, r) // a service page that is not there (07 §7.2)
+			return
+		}
 		api.Log.Error("public page", "err", err)
 		http.Error(w, "Temporarily unavailable", http.StatusInternalServerError)
 	}
 	h := gen.NewStrictHandlerWithOptions(api, nil, gen.StrictHTTPServerOptions{RequestErrorHandlerFunc: fail, ResponseErrorHandlerFunc: fail})
+	// The wrapper binds path and query parameters; a bad one gets a plain 400 without its text.
+	wrap := &gen.ServerInterfaceWrapper{Handler: h, ErrorHandlerFunc: func(w http.ResponseWriter, _ *http.Request, _ error) {
+		http.Error(w, "Bad request", http.StatusBadRequest)
+	}}
 	mux.HandleFunc("GET /healthz", h.GetHealthz)
 	mux.HandleFunc("GET /assets/{slot}", onlyIf(enabled, api.ServeAsset))
+	mux.HandleFunc("GET /assets/apps/{name}", onlyIf(enabled, api.ServeAppIcon))
 	if page == "status" {
 		mux.HandleFunc("GET /api/public/status", onlyIf(enabled, h.GetPublicStatus))
+		mux.HandleFunc("GET /api/public/status/{slug}", onlyIf(enabled, wrap.GetPublicService))
+		mux.HandleFunc("GET /badge/{slug}/{file}", onlyIf(enabled, api.ServeBadge))
 	} else {
 		mux.HandleFunc("GET /api/public/apps", onlyIf(enabled, h.GetPublicApps))
-		mux.HandleFunc("GET /assets/apps/{name}", onlyIf(enabled, api.ServeAppIcon))
 	}
 	mux.HandleFunc("GET /", onlyIf(enabled, web.Public(page, api.PublicIconURL).ServeHTTP))
 	return mux

@@ -16,6 +16,7 @@ import (
 	"time"
 
 	"github.com/oapi-codegen/runtime"
+	openapi_types "github.com/oapi-codegen/runtime/types"
 )
 
 // Defines values for AdGuardConnectionMode.
@@ -1353,6 +1354,96 @@ func (e PublicAssetSlotOrigin) Valid() bool {
 	}
 }
 
+// Defines values for PublicDayState.
+const (
+	PublicDayStateDegraded PublicDayState = "degraded"
+	PublicDayStateDown     PublicDayState = "down"
+	PublicDayStateUnknown  PublicDayState = "unknown"
+	PublicDayStateUp       PublicDayState = "up"
+)
+
+// Valid indicates whether the value is a known member of the PublicDayState enum.
+func (e PublicDayState) Valid() bool {
+	switch e {
+	case PublicDayStateDegraded:
+		return true
+	case PublicDayStateDown:
+		return true
+	case PublicDayStateUnknown:
+		return true
+	case PublicDayStateUp:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for PublicLayoutEntryType.
+const (
+	PublicLayoutEntryTypeCheck PublicLayoutEntryType = "check"
+	PublicLayoutEntryTypeLink  PublicLayoutEntryType = "link"
+	PublicLayoutEntryTypeTcp   PublicLayoutEntryType = "tcp"
+	PublicLayoutEntryTypeUdp   PublicLayoutEntryType = "udp"
+	PublicLayoutEntryTypeWeb   PublicLayoutEntryType = "web"
+)
+
+// Valid indicates whether the value is a known member of the PublicLayoutEntryType enum.
+func (e PublicLayoutEntryType) Valid() bool {
+	switch e {
+	case PublicLayoutEntryTypeCheck:
+		return true
+	case PublicLayoutEntryTypeLink:
+		return true
+	case PublicLayoutEntryTypeTcp:
+		return true
+	case PublicLayoutEntryTypeUdp:
+		return true
+	case PublicLayoutEntryTypeWeb:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for PublicMinuteState.
+const (
+	PublicMinuteStateDegraded PublicMinuteState = "degraded"
+	PublicMinuteStateDown     PublicMinuteState = "down"
+	PublicMinuteStateUp       PublicMinuteState = "up"
+)
+
+// Valid indicates whether the value is a known member of the PublicMinuteState enum.
+func (e PublicMinuteState) Valid() bool {
+	switch e {
+	case PublicMinuteStateDegraded:
+		return true
+	case PublicMinuteStateDown:
+		return true
+	case PublicMinuteStateUp:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for PublicSpellState.
+const (
+	PublicSpellStateDegraded PublicSpellState = "degraded"
+	PublicSpellStateDown     PublicSpellState = "down"
+)
+
+// Valid indicates whether the value is a known member of the PublicSpellState enum.
+func (e PublicSpellState) Valid() bool {
+	switch e {
+	case PublicSpellStateDegraded:
+		return true
+	case PublicSpellStateDown:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for PulseAgentPublicIpSource.
 const (
 	PulseAgentPublicIpSourceConnection PulseAgentPublicIpSource = "connection"
@@ -2520,6 +2611,27 @@ func (e GetMonitorEndpointParamsRange) Valid() bool {
 	case GetMonitorEndpointParamsRangeN30d:
 		return true
 	case GetMonitorEndpointParamsRangeN7d:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for GetPublicServiceParamsRange.
+const (
+	GetPublicServiceParamsRangeN24h GetPublicServiceParamsRange = "24h"
+	GetPublicServiceParamsRangeN30d GetPublicServiceParamsRange = "30d"
+	GetPublicServiceParamsRangeN7d  GetPublicServiceParamsRange = "7d"
+)
+
+// Valid indicates whether the value is a known member of the GetPublicServiceParamsRange enum.
+func (e GetPublicServiceParamsRange) Valid() bool {
+	switch e {
+	case GetPublicServiceParamsRangeN24h:
+		return true
+	case GetPublicServiceParamsRangeN30d:
+		return true
+	case GetPublicServiceParamsRangeN7d:
 		return true
 	default:
 		return false
@@ -4407,7 +4519,8 @@ type Problem struct {
 
 // PublicApp defines model for PublicApp.
 type PublicApp struct {
-	Group string `json:"group"`
+	// HasCheck Without a check the state means nothing: no dot
+	HasCheck bool `json:"has_check"`
 
 	// Icon Hashi's address of the app's icon; missing: show the letter
 	Icon *string `json:"icon,omitempty"`
@@ -4419,24 +4532,31 @@ type PublicApp struct {
 	Url       string       `json:"url"`
 }
 
+// PublicAppGroup defines model for PublicAppGroup.
+type PublicAppGroup struct {
+	Apps []PublicApp `json:"apps"`
+	Name string      `json:"name"`
+}
+
 // PublicApps defines model for PublicApps.
 type PublicApps struct {
-	Apps []PublicApp `json:"apps"`
-
 	// Assets Where each filled slot is served; a missing one is empty. background only when it is switched on.
 	Assets *PublicPageAssets `json:"assets,omitempty"`
 
 	// CustomTheme The admin's palette (10-ui §2); the other roles are derived. Refused when text is unreadable.
 	CustomTheme *CustomTheme `json:"custom_theme,omitempty"`
 
-	// DefaultSort The order the page starts with (Dashboard settings)
+	// DefaultSort The order the page starts with (Dashboard settings); group is the layout's order
 	DefaultSort PublicAppsDefaultSort `json:"default_sort"`
-	Theme       string                `json:"theme"`
-	Title       string                `json:"title"`
-	UpdatedAt   *time.Time            `json:"updated_at,omitempty"`
+
+	// Groups In the layout's order; only groups with an app
+	Groups    []PublicAppGroup `json:"groups"`
+	Theme     string           `json:"theme"`
+	Title     string           `json:"title"`
+	UpdatedAt *time.Time       `json:"updated_at,omitempty"`
 }
 
-// PublicAppsDefaultSort The order the page starts with (Dashboard settings)
+// PublicAppsDefaultSort The order the page starts with (Dashboard settings); group is the layout's order
 type PublicAppsDefaultSort string
 
 // PublicAssetSlot defines model for PublicAssetSlot.
@@ -4473,17 +4593,95 @@ type PublicAssetsSettings struct {
 	Source     string `json:"source"`
 }
 
-// PublicEndpoint defines model for PublicEndpoint.
-type PublicEndpoint struct {
-	Group string `json:"group"`
-	Name  string `json:"name"`
+// PublicDay defines model for PublicDay.
+type PublicDay struct {
+	Date openapi_types.Date `json:"date"`
 
-	// PendingDns Its address changed and DNS may still be catching up
-	PendingDns *bool                `json:"pending_dns,omitempty"`
-	State      MonitorState         `json:"state"`
-	Strip      []MonitorStripSample `json:"strip"`
-	Uptime24h  *float64             `json:"uptime_24h,omitempty"`
+	// Spells Downtimes and slow spells that touch the day
+	Spells []PublicSpell `json:"spells"`
+
+	// State unknown: no data that day
+	State  PublicDayState `json:"state"`
+	Uptime *float64       `json:"uptime,omitempty"`
 }
+
+// PublicDayState unknown: no data that day
+type PublicDayState string
+
+// PublicLayout defines model for PublicLayout.
+type PublicLayout struct {
+	// Groups Named groups in order, then Other (no id)
+	Groups  []PublicLayoutGroup `json:"groups"`
+	Version int64               `json:"version"`
+}
+
+// PublicLayoutEntry defines model for PublicLayoutEntry.
+type PublicLayoutEntry struct {
+	Apps bool `json:"apps"`
+
+	// CanApps It has a web address
+	CanApps bool `json:"can_apps"`
+
+	// CanStatus It has a check
+	CanStatus bool `json:"can_status"`
+
+	// Days For the status page preview
+	Days *[]PublicDay `json:"days,omitempty"`
+	Icon *string      `json:"icon,omitempty"`
+
+	// IconApp The app icon's key (app icon picker); missing for entries without one
+	IconApp   *string `json:"icon_app,omitempty"`
+	IconLight *string `json:"icon_light,omitempty"`
+
+	// Key kind:id, the entry's identity
+	Key    string                `json:"key"`
+	Name   string                `json:"name"`
+	Slug   string                `json:"slug"`
+	State  *MonitorState         `json:"state,omitempty"`
+	Status bool                  `json:"status"`
+	Type   PublicLayoutEntryType `json:"type"`
+	Url    *string               `json:"url,omitempty"`
+}
+
+// PublicLayoutEntryType defines model for PublicLayoutEntry.Type.
+type PublicLayoutEntryType string
+
+// PublicLayoutGroup defines model for PublicLayoutGroup.
+type PublicLayoutGroup struct {
+	Entries []PublicLayoutEntry `json:"entries"`
+
+	// Id Missing for Other
+	Id   *string `json:"id,omitempty"`
+	Name string  `json:"name"`
+}
+
+// PublicLayoutSave defines model for PublicLayoutSave.
+type PublicLayoutSave struct {
+	Groups []struct {
+		Entries []string `json:"entries"`
+
+		// Id Missing for a new group
+		Id   *string `json:"id,omitempty"`
+		Name string  `json:"name"`
+	} `json:"groups"`
+	Other    []string `json:"other"`
+	Switches *[]struct {
+		Apps   *bool  `json:"apps,omitempty"`
+		Entry  string `json:"entry"`
+		Status *bool  `json:"status,omitempty"`
+	} `json:"switches,omitempty"`
+	Version int64 `json:"version"`
+}
+
+// PublicMinute defines model for PublicMinute.
+type PublicMinute struct {
+	At        time.Time         `json:"at"`
+	LatencyMs int64             `json:"latency_ms"`
+	State     PublicMinuteState `json:"state"`
+}
+
+// PublicMinuteState defines model for PublicMinute.State.
+type PublicMinuteState string
 
 // PublicPageAssets Where each filled slot is served; a missing one is empty. background only when it is switched on.
 type PublicPageAssets struct {
@@ -4509,20 +4707,93 @@ type PublicPages struct {
 	Status []PublicPageLink `json:"status"`
 }
 
+// PublicPoint defines model for PublicPoint.
+type PublicPoint struct {
+	At           time.Time `json:"at"`
+	Availability float64   `json:"availability"`
+	AvgMs        int64     `json:"avg_ms"`
+	P95Ms        int64     `json:"p95_ms"`
+}
+
+// PublicService defines model for PublicService.
+type PublicService struct {
+	// Assets Where each filled slot is served; a missing one is empty. background only when it is switched on.
+	Assets   *PublicPageAssets `json:"assets,omitempty"`
+	AvgMs24h *int64            `json:"avg_ms_24h,omitempty"`
+
+	// Badges The badge kinds this entry has: /badge/{slug}/{kind}.svg
+	Badges []string `json:"badges"`
+
+	// CustomTheme The admin's palette (10-ui §2); the other roles are derived. Refused when text is unreadable.
+	CustomTheme *CustomTheme `json:"custom_theme,omitempty"`
+
+	// Downtimes The last 10 within 90 days, newest first
+	Downtimes []PublicSpell     `json:"downtimes"`
+	Entry     PublicStatusEntry `json:"entry"`
+	Group     string            `json:"group"`
+	Series    []PublicPoint     `json:"series"`
+	Theme     string            `json:"theme"`
+	Title     string            `json:"title"`
+	Uptime30d *float64          `json:"uptime_30d,omitempty"`
+	Uptime7d  *float64          `json:"uptime_7d,omitempty"`
+}
+
+// PublicSpell defines model for PublicSpell.
+type PublicSpell struct {
+	// End Missing while it lasts
+	End   *time.Time       `json:"end,omitempty"`
+	Start time.Time        `json:"start"`
+	State PublicSpellState `json:"state"`
+}
+
+// PublicSpellState defines model for PublicSpell.State.
+type PublicSpellState string
+
 // PublicStatus defines model for PublicStatus.
 type PublicStatus struct {
 	// Assets Where each filled slot is served; a missing one is empty. background only when it is switched on.
 	Assets *PublicPageAssets `json:"assets,omitempty"`
 
 	// CustomTheme The admin's palette (10-ui §2); the other roles are derived. Refused when text is unreadable.
-	CustomTheme *CustomTheme     `json:"custom_theme,omitempty"`
-	Endpoints   []PublicEndpoint `json:"endpoints"`
+	CustomTheme *CustomTheme `json:"custom_theme,omitempty"`
 
-	// Grouped Show the endpoints under their categories, in the order given
-	Grouped   *bool      `json:"grouped,omitempty"`
-	Theme     string     `json:"theme"`
-	Title     string     `json:"title"`
-	UpdatedAt *time.Time `json:"updated_at,omitempty"`
+	// Groups In the layout's order; only groups with an entry shown
+	Groups    []PublicStatusGroup `json:"groups"`
+	Theme     string              `json:"theme"`
+	Title     string              `json:"title"`
+	UpdatedAt *time.Time          `json:"updated_at,omitempty"`
+}
+
+// PublicStatusEntry defines model for PublicStatusEntry.
+type PublicStatusEntry struct {
+	// Days 90 days, oldest first, in Hashi's time zone
+	Days []PublicDay `json:"days"`
+
+	// Icon Hashi's address of the app's icon; missing: show the letter
+	Icon *string `json:"icon,omitempty"`
+
+	// IconLight Its white variant for dark themes
+	IconLight *string `json:"icon_light,omitempty"`
+
+	// Minutes The last hour's rounds, oldest first
+	Minutes []PublicMinute `json:"minutes"`
+	Name    string         `json:"name"`
+
+	// PendingDns Its address changed and DNS may still be catching up
+	PendingDns *bool     `json:"pending_dns,omitempty"`
+	Since      time.Time `json:"since"`
+
+	// Slug The service page's address part: /s/{slug}
+	Slug      string       `json:"slug"`
+	State     MonitorState `json:"state"`
+	Uptime24h *float64     `json:"uptime_24h,omitempty"`
+	Uptime90d *float64     `json:"uptime_90d,omitempty"`
+}
+
+// PublicStatusGroup defines model for PublicStatusGroup.
+type PublicStatusGroup struct {
+	Entries []PublicStatusEntry `json:"entries"`
+	Name    string              `json:"name"`
 }
 
 // PublishedRecord defines model for PublishedRecord.
@@ -5562,9 +5833,6 @@ type SetupSystemService struct {
 
 // StatusPageSettings defines model for StatusPageSettings.
 type StatusPageSettings struct {
-	// Grouped Show categories; false shows one list sorted by name
-	Grouped bool `json:"grouped"`
-
 	// Hidden Categories left out of the public page
 	Hidden []string `json:"hidden"`
 
@@ -5984,6 +6252,14 @@ type ListPublicAssetSourceParams struct {
 	Dir *string `form:"dir,omitempty" json:"dir,omitempty"`
 }
 
+// GetPublicServiceParams defines parameters for GetPublicService.
+type GetPublicServiceParams struct {
+	Range *GetPublicServiceParamsRange `form:"range,omitempty" json:"range,omitempty"`
+}
+
+// GetPublicServiceParamsRange defines parameters for GetPublicService.
+type GetPublicServiceParamsRange string
+
 // PulseHeartbeatParams defines parameters for PulseHeartbeat.
 type PulseHeartbeatParams struct {
 	Authorization string `json:"Authorization"`
@@ -6159,6 +6435,9 @@ type PutPublicAssetsJSONRequestBody = PublicAssetsSettings
 
 // PutPublicAssetSlotJSONRequestBody defines body for PutPublicAssetSlot for application/json ContentType.
 type PutPublicAssetSlotJSONRequestBody = AssetSlotFill
+
+// PutPublicLayoutJSONRequestBody defines body for PutPublicLayout for application/json ContentType.
+type PutPublicLayoutJSONRequestBody = PublicLayoutSave
 
 // CreatePulseAgentJSONRequestBody defines body for CreatePulseAgent for application/json ContentType.
 type CreatePulseAgentJSONRequestBody = PulseAgentCreate
@@ -6932,12 +7211,21 @@ type ServerInterface interface {
 	// ListPublicAssetSource One folder of the asset source, read now (subfolders and image files)
 	// (GET /api/public-assets/source)
 	ListPublicAssetSource(w http.ResponseWriter, r *http.Request, params ListPublicAssetSourceParams)
+	// GetPublicLayout The one layout of both public pages (07 §7) with every entry and what is possible for it
+	// (GET /api/public-layout)
+	GetPublicLayout(w http.ResponseWriter, r *http.Request)
+	// PutPublicLayout Save the whole order and any switch changes; 409 when the layout changed since it was loaded
+	// (PUT /api/public-layout)
+	PutPublicLayout(w http.ResponseWriter, r *http.Request)
 	// GetPublicApps Public dashboard data (cached 15 s)
 	// (GET /api/public/apps)
 	GetPublicApps(w http.ResponseWriter, r *http.Request)
 	// GetPublicStatus Public status page data (cached 15 s); names, groups, state and history only
 	// (GET /api/public/status)
 	GetPublicStatus(w http.ResponseWriter, r *http.Request)
+	// GetPublicService One service page of the status page (cached with the status page's data); public fields only
+	// (GET /api/public/status/{slug})
+	GetPublicService(w http.ResponseWriter, r *http.Request, slug string, params GetPublicServiceParams)
 
 	// (GET /api/pulse/agents)
 	ListPulseAgents(w http.ResponseWriter, r *http.Request)
@@ -9757,6 +10045,34 @@ func (siw *ServerInterfaceWrapper) ListPublicAssetSource(w http.ResponseWriter, 
 	handler.ServeHTTP(w, r)
 }
 
+// GetPublicLayout operation middleware
+func (siw *ServerInterfaceWrapper) GetPublicLayout(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetPublicLayout(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// PutPublicLayout operation middleware
+func (siw *ServerInterfaceWrapper) PutPublicLayout(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.PutPublicLayout(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // GetPublicApps operation middleware
 func (siw *ServerInterfaceWrapper) GetPublicApps(w http.ResponseWriter, r *http.Request) {
 
@@ -9776,6 +10092,48 @@ func (siw *ServerInterfaceWrapper) GetPublicStatus(w http.ResponseWriter, r *htt
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.GetPublicStatus(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// GetPublicService operation middleware
+func (siw *ServerInterfaceWrapper) GetPublicService(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "slug" -------------
+	var slug string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "slug", r.PathValue("slug"), &slug, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "slug", Err: err})
+		return
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params GetPublicServiceParams
+
+	// ------------- Optional query parameter "range" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "range", r.URL.Query(), &params.Range, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "range"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "range", Err: err})
+		}
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetPublicService(w, r, slug, params)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -12861,6 +13219,9 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/api/app-icons/{app}", wrapper.PutAppIcon)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/icon-library", wrapper.SearchIconLibrary)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/public/status", wrapper.GetPublicStatus)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/public/status/{slug}", wrapper.GetPublicService)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/public-layout", wrapper.GetPublicLayout)
+	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/api/public-layout", wrapper.PutPublicLayout)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/public/apps", wrapper.GetPublicApps)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/settings", wrapper.GetSettings)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/settings/general", wrapper.GetGeneralSettings)
@@ -17084,6 +17445,83 @@ func (response ListPublicAssetSourcedefaultApplicationProblemPlusJSONResponse) V
 	return err
 }
 
+type GetPublicLayoutRequestObject struct {
+}
+
+type GetPublicLayoutResponseObject interface {
+	VisitGetPublicLayoutResponse(w http.ResponseWriter) error
+}
+
+type GetPublicLayout200JSONResponse PublicLayout
+
+func (response GetPublicLayout200JSONResponse) VisitGetPublicLayoutResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetPublicLayoutdefaultApplicationProblemPlusJSONResponse struct {
+	Body       Problem
+	StatusCode int
+}
+
+func (response GetPublicLayoutdefaultApplicationProblemPlusJSONResponse) VisitGetPublicLayoutResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(response.StatusCode)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PutPublicLayoutRequestObject struct {
+	Body *PutPublicLayoutJSONRequestBody
+}
+
+type PutPublicLayoutResponseObject interface {
+	VisitPutPublicLayoutResponse(w http.ResponseWriter) error
+}
+
+type PutPublicLayout200JSONResponse PublicLayout
+
+func (response PutPublicLayout200JSONResponse) VisitPutPublicLayoutResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PutPublicLayoutdefaultApplicationProblemPlusJSONResponse struct {
+	Body       Problem
+	StatusCode int
+}
+
+func (response PutPublicLayoutdefaultApplicationProblemPlusJSONResponse) VisitPutPublicLayoutResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(response.StatusCode)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
 type GetPublicAppsRequestObject struct {
 }
 
@@ -17149,6 +17587,46 @@ type GetPublicStatusdefaultApplicationProblemPlusJSONResponse struct {
 }
 
 func (response GetPublicStatusdefaultApplicationProblemPlusJSONResponse) VisitGetPublicStatusResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(response.StatusCode)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetPublicServiceRequestObject struct {
+	Slug   string `json:"slug"`
+	Params GetPublicServiceParams
+}
+
+type GetPublicServiceResponseObject interface {
+	VisitGetPublicServiceResponse(w http.ResponseWriter) error
+}
+
+type GetPublicService200JSONResponse PublicService
+
+func (response GetPublicService200JSONResponse) VisitGetPublicServiceResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetPublicServicedefaultApplicationProblemPlusJSONResponse struct {
+	Body       Problem
+	StatusCode int
+}
+
+func (response GetPublicServicedefaultApplicationProblemPlusJSONResponse) VisitGetPublicServiceResponse(w http.ResponseWriter) error {
 
 	var buf bytes.Buffer
 	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
@@ -23057,12 +23535,21 @@ type StrictServerInterface interface {
 	// ListPublicAssetSource One folder of the asset source, read now (subfolders and image files)
 	// (GET /api/public-assets/source)
 	ListPublicAssetSource(ctx context.Context, request ListPublicAssetSourceRequestObject) (ListPublicAssetSourceResponseObject, error)
+	// GetPublicLayout The one layout of both public pages (07 §7) with every entry and what is possible for it
+	// (GET /api/public-layout)
+	GetPublicLayout(ctx context.Context, request GetPublicLayoutRequestObject) (GetPublicLayoutResponseObject, error)
+	// PutPublicLayout Save the whole order and any switch changes; 409 when the layout changed since it was loaded
+	// (PUT /api/public-layout)
+	PutPublicLayout(ctx context.Context, request PutPublicLayoutRequestObject) (PutPublicLayoutResponseObject, error)
 	// GetPublicApps Public dashboard data (cached 15 s)
 	// (GET /api/public/apps)
 	GetPublicApps(ctx context.Context, request GetPublicAppsRequestObject) (GetPublicAppsResponseObject, error)
 	// GetPublicStatus Public status page data (cached 15 s); names, groups, state and history only
 	// (GET /api/public/status)
 	GetPublicStatus(ctx context.Context, request GetPublicStatusRequestObject) (GetPublicStatusResponseObject, error)
+	// GetPublicService One service page of the status page (cached with the status page's data); public fields only
+	// (GET /api/public/status/{slug})
+	GetPublicService(ctx context.Context, request GetPublicServiceRequestObject) (GetPublicServiceResponseObject, error)
 
 	// (GET /api/pulse/agents)
 	ListPulseAgents(ctx context.Context, request ListPulseAgentsRequestObject) (ListPulseAgentsResponseObject, error)
@@ -26472,6 +26959,61 @@ func (sh *strictHandler) ListPublicAssetSource(w http.ResponseWriter, r *http.Re
 	}
 }
 
+// GetPublicLayout operation middleware
+func (sh *strictHandler) GetPublicLayout(w http.ResponseWriter, r *http.Request) {
+	var request GetPublicLayoutRequestObject
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.GetPublicLayout(ctx, request.(GetPublicLayoutRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "GetPublicLayout")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(GetPublicLayoutResponseObject); ok {
+		if err := validResponse.VisitGetPublicLayoutResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// PutPublicLayout operation middleware
+func (sh *strictHandler) PutPublicLayout(w http.ResponseWriter, r *http.Request) {
+	var request PutPublicLayoutRequestObject
+
+	var body PutPublicLayoutJSONRequestBody
+	if err := runtime.BindJSONBody(r, &body); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.PutPublicLayout(ctx, request.(PutPublicLayoutRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "PutPublicLayout")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(PutPublicLayoutResponseObject); ok {
+		if err := validResponse.VisitPutPublicLayoutResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
 // GetPublicApps operation middleware
 func (sh *strictHandler) GetPublicApps(w http.ResponseWriter, r *http.Request) {
 	var request GetPublicAppsRequestObject
@@ -26513,6 +27055,33 @@ func (sh *strictHandler) GetPublicStatus(w http.ResponseWriter, r *http.Request)
 		sh.options.ResponseErrorHandlerFunc(w, r, err)
 	} else if validResponse, ok := response.(GetPublicStatusResponseObject); ok {
 		if err := validResponse.VisitGetPublicStatusResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// GetPublicService operation middleware
+func (sh *strictHandler) GetPublicService(w http.ResponseWriter, r *http.Request, slug string, params GetPublicServiceParams) {
+	var request GetPublicServiceRequestObject
+
+	request.Slug = slug
+	request.Params = params
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.GetPublicService(ctx, request.(GetPublicServiceRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "GetPublicService")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(GetPublicServiceResponseObject); ok {
+		if err := validResponse.VisitGetPublicServiceResponse(w); err != nil {
 			sh.options.ResponseErrorHandlerFunc(w, r, err)
 		}
 	} else if response != nil {

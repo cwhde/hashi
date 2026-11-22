@@ -10,7 +10,7 @@
 	import * as ToggleGroup from '#lib/components/ui/toggle-group/index.ts';
 	import { ArrowLeft } from '@lucide/svelte';
 	import BadgesButton from '../../../../BadgesButton.svelte';
-	import DayStrip from '../../../../DayStrip.svelte';
+	import DayStrip from '#lib/components/hashi/DayStrip.svelte';
 	import { dayDetail, downtimes, entries, responseSeries, slug } from '../../../../ideas.ts';
 
 	const e = $derived(entries.find((x) => slug(x.name) === page.params.slug) ?? entries[0]!);

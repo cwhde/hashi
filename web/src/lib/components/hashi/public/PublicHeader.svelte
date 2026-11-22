@@ -11,11 +11,14 @@
 		title,
 		assets,
 		suffix = '',
+		heading = true,
 		children
 	}: {
 		title: string;
 		assets?: Schemas['PublicPageAssets'];
 		suffix?: string;
+		/** false: only the page's look (icon, background); the page has its own heading (the service page). */
+		heading?: boolean;
 		children?: Snippet;
 	} = $props();
 	const logo = $derived(theme.mode === 'light' ? assets?.logo_light : assets?.logo_dark);
@@ -36,12 +39,12 @@
 	</div>
 {/if}
 
-<h1 class="flex min-w-48 flex-1 items-center gap-3 text-title font-semibold">
-	{#if logo}<img
-			src={logo}
-			alt={title}
-			class="h-10 w-auto max-w-64 object-contain"
-		/>{:else}{title}{/if}
-	{#if suffix}<span>{suffix}</span>{/if}
-	{@render children?.()}
-</h1>
+{#if heading}<h1 class="flex min-w-48 flex-1 items-center gap-3 text-title font-semibold">
+		{#if logo}<img
+				src={logo}
+				alt={title}
+				class="h-10 w-auto max-w-64 object-contain"
+			/>{:else}{title}{/if}
+		{#if suffix}<span>{suffix}</span>{/if}
+		{@render children?.()}
+	</h1>{/if}

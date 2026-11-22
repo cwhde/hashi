@@ -499,8 +499,7 @@ func (s *Service) SaveLayout(ctx context.Context, in LayoutSave) (Layout, error)
 	if err != nil {
 		return Layout{}, err
 	}
-	s.statusCache.reset()
-	s.appsCache.reset()
+	s.resetPublic()
 	return out, nil
 }
 

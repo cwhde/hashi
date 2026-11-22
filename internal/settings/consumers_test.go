@@ -97,9 +97,8 @@ var consumerTests = map[string]string{
 	"engine.feed_refresh_seconds":     "internal/app/settings_consumers_test.go::TestFeedTimesSetting",
 	"engine.feed_stale_seconds":       "internal/app/settings_consumers_test.go::TestFeedTimesSetting",
 
-	"status_page.grouped": "internal/monitor/service_test.go::TestPublicStatusCategories",
-	"status_page.order":   "internal/monitor/service_test.go::TestPublicStatusCategories",
-	"status_page.hidden":  "internal/monitor/service_test.go::TestPublicStatusCategories",
+	"status_page.order":  "internal/monitor/layout_test.go::TestLayoutSeedsFromOldGroups",
+	"status_page.hidden": "internal/monitor/layout_test.go::TestLayoutSeedsFromOldGroups",
 
 	"public_assets.source":     "internal/httpapi/public_assets_test.go::TestPublicAssetsFromTheSource",
 	"public_assets.background": "internal/httpapi/public_assets_test.go::TestPublicPagesNameTheirAssets",

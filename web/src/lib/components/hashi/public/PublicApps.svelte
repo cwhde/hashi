@@ -36,20 +36,27 @@
 		return () => clearInterval(t);
 	});
 
-	const shown = $derived.by(() => {
+	// "group" is the stored name of the layout's own order (07 §8): groups and cards as the owner placed them.
+	const groups = $derived.by(() => {
 		const q = query.trim().toLowerCase();
-		const apps = (data?.apps ?? []).filter((a) => !q || a.name.toLowerCase().includes(q));
-		if (sort === 'status')
-			return [...apps].sort((a, b) => (stateOrder[a.state] ?? 9) - (stateOrder[b.state] ?? 9));
-		return apps;
+		const hit = (a: Schemas['PublicApp']) => !q || a.name.toLowerCase().includes(q);
+		if (sort === 'group')
+			return (data?.groups ?? [])
+				.map((g) => ({ name: g.name, apps: g.apps.filter(hit) }))
+				.filter((g) => g.apps.length);
+		const apps = (data?.groups ?? []).flatMap((g) => g.apps).filter(hit);
+		apps.sort((a, b) =>
+			sort === 'status'
+				? rank(a) - rank(b) || a.name.localeCompare(b.name)
+				: a.name.localeCompare(b.name)
+		);
+		return apps.length ? [{ name: '', apps }] : [];
 	});
-	const groups = $derived(
-		sort === 'group'
-			? Object.entries(Object.groupBy(shown, (a) => a.group))
-			: [['', shown] as const]
-	);
+	// An app without a check has no state to sort by: it goes last.
+	const rank = (a: Schemas['PublicApp']) => (a.has_check ? (stateOrder[a.state] ?? 9) : 10);
+	const total = $derived(data?.groups.reduce((n, g) => n + g.apps.length, 0) ?? 0);
 	const domain = (url: string) => url.replace(/^https?:\/\//, '').replace(/\/$/, '');
-	const sortNames: Record<string, string> = { group: 'Group', name: 'Name', status: 'Status' };
+	const sortNames: Record<string, string> = { group: 'Your order', name: 'Name', status: 'Status' };
 </script>
 
 <svelte:head><title>Apps · {data?.title ?? ''}</title></svelte:head>
@@ -67,9 +74,7 @@
 				<Input bind:value={query} placeholder="Search" aria-label="Search" class="pl-8" />
 			</div>
 			<Select.Root type="single" bind:value={sort} onValueChange={() => (sortChosen = true)}>
-				<Select.Trigger class="w-36 shrink-0" aria-label="Sort"
-					>Sort: {sortNames[sort]}</Select.Trigger
-				>
+				<Select.Trigger class="w-36 shrink-0" aria-label="Sort">{sortNames[sort]}</Select.Trigger>
 				<Select.Content>
 					{#each Object.entries(sortNames) as [v, l] (v)}<Select.Item value={v}>{l}</Select.Item
 						>{/each}
@@ -87,14 +92,16 @@
 			{#each [0, 1, 2, 3, 4, 5, 6, 7] as i (i)}<Skeleton class="h-20 rounded-2xl" />{/each}
 		</div>
 	{/if}
-	{#if data && data.apps.length === 0}
+	{#if data && total === 0}
 		<p class="text-md text-muted-foreground">No apps are listed here yet.</p>
+	{:else if data && groups.length === 0}
+		<p class="text-md text-muted-foreground">No app matches “{query.trim()}”.</p>
 	{/if}
-	{#each groups as [g, list] (g)}
+	{#each groups as g (g.name)}
 		<section class="mb-8">
-			{#if g}<h2 class="mb-3 text-md font-medium text-muted-foreground">{g}</h2>{/if}
+			{#if g.name}<h2 class="mb-3 text-md font-medium text-muted-foreground">{g.name}</h2>{/if}
 			<div class="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
-				{#each list ?? [] as a (a.name + a.url)}
+				{#each g.apps as a (a.name + a.url)}
 					<a
 						href={a.url}
 						class="flex items-center gap-3 rounded-2xl border bg-card p-3.5 transition-colors hover:border-muted-foreground/40"
@@ -110,8 +117,8 @@
 								class="block truncate text-sm text-muted-foreground">{domain(a.url)}</span
 							></span
 						>
-						<StatusDot state={a.state} />
-						<span class="sr-only">{a.state}</span>
+						{#if a.has_check}<StatusDot state={a.state} /><span class="sr-only">{a.state}</span
+							>{/if}
 					</a>
 				{/each}
 			</div>

@@ -255,11 +255,11 @@ func (s *Server) GetStatusPageSettings(ctx context.Context, _ gen.GetStatusPageS
 	if err != nil {
 		return nil, err
 	}
-	return gen.GetStatusPageSettings200JSONResponse{Grouped: v.Grouped, Order: v.Order, Hidden: v.Hidden}, nil
+	return gen.GetStatusPageSettings200JSONResponse{Order: v.Order, Hidden: v.Hidden}, nil
 }
 
 func (s *Server) PutStatusPageSettings(ctx context.Context, req gen.PutStatusPageSettingsRequestObject) (gen.PutStatusPageSettingsResponseObject, error) {
-	v := settings.StatusPage{Grouped: req.Body.Grouped, Order: req.Body.Order, Hidden: req.Body.Hidden}
+	v := settings.StatusPage{Order: req.Body.Order, Hidden: req.Body.Hidden}
 	if err := saveSetting(ctx, s, v, nil); err != nil {
 		return nil, err
 	}

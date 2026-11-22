@@ -51,7 +51,7 @@ func keyOf(t *testing.T, l Layout, name string) string {
 func TestLayoutSeedsFromOldGroups(t *testing.T) {
 	s, st, _, _ := fixture(t)
 	ctx := t.Context()
-	if err := settings.Put(ctx, st.Q, settings.StatusPage{Grouped: true, Order: []string{"Media", "Home"}, Hidden: []string{"Lab"}}); err != nil {
+	if err := settings.Put(ctx, st.Q, settings.StatusPage{Order: []string{"Media", "Home"}, Hidden: []string{"Lab"}}); err != nil {
 		t.Fatal(err)
 	}
 	for _, c := range []struct{ name, group string }{{"Sonarr", "Media"}, {"Jellyfin", "Media"}, {"Lamp", "Home"}, {"Probe", "Lab"}} {

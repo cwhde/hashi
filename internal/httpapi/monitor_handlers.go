@@ -5,7 +5,6 @@ import (
 	"database/sql"
 	"encoding/json"
 	"errors"
-	"git.juzo.io/juzo/hashi/internal/appicons"
 	"time"
 
 	"git.juzo.io/juzo/hashi/internal/audit"
@@ -22,7 +21,9 @@ func monitorError(err error) error {
 	switch {
 	case errors.Is(err, monitor.ErrNotFound), errors.Is(err, notify.ErrNotFound), errors.Is(err, services.ErrNotFound):
 		return notFound(err.Error())
-	case errors.Is(err, monitor.ErrSourced), errors.Is(err, monitor.ErrStale):
+	case errors.Is(err, monitor.ErrNoPublicService):
+		return notFound(err.Error())
+	case errors.Is(err, monitor.ErrSourced), errors.Is(err, monitor.ErrStale), errors.Is(err, monitor.ErrLayoutStale):
 		return conflict(err.Error())
 	case errors.Is(err, monitor.ErrInvalid), errors.Is(err, notify.ErrInvalid):
 		return invalid(err.Error())
@@ -424,59 +425,6 @@ func nonZero(t time.Time) *time.Time {
 		return nil
 	}
 	return &t
-}
-
-func (s *Server) GetPublicStatus(ctx context.Context, _ gen.GetPublicStatusRequestObject) (gen.GetPublicStatusResponseObject, error) {
-	title, look, shown, err := s.publicLook(ctx)
-	if err != nil {
-		return nil, err
-	}
-	v, err := s.Monitor.PublicStatus(ctx)
-	if err != nil {
-		return nil, err
-	}
-	out := gen.GetPublicStatus200JSONResponse{Title: title, Assets: shown, Theme: look.Theme, CustomTheme: look.CustomTheme, UpdatedAt: nonZero(v.UpdatedAt), Grouped: &v.Grouped, Endpoints: make([]gen.PublicEndpoint, 0, len(v.Endpoints))}
-	for _, e := range v.Endpoints {
-		out.Endpoints = append(out.Endpoints, gen.PublicEndpoint{PendingDns: boolIf(e.PendingDNS), Name: e.Name, Group: e.Group, State: gen.MonitorState(e.State), Strip: stripBody(e.Strip), Uptime24h: e.Uptime24})
-	}
-	return out, nil
-}
-
-func (s *Server) GetPublicApps(ctx context.Context, _ gen.GetPublicAppsRequestObject) (gen.GetPublicAppsResponseObject, error) {
-	title, look, shown, err := s.publicLook(ctx)
-	if err != nil {
-		return nil, err
-	}
-	d, err := settings.Get[settings.Dashboard](ctx, s.Store.R)
-	if err != nil {
-		return nil, err
-	}
-	v, err := s.Monitor.PublicApps(ctx)
-	if err != nil {
-		return nil, err
-	}
-	out := gen.GetPublicApps200JSONResponse{Title: title, Assets: shown, Theme: look.Theme, CustomTheme: look.CustomTheme, DefaultSort: gen.PublicAppsDefaultSort(d.DefaultSort), UpdatedAt: nonZero(v.UpdatedAt),
-		Apps: make([]gen.PublicApp, 0, len(v.Apps))}
-	var icons map[string]db.AppIcon
-	if s.AppIcons != nil {
-		if icons, err = s.AppIcons.Icons(ctx); err != nil {
-			return nil, err
-		}
-	}
-	for _, a := range v.Apps {
-		app := gen.PublicApp{Name: a.Name, Group: a.Group, Url: a.URL, State: gen.MonitorState(a.State)}
-		if r, ok := icons[appicons.Key(a.SourceType, a.SourceID)]; ok {
-			icon, light := appicons.URLs(r)
-			if icon != "" {
-				app.Icon = &icon
-			}
-			if light != "" {
-				app.IconLight = &light
-			}
-		}
-		out.Apps = append(out.Apps, app)
-	}
-	return out, nil
 }
 
 func boolIf(v bool) *bool {

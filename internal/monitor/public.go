@@ -325,27 +325,32 @@ type PublicService struct {
 // ErrNoPublicService: no entry with Status on has this slug (07 §7.2, 404).
 var ErrNoPublicService = errors.New("no such service on the status page")
 
-// PublicService returns one service page for a chart range (24h, 7d or 30d).
+// PublicService returns one service page for a chart range (24h, 7d or 30d), cached like the pages (07 §7.2). The entry
+// is found in the cached status page, so an unknown address costs no database work.
 func (s *Service) PublicService(ctx context.Context, slug, rng string) (PublicService, error) {
-	groups, err := s.publicEntries(ctx, s.st.R)
+	status, err := s.PublicStatus(ctx)
 	if err != nil {
 		return PublicService{}, err
 	}
 	var out PublicService
-	for _, g := range groups {
+	for _, g := range status.Groups {
 		for _, e := range g.Entries {
 			if e.Slug == slug {
 				out.PublicEntry, out.Group = e, g.Name
 			}
 		}
 	}
-	ep := out.endpoint
-	if ep == nil {
+	if out.endpoint == nil {
 		return PublicService{}, ErrNoPublicService
 	}
 	if rng != "7d" && rng != "30d" {
 		rng = "24h"
 	}
+	return s.pageCache.of(slug+"|"+rng).get(s.now(), func() (PublicService, error) { return s.publicService(ctx, out, rng) })
+}
+
+func (s *Service) publicService(ctx context.Context, out PublicService, rng string) (PublicService, error) {
+	ep := out.endpoint
 	r := Ranges[rng]
 	now := s.now()
 	series, err := s.st.R.ListMonitorRollups(ctx, db.ListMonitorRollupsParams{EndpointID: ep.ID, CheckID: "", Resolution: r.Resolution,
