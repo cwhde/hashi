@@ -192,6 +192,7 @@ logging in addition to stdout.
 | Security events | per event | 90 days |
 | Audit events | per event | 2 years |
 | Pulse heartbeats | per heartbeat | 7 days |
+| Job runs (Activity → Jobs) | per run | 7 days, and always each job's newest 30 runs |
 
 The 1- and 5-minute rollups feed only the 1 h and 24 h charts, and per-check samples only the rollups and the last
 error; uptime reads rounds. Kept for months they grew the database ~120 MB a day with 71 endpoints (bug 127).
