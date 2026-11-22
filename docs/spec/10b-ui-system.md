@@ -109,7 +109,9 @@ a rule uses them.
   and always confirm, naming what will be planned.
 - **History strip** (`HistoryStrip.svelte`): one bar per sample, oldest left, time labels at both ends, accessible summary.
 - **Charts**: thin line, sparse dashed grid, current value top right, three equal charts per row on detail pages (uPlot in
-  real pages). Sparklines: same, no axes.
+  real pages). Sparklines: same, no axes. Charts or sparklines on one page over the same time range share the pointer:
+  pointing at one shows the same moment (line, dot, time and value) in each of the others, matched by time, not by
+  point number (the owner, 2026-11-22). Today: endpoint page, public service page, security tiles, overview security card.
 - **Change preview** (`PlanReview.svelte`) is the signature element: every write is shown as verb · subsystem/target ·
   object · before (struck) · after, risk marked per row, high-risk approval needs a passkey. What is shown is what is applied.
 - **Tags** (`Tag.svelte`): quiet by default; tone only for meaning (ok/warn/bad/info, accent for "managed by Hashi").

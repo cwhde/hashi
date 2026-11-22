@@ -142,11 +142,11 @@ One page per entry with Status on, with an address to share. The slug is the ser
 entry switched off answers 404.
 
 - Head: icon, name, group, state badge, and one **Badges** button (§7.3).
-- Tiles: Now ("Up for 14 h", "Down for 6 min"), uptime 24 h, 7 d, 30 d, average response 24 h.
+- Tiles: Current state ("Up for 14 h", "Down for 6 min"), uptime 24 h, 7 d, 30 d, average response 24 h.
 - 90-day bar with its dates and the bar details of §7.1.
 - Three charts side by side (stacked on a phone), one 24 h / 7 d / 30 d switch for all: **Response time** (average),
   **Slowest responses** (p95), **Availability**. Pointing at a chart shows that moment's time and value beside the
-  pointer, as the admin endpoint page's charts do (`LineChart` with labels).
+  pointer, as the admin endpoint page's charts do (`LineChart` with labels); the three share the pointer (10b).
 - Recent downtimes: the last 10 within 90 days, start, end and length; none: "No downtime in the last 90 days."
 - Back link to the status page. `GET /api/public/status/<slug>` (cached 15 s), the same public fields only.
 
