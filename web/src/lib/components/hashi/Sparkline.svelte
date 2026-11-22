@@ -3,6 +3,7 @@
 	// pointer over the line shows that moment's value (bug 119); nothing reacts until the pointer is on it. With `sync`
 	// and `times`, sparklines of one page share the pointer: the same moment shows in each of them.
 	import { nearest, type ChartSync } from '#lib/chart-sync.svelte.ts';
+	import { scrub } from '#lib/scrub.ts';
 
 	let {
 		values,
@@ -54,7 +55,9 @@
 		class="relative {className}"
 		role="img"
 		aria-label="Trend"
+		use:scrub
 		onpointermove={move}
+		onpointerdown={move}
 		onpointerleave={leave}
 	>
 		<svg
