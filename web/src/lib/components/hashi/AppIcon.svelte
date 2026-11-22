@@ -17,8 +17,21 @@
 	)}
 >
 	{#if icon}
-		<img src={icon} alt="" class={cn('size-3/4 object-contain', light && 'on-light')} />
-		{#if light}<img src={light} alt="" class="on-dark size-3/4 object-contain" />{/if}
+		<!-- Lazy: the status page lists every service, and loading all 86 icons at once tripled its weight (bug 183). -->
+		<img
+			src={icon}
+			alt=""
+			loading="lazy"
+			decoding="async"
+			class={cn('size-3/4 object-contain', light && 'on-light')}
+		/>
+		{#if light}<img
+				src={light}
+				alt=""
+				loading="lazy"
+				decoding="async"
+				class="on-dark size-3/4 object-contain"
+			/>{/if}
 	{:else}{name[0]?.toUpperCase()}{/if}
 </span>
 
