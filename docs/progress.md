@@ -143,7 +143,7 @@ all of them.
 - [x] Release and deploy: `v0.13.14-beta.1` on prod 2026-11-22 (the owner's OK). Bug 161 on 2026-11-23: Docker's DNS
   log shows 7–22 lookup timeouts an hour over the last six hours (was about 550 an hour); the rest are AdGuard's shared
   rate limit, not Hashi's lookups.
-- [ ] 13.12 gate on prod with the owner: their drag test in Public pages (desktop and phone).
+- [x] 13.12 gate on prod with the owner: their drag test in Public pages passed (2026-11-23, v0.13.14-beta.1).
 
 Then a last bug sweep, the owner's walk, `v1.0.0`. With 1.0, a better README (the owner, 2026-11-19): what Hashi is,
 screenshots, how to install and run it, what it needs.
@@ -1409,10 +1409,6 @@ Decisions made in S0:
   the production firewall host. Traefik config paths and pinned version display are dropped from 09 §2 (Hashi installs
   Traefik itself). The user middleware editor stays (04 §3, bug 25); open: build it in S11 or in the bug round.
 
-- Later, not yet (user, 2026-11-02): design a workflow for changing Hashi's admin domain (another subdomain under the
-  same root domain) and its internal address. Today a change re-runs setup steps 7 and 8, and Traefik is updated by its
-  next plan; Pulse agents keep the old URL in their config, the identity provider keeps the old callback, and there is no
-  overlap where the old name and address keep working. Root-domain changes (passkeys are bound to it) stay out of scope.
 - Settled 2026-10-31: local first (CLAUDE.md); CI stays as the final confirmation and the only way to an image.
 
 ## Slices
@@ -1501,6 +1497,7 @@ Decisions made in S0:
 
 ## Log
 
+- 2026-11-23 · ops, not a release · the home router's Pulse agent flapped all night (bug 184): its DNS upstream, Quad9, lost most UDP replies from the home line (a capture on the router's WAN: 22 queries out, 5 replies back; the same from the laptop; Quad9 fine from the VPS and over TCP). Cloudflare added as extra upstream in the router's dnsmasq with the owner's OK; lookups 8/8, heartbeats back. On the Docker host LibreTranslate's workers crash on their planned restart and left 93 core dumps (8.6 GB, about 1.3 GB a day): deleted. A Hashi script "Weekly disk cleanup" (Sundays 04:00 on the VPS host) now removes those dumps and the volumes of cancelled CI jobs and trims the disk; first run by hand succeeded. Disk 44 GB free, thin pool 59 %. The first gzip nightly copy is due about 10:15 (the job runs 24 h after its last run, not at night).
 - 2026-11-22 · deploy `v0.13.14-beta.1` (`be13d0b`, the owner's OK) on `latest` (same digest as the version tag) · smoke ok (readyz, version, SPA, both public pages), no warnings at start. Ships lazy app icons (bug 183), logos stored at their drawn size (prod: dark logo 227 KiB → 11.3 KiB, light 10.9 KiB, fitted on start) and gzip nightly copies (first one due tonight; the plain copy from today counts toward the 14 and ages out). Still open from the 13.12 gate: the owner's drag test in Public pages.
 - 2026-11-22 · ops, not a release · storage on the prod Docker host (CI runners share it; CI failed with "no space left"). 13 old nightly copies deleted at the owner's request (about 13 GB; the 0.9 GB database is 2.35 GB on disk, mostly free pages). Orphaned volumes of cancelled CI jobs (2.6 GB), untagged and unused images, build cache and stale action checkouts removed. Registry: commit tags and releases before 0.13.9 of both images deleted, then their 844 orphaned child manifests (every layer of the kept images checked: still served); 2.7 GB. `pct fstrim`: thin pool 93 % → 62 %, guest disk 36 GB free. From 0.13.14 nightly copies are gzip-compressed (a prod copy: 893 MB → 108 MB in 6 s), so 14 copies stay near 1.5 GB. Left as they were: the CI build cache (pruned by the runner itself), the release build cache in the registry, other projects' packages.
 - 2026-11-22 · deploy `v0.13.12-beta.1` (`076a07b`, the owner's OK) on `latest` (same digest as the version tag) · smoke ok (readyz, version, SPA, both public pages). Ships the fixes for the Codex findings, bugs 162–179. On prod: the status page's first HTML carries its theme (`data-public-theme`), `/s/no-such-service` answers 404.
