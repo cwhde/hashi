@@ -59,6 +59,11 @@ alert for the same provider restarts it, and when it ends the waiting alerts go 
 waits longer than 2 minutes for grouping. Recoveries are not delayed. When a host's own check (Traefik host, firewall host, Pulse
 agent) is in the group, the message leads with it and names it in the subject ("edge-a and 12 other checks are down").
 
+A check that flaps goes quiet: its third alert within an hour is replaced by one message saying it keeps going down and
+up, and after that it sends no alerts or recoveries until it has held one state for 30 minutes. Then one message says
+so: "stable again", or "is down" when it stayed in alarm, after which the usual rules apply (so a real outage after
+flapping still alerts, and its recovery follows).
+
 Providers can be edited: name and settings, with the secret kept unless a new one is given. Setup lives under Settings →
 Notifications; the Status page shows what was sent.
 
