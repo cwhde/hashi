@@ -17,7 +17,6 @@ All open entries are planned into the 0.13 bug round (slices 13.1 onwards in `do
 
 | # | Kind | Status | Where | What | Reported |
 | --- | --- | --- | --- | --- | --- |
-| 184 | function | reported | Pulse agent | The router's agent went offline and online all night and the down/up alerts filled the owner's mail. Cause outside Hashi: the router's DNS upstream lost most UDP replies (fixed on the router, 2026-11-23). Hashi's part: the agent has no fallback when its lookup of the admin name fails (for example the last address that worked), so any DNS outage reads as the agent being down. | 2026-11-23 |
 | 185 | visual | reported | Scripts | A script's run list showed 07:03 and 07:04 for runs made at 08:03 and 08:04 local time, while the plan beside it said "Saved 08:03". One of the two is in the wrong time zone. | 2026-11-23 |
 
 ## Details

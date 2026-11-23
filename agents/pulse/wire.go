@@ -21,13 +21,22 @@ import (
 
 const maxAnswer = 16 << 10
 
-type request struct{ Method, URL, Bearer, Body string }
+type request struct {
+	Method, URL, Bearer, Body string
+	// Fallback is an address to connect to when looking up the URL's name fails (the last one a beat reached). The
+	// certificate is still checked against the name, so a wrong address can't pass for Hashi.
+	Fallback string
+	// Resolver looks the name up; nil is the system's. Tests set one that fails.
+	Resolver *net.Resolver
+}
 
 type response struct {
 	Status int
 	Body   string
 	// Root is the certificate at the top of the chain that verified the server, for https.
 	Root []byte
+	// Addr is the address the connection reached.
+	Addr string
 }
 
 // tlsVerifyError says the server's certificate did not check out, as opposed to the network failing.
@@ -73,8 +82,8 @@ func open(ctx context.Context, r request, roots *x509.CertPool) (net.Conn, *resp
 		if port == "" {
 			port = "443"
 		}
-		d := tls.Dialer{Config: &tls.Config{RootCAs: roots, ServerName: u.Hostname(), MinVersion: tls.VersionTLS12, NextProtos: []string{"http/1.1"}}}
-		conn, err = d.DialContext(ctx, "tcp", net.JoinHostPort(u.Hostname(), port))
+		d := tls.Dialer{NetDialer: &net.Dialer{Resolver: r.Resolver}, Config: &tls.Config{RootCAs: roots, ServerName: u.Hostname(), MinVersion: tls.VersionTLS12, NextProtos: []string{"http/1.1"}}}
+		conn, err = dial(ctx, d.DialContext, u.Hostname(), port, r.Fallback)
 		var bad *tls.CertificateVerificationError
 		if errors.As(err, &bad) {
 			return nil, nil, &tlsVerifyError{err}
@@ -88,13 +97,16 @@ func open(ctx context.Context, r request, roots *x509.CertPool) (net.Conn, *resp
 		if port == "" {
 			port = "80"
 		}
-		var d net.Dialer
-		conn, err = d.DialContext(ctx, "tcp", net.JoinHostPort(u.Hostname(), port))
+		d := net.Dialer{Resolver: r.Resolver}
+		conn, err = dial(ctx, d.DialContext, u.Hostname(), port, r.Fallback)
 	default:
 		return nil, nil, fmt.Errorf("unsupported address %q", u.Scheme)
 	}
 	if err != nil {
 		return nil, nil, err
+	}
+	if a, ok := conn.RemoteAddr().(*net.TCPAddr); ok {
+		out.Addr = a.IP.String()
 	}
 	if dl, ok := ctx.Deadline(); ok {
 		_ = conn.SetDeadline(dl)
@@ -113,6 +125,21 @@ func open(ctx context.Context, r request, roots *x509.CertPool) (net.Conn, *resp
 		return nil, nil, err
 	}
 	return conn, out, nil
+}
+
+// dial connects to host, or to fallback when only the lookup of host failed: a DNS outage near the agent then doesn't
+// cut it off from a Hashi whose address hasn't changed (bug 184). Any other failure is returned as it is.
+func dial(ctx context.Context, d func(context.Context, string, string) (net.Conn, error), host, port, fallback string) (net.Conn, error) {
+	conn, err := d(ctx, "tcp", net.JoinHostPort(host, port))
+	var dnsErr *net.DNSError
+	if err == nil || fallback == "" || !errors.As(err, &dnsErr) {
+		return conn, err
+	}
+	conn, ferr := d(ctx, "tcp", net.JoinHostPort(fallback, port))
+	if ferr != nil {
+		return nil, fmt.Errorf("%w; the last address that worked, %s, failed too: %w", err, fallback, ferr)
+	}
+	return conn, nil
 }
 
 // parseHTTP reads a status and body, for the body forms a server or reverse proxy may use with Connection: close.
@@ -295,6 +322,8 @@ type state struct {
 	Tried string
 	// Restart: an update replaced this file, so an agent that stays in memory starts it.
 	Restart bool
+	// Addr is Hashi's address the last beat reached, used when the name can't be looked up.
+	Addr string
 }
 
 func (s state) encode() string {
@@ -304,13 +333,16 @@ func (s state) encode() string {
 		}
 		return "0"
 	}
-	return strings.Join([]string{b(s.Due), strconv.Itoa(s.Failures), b(s.Check), strconv.FormatInt(s.Checked, 10), s.Reported, strconv.Itoa(s.Interval), base64.RawStdEncoding.EncodeToString(s.Root), strconv.FormatInt(s.RootAt, 10), s.Tried}, ",")
+	return strings.Join([]string{b(s.Due), strconv.Itoa(s.Failures), b(s.Check), strconv.FormatInt(s.Checked, 10), s.Reported, strconv.Itoa(s.Interval), base64.RawStdEncoding.EncodeToString(s.Root), strconv.FormatInt(s.RootAt, 10), s.Tried, s.Addr}, ",")
 }
 
 // decodeState gives a fresh start for anything unreadable: the state only saves work.
 func decodeState(v string) state {
 	f := strings.Split(v, ",")
-	if len(f) != 9 {
+	if len(f) == 9 { // from an agent before 0.13.15, which an update starts this one with
+		f = append(f, "")
+	}
+	if len(f) != 10 {
 		return state{}
 	}
 	var s state
@@ -323,6 +355,9 @@ func decodeState(v string) state {
 	s.Root, err[3] = base64.RawStdEncoding.DecodeString(f[6])
 	s.RootAt, err[4] = strconv.ParseInt(f[7], 10, 64)
 	s.Tried = f[8]
+	if net.ParseIP(f[9]) != nil {
+		s.Addr = f[9]
+	}
 	if errors.Join(err[:]...) != nil {
 		return state{}
 	}

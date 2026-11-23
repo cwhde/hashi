@@ -10,9 +10,11 @@ import (
 	"debug/elf"
 	"encoding/json"
 	"encoding/pem"
+	"errors"
 	"go/parser"
 	"go/token"
 	"math/big"
+	"net"
 	"net/http"
 	"net/http/httptest"
 	"net/netip"
@@ -97,7 +99,7 @@ func TestSend(t *testing.T) {
 	defer srv.Close()
 	c := config{URL: srv.URL, AgentID: "a1", Token: "t", Interval: time.Minute}
 	b := beat{Version: "1", Hostname: "h\"\\\n\xff", Interval: 60, SentAt: time.Unix(1, 0).UTC(), Candidates: []candidate{{"eth0", "10.0.0.1"}}, Selected: "eth0", InDocker: true, ReportedPublic: "198.51.100.1"}
-	r, _, err := send(t.Context(), c, b, nil)
+	r, _, err := send(t.Context(), c, b, nil, "")
 	if err != nil || !r.CheckPublicIP || r.IntervalSeconds != 120 {
 		t.Fatalf("%+v %v", r, err)
 	}
@@ -108,7 +110,7 @@ func TestSend(t *testing.T) {
 		t.Fatalf("%+v", got)
 	}
 	code = http.StatusUnauthorized
-	if _, _, err := send(t.Context(), c, beat{}, nil); err == nil {
+	if _, _, err := send(t.Context(), c, beat{}, nil, ""); err == nil {
 		t.Fatal("401 must be an error")
 	}
 }
@@ -147,9 +149,13 @@ func TestParseReply(t *testing.T) {
 }
 
 func TestStateSurvivesTheSleeper(t *testing.T) {
-	in := state{Due: true, Failures: 2, Check: true, Checked: 5, Reported: "198.51.100.1", Interval: 60, Root: []byte{1, 2}, RootAt: 7}
-	if got := decodeState(in.encode()); got.Due != in.Due || got.Failures != 2 || !got.Check || got.Checked != 5 || got.Reported != in.Reported || got.Interval != 60 || string(got.Root) != string(in.Root) || got.RootAt != 7 {
+	in := state{Due: true, Failures: 2, Check: true, Checked: 5, Reported: "198.51.100.1", Interval: 60, Root: []byte{1, 2}, RootAt: 7, Addr: "192.0.2.7"}
+	if got := decodeState(in.encode()); got.Due != in.Due || got.Failures != 2 || !got.Check || got.Checked != 5 || got.Reported != in.Reported || got.Interval != 60 || string(got.Root) != string(in.Root) || got.RootAt != 7 || got.Addr != in.Addr {
 		t.Fatalf("%+v", got)
+	}
+	// An agent from before 0.13.15 hands the updated one its state without an address.
+	if got := decodeState("1,2,1,5,198.51.100.1,60,AQI,7,v1"); !got.Due || got.Tried != "v1" || got.Addr != "" {
+		t.Fatalf("old state: %+v", got)
 	}
 	for _, bad := range []string{"", "x", "1,x,0,0,,0,,0", "1,0,0,0,,0,!!,0"} {
 		if got := decodeState(bad); got.Due || got.Root != nil {
@@ -393,5 +399,36 @@ func TestCommand(t *testing.T) {
 		if run != c.run || code != c.code || !strings.Contains(out, c.outContain) {
 			t.Errorf("command(%q) = %q, %d, %v; want run=%v code=%d containing %q", c.args, out, code, run, c.run, c.code, c.outContain)
 		}
+	}
+}
+
+// Bug 184: a beat that reached Hashi keeps its address, and a later beat whose lookup fails uses it. Any other failure
+// (Hashi down) is not retried elsewhere.
+func TestBeatSurvivesALookupFailure(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		_, _ = w.Write([]byte(`{"check_public_ip":false,"interval_seconds":60}`))
+	}))
+	defer srv.Close()
+	_, port, _ := net.SplitHostPort(strings.TrimPrefix(srv.URL, "http://"))
+	c := config{URL: srv.URL, AgentID: "a", Token: "t", Interval: time.Minute}
+	st := state{}
+	if _, err := deliver(t.Context(), c, &st, beat{}); err != nil || st.Addr != "127.0.0.1" {
+		t.Fatalf("first beat: %v, kept %q", err, st.Addr)
+	}
+	// Hashi by name now, with a resolver that can't reach any DNS server.
+	c.URL = "http://hashi.example.test:" + port
+	c.resolver = &net.Resolver{PreferGo: true, Dial: func(context.Context, string, string) (net.Conn, error) {
+		return nil, errors.New("no DNS server answers")
+	}}
+	if _, err := deliver(t.Context(), c, &st, beat{}); err != nil {
+		t.Fatalf("a failed lookup must fall back to the last address: %v", err)
+	}
+	if _, err := deliver(t.Context(), c, &state{}, beat{}); err == nil {
+		t.Fatal("without a last address a failed lookup is an error")
+	}
+	srv.Close()
+	err := func() error { _, err := deliver(t.Context(), c, &st, beat{}); return err }()
+	if err == nil || !strings.Contains(err.Error(), "the last address that worked") {
+		t.Fatalf("Hashi down: want both failures named, got %v", err)
 	}
 }

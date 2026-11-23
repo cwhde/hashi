@@ -37,6 +37,8 @@ type config struct {
 	OwnInterval bool
 	// Resident keeps the process in memory between beats, for a machine that forbids running the sleeper.
 	Resident bool
+	// resolver looks Hashi's name up; nil is the system's. Tests set one that fails.
+	resolver *net.Resolver
 }
 
 // readConfig takes flat "key: value" lines from path, then environment variables over them. Nothing else in the format
@@ -206,9 +208,10 @@ func candidates() ([]candidate, error) {
 }
 
 // send delivers one heartbeat. root, when given, is the only certificate trusted for it.
-func send(ctx context.Context, c config, b beat, root *x509.CertPool) (reply, *response, error) {
+// fallback is the address to use when Hashi's name can't be looked up ("" for none).
+func send(ctx context.Context, c config, b beat, root *x509.CertPool, fallback string) (reply, *response, error) {
 	var out reply
-	res, err := roundTrip(ctx, request{Method: "POST", URL: c.URL + "/api/pulse/" + c.AgentID + "/heartbeat", Bearer: c.Token, Body: b.json()}, root)
+	res, err := roundTrip(ctx, request{Method: "POST", URL: c.URL + "/api/pulse/" + c.AgentID + "/heartbeat", Bearer: c.Token, Body: b.json(), Fallback: fallback, Resolver: c.resolver}, root)
 	if err != nil {
 		return out, nil, err
 	}
@@ -303,11 +306,14 @@ func beatOnce(ctx context.Context, c *config, st *state, host string) time.Durat
 
 func deliver(ctx context.Context, c config, st *state, b beat) (reply, error) {
 	pool := st.pool(time.Now())
-	r, res, err := send(ctx, c, b, pool)
+	r, res, err := send(ctx, c, b, pool, st.Addr)
 	var bad *tlsVerifyError
 	if pool != nil && errors.As(err, &bad) { // the kept root no longer fits, say after Hashi changed its certificate authority
 		st.Root = nil
-		r, res, err = send(ctx, c, b, nil)
+		r, res, err = send(ctx, c, b, nil, st.Addr)
+	}
+	if err == nil {
+		st.Addr = res.Addr
 	}
 	if err == nil && st.Root == nil && res.Root != nil {
 		st.Root, st.RootAt = res.Root, time.Now().Unix()
