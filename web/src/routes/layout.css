@@ -13,7 +13,6 @@
 
 @custom-variant dark (&:where([data-mode='dark'], [data-mode='dark'] *));
 
-:root,
 [data-theme='graphite'] {
 	--h-canvas: #08090b;
 	--h-shell: #0d0f12;
@@ -30,6 +29,8 @@
 	color-scheme: dark;
 }
 
+/* The default theme. :where() keeps :root at zero specificity, so a theme block later in the file still wins. */
+:where(:root),
 [data-theme='linen'] {
 	--h-canvas: #f3eee5;
 	--h-shell: #eae1d4;

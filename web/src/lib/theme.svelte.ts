@@ -13,8 +13,8 @@ type Appearance = Pick<
 // The saved theme is the database's; the browser's copy only avoids a flash of the wrong theme before first paint.
 // Swatches are rendered by setting data-theme on a small element, so no colour is duplicated here.
 export const themes: { id: Exclude<ThemeId, 'custom'>; name: string; mode: 'dark' | 'light' }[] = [
-	{ id: 'graphite', name: 'Graphite', mode: 'dark' },
 	{ id: 'linen', name: 'Warm Linen', mode: 'light' },
+	{ id: 'graphite', name: 'Graphite', mode: 'dark' },
 	{ id: 'verdant', name: 'Verdant', mode: 'dark' },
 	{ id: 'violet', name: 'Violet Night', mode: 'dark' }
 ];
@@ -89,9 +89,9 @@ function store(k: string, v: string | null) {
 }
 
 function initial(): ThemeId {
-	if (typeof document === 'undefined') return 'graphite';
+	if (typeof document === 'undefined') return 'linen';
 	const t = document.documentElement.dataset.theme as ThemeId | undefined;
-	return t === 'custom' || themes.some((x) => x.id === t) ? (t as ThemeId) : 'graphite';
+	return t === 'custom' || themes.some((x) => x.id === t) ? (t as ThemeId) : 'linen';
 }
 
 class ThemeState {
@@ -123,7 +123,7 @@ class ThemeState {
 			syncThemeColor();
 			return;
 		}
-		// An unknown id, or custom without a palette, falls back to Graphite (10-ui §2).
+		// An unknown id, or custom without a palette, falls back to Warm Linen, the default (10-ui §2).
 		const t = themes.find((x) => x.id === id) ?? themes[0]!;
 		root.style.removeProperty('color-scheme');
 		this.current = t.id;

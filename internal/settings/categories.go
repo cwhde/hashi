@@ -223,7 +223,7 @@ const (
 )
 
 // Themes are the built-in themes (10-ui.md §2).
-var Themes = []string{"graphite", "linen", "verdant", "violet"}
+var Themes = []string{"linen", "graphite", "verdant", "violet"}
 
 func defaults(c Category) Category {
 	switch c.(type) {
@@ -264,7 +264,7 @@ func defaults(c Category) Category {
 	case AgentDNS:
 		return AgentDNS{Domain: "hashi.home.arpa", IPMode: AgentIPSelected}
 	case Appearance:
-		return Appearance{Theme: "graphite", PublicDashboardEnabled: true, PublicStatusEnabled: true}
+		return Appearance{Theme: "linen", PublicDashboardEnabled: true, PublicStatusEnabled: true}
 	}
 	return c
 }
@@ -519,13 +519,13 @@ func (a Appearance) Validate() error {
 }
 
 // repair makes stored appearance data safe to load (10-ui.md §2: invalid stored theme data falls back): a custom theme
-// that no longer validates is dropped, and the theme falls back to Graphite.
+// that no longer validates is dropped, and the theme falls back to Warm Linen, the default.
 func (a Appearance) repair() Category {
 	if a.CustomTheme != nil && a.CustomTheme.Validate() != nil {
 		a.CustomTheme = nil
 	}
 	if a.Theme == ThemeCustom && a.CustomTheme == nil || a.Theme != ThemeCustom && !slices.Contains(Themes, a.Theme) {
-		a.Theme = "graphite"
+		a.Theme = "linen"
 	}
 	// A widget a later version dropped is left out rather than failing the whole category.
 	a.OverviewWidgets = slices.DeleteFunc(slices.Clone(a.OverviewWidgets), func(w Widget) bool {

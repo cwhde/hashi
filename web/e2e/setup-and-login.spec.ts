@@ -1086,8 +1086,8 @@ test('setup with a passkey, then sign in with it', async ({ page, request }) => 
 	await expect
 		.poll(async () => (await page.request.get(`${state.baseURL}/api/settings/appearance`)).json())
 		.toMatchObject({ reduce_transparency: true });
-	await page.getByRole('button', { name: 'Switch back to Graphite' }).click();
-	await expect(page.locator('html')).toHaveAttribute('data-theme', 'graphite');
+	await page.getByRole('button', { name: 'Switch back to Warm Linen' }).click();
+	await expect(page.locator('html')).toHaveAttribute('data-theme', 'linen');
 	// With a built-in theme in use the editor offers no switch back (bug 130).
 	await expect(page.getByRole('button', { name: /Switch back to/ })).toHaveCount(0);
 	// Overview widgets (bug 31): hiding one and moving another changes the start page; both are saved at once.
@@ -1277,8 +1277,8 @@ test('setup with a passkey, then sign in with it', async ({ page, request }) => 
 		'/settings?category=appearance'
 	];
 	for (const [id, name] of [
-		['graphite', 'Graphite'],
 		['linen', 'Warm Linen'],
+		['graphite', 'Graphite'],
 		['verdant', 'Verdant'],
 		['violet', 'Violet Night']
 	]) {

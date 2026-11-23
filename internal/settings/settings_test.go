@@ -106,7 +106,7 @@ func TestPutGetAndNotify(t *testing.T) {
 	if err := Put(ctx, st.Q, Appearance{Theme: "neon"}); !errors.Is(err, ErrInvalid) {
 		t.Fatalf("invalid put: %v", err)
 	}
-	if a, _ := Get[Appearance](ctx, st.Q); a.Theme != "graphite" {
+	if a, _ := Get[Appearance](ctx, st.Q); a.Theme != "linen" {
 		t.Fatalf("invalid value was stored: %+v", a)
 	}
 }
@@ -123,7 +123,7 @@ func TestStoredInvalidValueFailsLoad(t *testing.T) {
 }
 
 // Theme data is the exception (10-ui.md §2): an unknown theme or an unreadable stored custom theme falls back to
-// Graphite instead of breaking every page and mail.
+// Warm Linen, the default, instead of breaking every page and mail.
 func TestStoredThemeFallsBack(t *testing.T) {
 	ctx := context.Background()
 	for _, stored := range []string{
@@ -137,7 +137,7 @@ func TestStoredThemeFallsBack(t *testing.T) {
 			t.Fatal(err)
 		}
 		a, err := Get[Appearance](ctx, st.Q)
-		if err != nil || a.Theme != "graphite" || a.CustomTheme != nil {
+		if err != nil || a.Theme != "linen" || a.CustomTheme != nil {
 			t.Errorf("%s: %+v %v", stored, a, err)
 		}
 	}

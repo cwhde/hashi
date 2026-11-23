@@ -271,7 +271,7 @@
 				</p>{/if}
 			<div class="mt-3 flex flex-wrap justify-end gap-2">
 				<!-- Only while the custom theme is in use; the cards above switch between built-in ones (bug 130). -->
-				{#if theme.current === 'custom'}{#each themes as t (t.id)}{#if t.id === 'graphite'}<Button
+				{#if theme.current === 'custom'}{#each themes as t (t.id)}{#if t.id === themes[0]?.id}<Button
 								variant="ghost"
 								size="sm"
 								disabled={busy}

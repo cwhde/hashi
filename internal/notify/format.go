@@ -185,7 +185,7 @@ func mailHTML(m Message) (string, error) {
 		p, ok = palette{c.Canvas, c.Surface, c.Border, c.Text, c.Muted, c.Accent, c.AccentText()}, true
 	}
 	if !ok {
-		p = palettes["graphite"]
+		p = palettes["linen"]
 	}
 	color, ok := stateColors[m.State]
 	if !ok {
