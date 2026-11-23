@@ -66,6 +66,10 @@ func TestStepDecay(t *testing.T) {
 	if got := NextDecrement(1, t0, t0.Add(d), d); !got.IsZero() {
 		t.Errorf("next decrement at zero %v", got)
 	}
+	// A permanent ban's quiet time never starts (06 §5.1): no next decrement, and nothing JSON can't write (R4-001).
+	if got := NextDecrement(3, never, t0, d); !got.IsZero() {
+		t.Errorf("next decrement of a permanent ban %v", got)
+	}
 }
 
 func TestKey(t *testing.T) {

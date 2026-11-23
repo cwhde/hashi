@@ -54,11 +54,11 @@ func Effective(n int, since, now time.Time, d time.Duration) int {
 	return max(0, n-int(now.Sub(since)/d))
 }
 
-// NextDecrement is when the effective value drops next; zero when it is 0 or the quiet time has not started.
+// NextDecrement is when the effective value drops next; zero when it is 0 or the ban is permanent.
 func NextDecrement(n int, since, now time.Time, d time.Duration) time.Time {
 	e := Effective(n, since, now, d)
-	if e == 0 || d <= 0 {
-		return time.Time{}
+	if e == 0 || d <= 0 || !since.Before(never) {
+		return time.Time{} // a permanent ban never decays (06 §5.1)
 	}
 	if !now.After(since) {
 		return since.Add(d)
