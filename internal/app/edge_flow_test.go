@@ -35,7 +35,8 @@ func TestForwardAuthRules(t *testing.T) {
 	c.mustStatus(c.do(http.MethodPut, "/api/setup/dns/provider", map[string]any{"type": "hetzner", "token": hetznertest.Token, "default_ttl": 3600}), 200)
 	// Rule sets need security.manage, which a setup session doesn't hold; widening this test's session is simpler than the
 	// whole setup path the others walk.
-	raw, err := sql.Open("sqlite", filepath.Join(in.dataDir, "hashi.db"))
+	// Wait for the app's own writes like the app does (store.go), or a busy moment fails this write at once (CI run 1332).
+	raw, err := sql.Open("sqlite", "file:"+filepath.Join(in.dataDir, "hashi.db")+"?_pragma=busy_timeout(5000)")
 	if err != nil {
 		t.Fatal(err)
 	}

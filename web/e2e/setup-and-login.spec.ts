@@ -5,7 +5,7 @@ import { execFileSync, spawn } from 'node:child_process';
 import { createServer } from 'node:http';
 import type { AddressInfo } from 'node:net';
 import { logPath, statePath } from './global-setup';
-import { publicPagesEditor, publicPagesSeen } from './public-pages';
+import { publicChartKeys, publicPagesEditor, publicPagesSeen } from './public-pages';
 
 // S1 gate (11-delivery.md §3): passkey registration and login pass with a virtual authenticator, end to end through
 // the real binary: bootstrap → base settings → passkey → recovery key → finish → passkey sign-in → account pages.
@@ -1240,7 +1240,7 @@ test('setup with a passkey, then sign in with it', async ({ page, request }) => 
 	}
 	// 13.12: arranging the public pages (mouse, finger, keyboard, Undo) and how they look on a phone and a desktop.
 	await publicPagesEditor(page, state.baseURL);
-	await publicPagesSeen(page, state.appsURL, state.statusURL);
+	const watched = await publicPagesSeen(page, state.appsURL, state.statusURL);
 	await page.goto(`${state.baseURL}/services`);
 	await page.getByRole('button', { name: 'Add service' }).click();
 	// The switch differs from no default here, so More options stays plain (10c §3.1).
@@ -1415,6 +1415,8 @@ test('setup with a passkey, then sign in with it', async ({ page, request }) => 
 	await page.getByRole('button', { name: 'Switch to service mode…' }).click();
 	await page.getByRole('button', { name: 'Switch to service mode', exact: true }).click();
 	await expect(page.getByText(/Service mode is on/)).toBeVisible();
+
+	await publicChartKeys(page, state.statusURL, watched);
 
 	// Deleting the passkey this session signed in with ends the session: the page goes to sign-in.
 	await page.goto(`${state.baseURL}/settings?category=security`);

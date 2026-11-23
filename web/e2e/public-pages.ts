@@ -211,9 +211,17 @@ export async function publicPagesEditor(page: Page, base: string) {
 }
 
 /** Both public pages and a service page fit a phone and a desktop; a badge is served as an SVG. */
-export async function publicPagesSeen(page: Page, appsURL: string, statusURL: string) {
+export async function publicPagesSeen(
+	page: Page,
+	appsURL: string,
+	statusURL: string
+): Promise<string> {
 	const st = await (await page.request.get(`${statusURL}/api/public/status`)).json();
-	const slug: string = st.groups.flatMap((g: { entries: { slug: string }[] }) => g.entries)[0].slug;
+	// The service with the most check rounds, so its page has charts to read (publicChartKeys).
+	const entries: { slug: string; minutes: unknown[] }[] = st.groups.flatMap(
+		(g: { entries: { slug: string; minutes: unknown[] }[] }) => g.entries
+	);
+	const slug = entries.reduce((a, b) => (b.minutes.length > a.minutes.length ? b : a)).slug;
 	for (const [w, h] of [
 		[390, 844],
 		[1440, 900]
@@ -246,26 +254,6 @@ export async function publicPagesSeen(page: Page, appsURL: string, statusURL: st
 	await expect(page).toHaveURL(/\?range=30d$/);
 	await page.getByRole('radio', { name: '24h' }).click();
 	await expect(page).toHaveURL(new RegExp(`/s/${slug}$`));
-	// The charts read by keyboard too (bug 175): Home goes to the first moment and names it.
-	const chart = page.getByRole('slider', { name: /^Response time, latest/ });
-	await chart.focus();
-	await page.keyboard.press('Home');
-	await expect(chart).toHaveAttribute('aria-valuenow', '0');
-	await expect(chart).toHaveAttribute('aria-valuetext', /\d/);
-	// On a phone (bug 182) a sideways slide reads the chart and the strips, an upright one scrolls the page, and a long
-	// press after a touch opens no browser menu.
-	for (const el of [chart, page.getByRole('slider', { name: /^\d+ days?|^No data/ }).first()]) {
-		expect(await el.evaluate((e) => getComputedStyle(e).touchAction)).toBe('pan-y');
-		const held = await el.evaluate((e) => {
-			const at = e.getBoundingClientRect();
-			const o = { bubbles: true, pointerType: 'touch', clientX: at.left + 4, clientY: at.top + 4 };
-			e.dispatchEvent(new PointerEvent('pointerdown', o));
-			const menu = new MouseEvent('contextmenu', { bubbles: true, cancelable: true });
-			e.dispatchEvent(menu);
-			return menu.defaultPrevented;
-		});
-		expect(held).toBe(true);
-	}
 	// A service page for nothing shown answers 404 and still says so (bug 172).
 	const gone = await page.request.get(`${statusURL}/s/no-such-service`);
 	expect(gone.status()).toBe(404);
@@ -289,4 +277,33 @@ export async function publicPagesSeen(page: Page, appsURL: string, statusURL: st
 	);
 	expect(loops).toEqual(['1', '1']);
 	await page.emulateMedia({ reducedMotion: null });
+	return slug;
+}
+
+/**
+ * The service page's charts by keyboard and touch. Run late in the test: the chart's series fills about a minute after
+ * a service's first checks, and waiting for it right after adding the service ran the test past its limit (run 1332).
+ */
+export async function publicChartKeys(page: Page, statusURL: string, slug: string) {
+	await page.goto(`${statusURL}/s/${slug}`);
+	// The charts read by keyboard too (bug 175): Home goes to the first moment and names it.
+	const chart = page.getByRole('slider', { name: /^Response time, latest/ });
+	await chart.focus();
+	await page.keyboard.press('Home');
+	await expect(chart).toHaveAttribute('aria-valuenow', '0');
+	await expect(chart).toHaveAttribute('aria-valuetext', /\d/);
+	// On a phone (bug 182) a sideways slide reads the chart and the strips, an upright one scrolls the page, and a long
+	// press after a touch opens no browser menu.
+	for (const el of [chart, page.getByRole('slider', { name: /^\d+ days?|^No data/ }).first()]) {
+		expect(await el.evaluate((e) => getComputedStyle(e).touchAction)).toBe('pan-y');
+		const held = await el.evaluate((e) => {
+			const at = e.getBoundingClientRect();
+			const o = { bubbles: true, pointerType: 'touch', clientX: at.left + 4, clientY: at.top + 4 };
+			e.dispatchEvent(new PointerEvent('pointerdown', o));
+			const menu = new MouseEvent('contextmenu', { bubbles: true, cancelable: true });
+			e.dispatchEvent(menu);
+			return menu.defaultPrevented;
+		});
+		expect(held).toBe(true);
+	}
 }
