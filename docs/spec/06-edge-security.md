@@ -443,6 +443,11 @@ One challenge page serves both scopes: `scope=global` (A3: a solve removes the a
 `scope=service` (`pass_captcha`: a solve sets the clearance cookie for that service). The page is minimal, loads only
 required assets, shows the domain being accessed, submits the Cap token to `POST /api/edge-challenge/verify`, handles
 failure without leaking details and never exposes the Cap secret. Hashi verifies the token with Cap server-side.
+It follows the install's theme (custom themes in their own colours), with the Cap widget, its check and error marks
+and the tab icon in the accent; its two fonts are served from the challenge name. For `scope=global` it names the kind
+of cause in one line from the address's last source (request limit, error answers, WAF, by hand), never a limit or a
+count; `scope=service` and other causes show no line. It shows the visitor's own address and the time, so a blocked
+person can tell the owner what to look up (owner's choice, 2026-11-23).
 Its policy allows `'unsafe-eval'`: Cap's anti-bot check ("block headless browsers") runs obfuscated code built at run
 time in a sandboxed frame that inherits the page's policy, and without it never answers (Cap refuses with
 "Instrumentation timeout", seen 2026-11-03). The page holds nothing a visitor controls.
