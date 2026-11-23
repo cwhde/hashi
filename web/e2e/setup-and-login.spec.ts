@@ -943,6 +943,11 @@ test('setup with a passkey, then sign in with it', async ({ page, request }) => 
 		'ban 1 → 4'
 	);
 	// The address page shows what the engine knows (bug 135): counters, its events, and challenge and lift from there.
+	// A fresh sign-in has no passkey confirmation yet, so challenging must ask for one instead of failing.
+	await page.getByRole('button', { name: 'Account', exact: true }).first().click();
+	await page.getByRole('menuitem', { name: 'Sign out' }).click();
+	await page.getByRole('button', { name: 'Sign in with a passkey' }).click();
+	await expect(page).toHaveURL(/\/overview$/);
 	await page.goto(`${state.baseURL}/ip-sets/address?ip=198.51.100.77`);
 	const engine = page.locator('section', {
 		has: page.getByRole('heading', { name: 'Abuse engine' })

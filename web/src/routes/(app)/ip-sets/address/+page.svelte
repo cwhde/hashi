@@ -14,6 +14,7 @@
 	import * as Sheet from '#lib/components/ui/sheet/index.ts';
 	import { ChevronLeft, CircleAlert, Search } from '@lucide/svelte';
 	import { api, problemText, type Schemas } from '#lib/api/client.ts';
+	import { withReauth } from '#lib/auth/reauth.ts';
 	import { addressHref, listSets, type IPSet } from '#lib/ipsets.ts';
 	import { country, dateTime } from '#lib/format.ts';
 	import { eventLabel, sourceLabel } from '#lib/components/hashi/security/labels.ts';
@@ -57,36 +58,44 @@
 
 	// ---- ban, challenge, lift (bug 64): the engine's own entries, on every firewall host; an allowed address is refused ----
 	let busy = $state(false);
+	// Firewall sets need a fresh passkey: ask for it when the server says so, then retry. Returns the error text or null.
+	async function confirmed(
+		f: () => Promise<{ data?: unknown; error?: unknown }>
+	): Promise<string | null> {
+		try {
+			await withReauth(f);
+			return null;
+		} catch (e) {
+			return problemText(e);
+		}
+	}
 	const target64 = () => lookup?.address ?? address;
 	async function enter(set: 'sys-dynamic-blocked' | 'sys-dynamic-challenge') {
 		busy = true;
 		const a = target64();
-		const r = await api.POST('/api/ip-sets/{id}/entries', {
-			params: { path: { id: set } },
-			body: { address: a }
-		});
+		const err = await confirmed(() =>
+			api.POST('/api/ip-sets/{id}/entries', { params: { path: { id: set } }, body: { address: a } })
+		);
 		busy = false;
-		outcome = r.error
-			? problemText(r.error)
-			: set === 'sys-dynamic-blocked'
-				? `${a} is banned.`
-				: `${a} gets the challenge page now.`;
-		if (!r.error) await load(a).catch(() => {});
+		outcome =
+			err ??
+			(set === 'sys-dynamic-blocked' ? `${a} is banned.` : `${a} gets the challenge page now.`);
+		if (!err) await load(a).catch(() => {});
 	}
 	async function lift() {
 		busy = true;
 		const a = target64();
 		const was = lookup?.counter?.state;
-		const r = await api.DELETE('/api/ip-sets/{id}/entries/{address}', {
-			params: { path: { id: 'sys-dynamic-blocked', address: a } }
-		});
+		const err = await confirmed(() =>
+			api.DELETE('/api/ip-sets/{id}/entries/{address}', {
+				params: { path: { id: 'sys-dynamic-blocked', address: a } }
+			})
+		);
 		busy = false;
-		outcome = r.error
-			? problemText(r.error)
-			: was === 'banned'
-				? `The ban on ${a} is lifted.`
-				: `The challenge for ${a} has ended.`;
-		if (!r.error) await load(a).catch(() => {});
+		outcome =
+			err ??
+			(was === 'banned' ? `The ban on ${a} is lifted.` : `The challenge for ${a} has ended.`);
+		if (!err) await load(a).catch(() => {});
 	}
 	const sev = { info: 'ok', warning: 'warn', critical: 'bad' } as const;
 	const counter = $derived(lookup?.counter);
@@ -104,12 +113,14 @@
 	let addError = $state('');
 	async function addToSet() {
 		addError = '';
-		const r = await api.POST('/api/ip-sets/{id}/elements', {
-			params: { path: { id: target } },
-			body: { item: { type: 'ip', address: lookup?.address ?? address }, note }
-		});
-		if (r.error) {
-			addError = problemText(r.error);
+		const err = await confirmed(() =>
+			api.POST('/api/ip-sets/{id}/elements', {
+				params: { path: { id: target } },
+				body: { item: { type: 'ip', address: lookup?.address ?? address }, note }
+			})
+		);
+		if (err) {
+			addError = err;
 			return;
 		}
 		addOpen = false;
