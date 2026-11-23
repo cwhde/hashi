@@ -34,6 +34,10 @@ The public status page and app dashboard run on their own ports:
 
 ![App dashboard](docs/screenshots/apps.png)
 
+Visitors held by the abuse engine, or by a service that asks for a CAPTCHA, solve it on a page in the same theme:
+
+![CAPTCHA challenge](docs/screenshots/challenge.png)
+
 ## Safety
 
 DNS, Traefik, firewall and AdGuard changes go through a plan that lists the exact effect before anything is written.

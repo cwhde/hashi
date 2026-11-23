@@ -417,26 +417,6 @@ func TestSMTPSendsOverTLS(t *testing.T) {
 	}
 }
 
-// The mail's colours are the app's themes.
-func TestMailPalettesMatchThemes(t *testing.T) {
-	css, err := os.ReadFile("../../web/src/routes/layout.css")
-	if err != nil {
-		t.Fatal(err)
-	}
-	for name, p := range palettes {
-		_, rest, ok := strings.Cut(string(css), "[data-theme='"+name+"'] {")
-		if !ok {
-			t.Fatalf("theme %s is not in layout.css", name)
-		}
-		block, _, _ := strings.Cut(rest, "}")
-		for token, want := range map[string]string{"canvas": p.Canvas, "surface": p.Surface, "border": p.Border, "text": p.Text, "muted": p.Muted, "accent": p.Accent, "accent-text": p.AccentText} {
-			if !strings.Contains(block, "--h-"+token+": "+want+";") {
-				t.Errorf("%s: --h-%s is not %s", name, token, want)
-			}
-		}
-	}
-}
-
 // A message carries no raw check error: it would hand internal addresses to the mail or chat service.
 func TestAlertTextHidesInternalDetails(t *testing.T) {
 	for raw, want := range map[string]string{

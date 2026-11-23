@@ -5,7 +5,6 @@ import (
 	"crypto/rand"
 	"encoding/base64"
 	"encoding/json"
-	"html/template"
 	"net/http"
 	"net/url"
 	"regexp"
@@ -66,6 +65,7 @@ func (s *Server) challengeRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("GET "+challengeStartPath, s.challengeStart)
 	mux.HandleFunc("POST "+challengeVerifyPath, s.challengeVerify)
 	mux.HandleFunc("GET "+challengeStatusPath, s.challengeStatus)
+	mux.HandleFunc("GET "+challengeFontPath+"{name}", challengeFont)
 }
 
 // challengeURL is where a browser goes to solve: the challenge page with the scope and the original address.
@@ -76,47 +76,6 @@ func challengeURL(c settings.Captcha, scope, serviceID, rd string) string {
 	}
 	return "https://" + c.ChallengeDomain + challengeStartPath + "?" + q.Encode()
 }
-
-var challengePage = template.Must(template.New("challenge").Parse(`<!doctype html>
-<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<meta name="robots" content="noindex"><title>Checking your browser</title>
-<style nonce="{{.Nonce}}">
-:root{color-scheme:light dark;font-family:system-ui,-apple-system,"Segoe UI",sans-serif}
-body{margin:0;min-height:100vh;display:grid;place-items:center;background:Canvas;color:CanvasText}
-main{max-width:22rem;padding:1.5rem;text-align:center}
-h1{font-size:1.15rem;margin:0 0 .5rem}p{margin:.5rem 0;opacity:.8;font-size:.95rem}
-.host{font-weight:600;opacity:1}#msg{min-height:1.4em}
-</style></head>
-<body><main>
-<h1>One quick check</h1>
-<p>Before you continue to <span class="host">{{.Host}}</span>, confirm you are a person.</p>
-<cap-widget data-cap-api-endpoint="/{{.SiteKey}}/"></cap-widget>
-<p id="msg" role="status"></p>
-</main>
-<script nonce="{{.Nonce}}">
-window.CAP_CUSTOM_WASM_URL = "/assets/cap_wasm_bg.wasm";
-window.CAP_CUSTOM_HASHWX_URL = "/assets/hashwx.wasm";
-window.CAP_SCRIPT_NONCE = window.CAP_CSS_NONCE = "{{.Nonce}}";
-document.querySelector("cap-widget").addEventListener("error", (e) => {
-  document.getElementById("msg").textContent = "The check could not finish. Reload the page to try again.";
-  console.warn("cap", e.detail);
-});
-document.querySelector("cap-widget").addEventListener("solve", async (e) => {
-  const msg = document.getElementById("msg");
-  msg.textContent = "Checking…";
-  try {
-    const r = await fetch("{{.Verify}}", {method: "POST", headers: {"Content-Type": "application/json"},
-      body: JSON.stringify({token: e.detail.token, scope: {{.Scope}}, service: {{.Service}}, rd: {{.RD}}})});
-    const j = await r.json();
-    if (r.ok && j.redirect) { location.replace(j.redirect); return; }
-    msg.textContent = r.status === 503 ? "Verification is unavailable right now. Try again in a few minutes." :
-      "That did not work. Try again.";
-  } catch { msg.textContent = "Verification is unavailable right now. Try again in a few minutes."; }
-});
-</script>
-<script nonce="{{.Nonce}}" src="/assets/widget.js"></script>
-</body></html>
-`))
 
 func nonce() string {
 	b := make([]byte, 16)
@@ -160,10 +119,9 @@ func (s *Server) challengeStart(w http.ResponseWriter, r *http.Request) {
 	// which inherits this policy: without 'unsafe-eval' it never answers and Cap refuses the solve (seen 2026-11-03). The
 	// page holds nothing a visitor controls (escaped parameters only), so run-time code adds no injection path.
 	w.Header().Set("Content-Security-Policy", "default-src 'none'; script-src 'nonce-"+n+"' 'unsafe-eval' 'wasm-unsafe-eval'; "+
-		"style-src 'nonce-"+n+"'; connect-src 'self'; worker-src blob:; img-src 'self' data:; base-uri 'none'; "+
+		"style-src 'nonce-"+n+"'; font-src 'self'; connect-src 'self'; worker-src blob:; img-src 'self' data:; base-uri 'none'; "+
 		"form-action 'none'; frame-ancestors 'none'")
-	_ = challengePage.Execute(w, map[string]string{"Nonce": n, "Host": host, "SiteKey": c.SiteKey,
-		"Verify": challengeVerifyPath, "Scope": q.Get("scope"), "Service": q.Get("service"), "RD": q.Get("rd")})
+	_ = challengePage.Execute(w, s.challengePageData(r.Context(), c, n, host, q.Get("scope"), q.Get("service"), q.Get("rd"), info(r.Context()).ip))
 }
 
 func writeJSON(w http.ResponseWriter, status int, v any) {
@@ -194,7 +152,7 @@ func (s *Server) challengeVerify(w http.ResponseWriter, r *http.Request) {
 		Service string `json:"service"`
 		RD      string `json:"rd"`
 	}
-	if !c.Enabled || !ri.ip.IsValid() || json.NewDecoder(http.MaxBytesReader(w, r.Body, 8<<10)).Decode(&in) != nil || in.Token == "" {
+	if !c.Enabled || !ri.ip.IsValid() || json.NewDecoder(http.MaxBytesReader(w, r.Body, 64<<10)).Decode(&in) != nil || in.Token == "" {
 		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "not_solved"})
 		return
 	}

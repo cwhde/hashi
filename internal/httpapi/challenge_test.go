@@ -231,7 +231,9 @@ func TestChallengeFlow(t *testing.T) {
 
 	// The page: only this origin, the visited name shown; a foreign return address gets nothing.
 	get := func(q string) (int, http.Header, []byte) {
-		r, err := http.Get(srv.URL + challengeStartPath + "?" + q)
+		req, _ := http.NewRequest(http.MethodGet, srv.URL+challengeStartPath+"?"+q, nil)
+		req.Header.Set("X-Forwarded-For", visitor.String())
+		r, err := http.DefaultClient.Do(req)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -247,6 +249,35 @@ func TestChallengeFlow(t *testing.T) {
 		strings.Contains(string(body), "sk-test") || strings.Contains(string(body), "jsdelivr") {
 		t.Fatalf("page %d, CSP %q:\n%s", pageStatus, csp, body)
 	}
+	// In the install's theme (Warm Linen by default), with the engine's cause in one line and the visitor's address;
+	// the fonts come from the challenge name itself.
+	for _, want := range []string{"--accent:#b6533a", "This address sent many requests in a short time.",
+		`<dd class="mono">198.51.100.7</dd>`, challengeSans, "--cap-checkmark:url(", `rel="icon" href="data:image/svg`,
+		"widget.reset()", "<noscript>"} {
+		if !strings.Contains(string(body), want) {
+			t.Errorf("page lacks %q", want)
+		}
+	}
+	if !strings.Contains(csp, "font-src 'self'") {
+		t.Errorf("CSP without font-src: %q", csp)
+	}
+	for name, code := range map[string]int{"sans.woff2": 200, "mono.woff2": 200, "other.woff2": 404, "..%2fchallenge_page.go": 404} {
+		r, err := http.Get(srv.URL + challengeFontPath + name)
+		if err != nil {
+			t.Fatal(err)
+		}
+		_ = r.Body.Close()
+		if r.StatusCode != code || code == 200 && r.Header.Get("Content-Type") != "font/woff2" {
+			t.Errorf("font %s: %d %s", name, r.StatusCode, r.Header.Get("Content-Type"))
+		}
+	}
+	// Another theme shows in its own colours.
+	if err := settings.Put(ctx, st.Q, settings.Appearance{Theme: "violet"}); err != nil {
+		t.Fatal(err)
+	}
+	if _, _, body := get(loc.RawQuery); !strings.Contains(string(body), "--accent:#e6cf62") || !strings.Contains(string(body), "color-scheme:dark") {
+		t.Errorf("violet page:\n%s", body)
+	}
 	for _, q := range []string{"scope=global&rd=https://evil.example.net/", "scope=global&rd=http://aaa.example.com/",
 		"scope=service&service=" + aaa.ID + "&rd=https://other.example.com/", "scope=nope&rd=https://aaa.example.com/"} {
 		if code, _, _ := get(q); code != http.StatusNotFound {
@@ -258,8 +289,10 @@ func TestChallengeFlow(t *testing.T) {
 	if r, out := verify(map[string]string{"token": "bad", "scope": "global", "rd": "https://aaa.example.com/"}); r.StatusCode != 400 || out["error"] != "not_solved" {
 		t.Errorf("bad token: %d %v", r.StatusCode, out)
 	}
-	if r, out := verify(map[string]string{"token": "good-1", "scope": "global", "rd": "https://aaa.example.com/page"}); r.StatusCode != 200 || out["redirect"] != "https://aaa.example.com/page" {
-		t.Fatalf("good token: %d %v", r.StatusCode, out)
+	// A long return address still fits the verify body (R4-013).
+	long := "https://aaa.example.com/page?q=" + strings.Repeat("a", 9000)
+	if r, out := verify(map[string]string{"token": "good-1", "scope": "global", "rd": long}); r.StatusCode != 200 || out["redirect"] != long {
+		t.Fatalf("good token: %d %.80v", r.StatusCode, out)
 	}
 	if sec.IsChallenged(visitor) {
 		t.Error("still challenged after solving")

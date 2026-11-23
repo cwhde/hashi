@@ -3,6 +3,7 @@ package settings
 import (
 	"context"
 	"errors"
+	"os"
 	"strings"
 	"testing"
 
@@ -177,5 +178,38 @@ func TestCustomTheme(t *testing.T) {
 	// Same numbers as web/src/lib/design/contrast.spec.ts.
 	if r := Contrast("#777777", "#ffffff"); r < 4.47 || r > 4.49 {
 		t.Fatalf("contrast %v", r)
+	}
+}
+
+// The palettes of mails and the challenge page are the app's themes.
+func TestPalettesMatchThemes(t *testing.T) {
+	css, err := os.ReadFile("../../web/src/routes/layout.css")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for name, p := range Palettes {
+		_, rest, ok := strings.Cut(string(css), "[data-theme='"+name+"'] {")
+		if !ok {
+			t.Fatalf("theme %s is not in layout.css", name)
+		}
+		block, _, _ := strings.Cut(rest, "}")
+		for token, want := range map[string]string{"canvas": p.Canvas, "shell": p.Shell, "surface": p.Surface,
+			"surface-2": p.Surface2, "border": p.Border, "text": p.Text, "muted": p.Muted, "accent": p.Accent,
+			"accent-text": p.AccentText} {
+			if !strings.Contains(block, "--h-"+token+": "+want+";") {
+				t.Errorf("%s: --h-%s is not %s", name, token, want)
+			}
+		}
+	}
+}
+
+// A custom canvas is dark on the challenge page exactly when the app treats it as dark (R4-015).
+func TestCustomPaletteDarkMatchesApp(t *testing.T) {
+	for _, canvas := range []string{"#b0b0b0", "#0b0d10", "#f5f5f5", "#a3a3a3"} {
+		c := CustomTheme{Canvas: canvas, Surface: "#c4c4c4", Text: "#101010", Muted: "#404040", Border: "#8a8a8a",
+			Accent: "#003d99", Roundness: RoundDefault}
+		if PaletteOf(ThemeCustom, &c).Dark == c.Light() {
+			t.Errorf("%s: palette dark %v, app light %v", canvas, PaletteOf(ThemeCustom, &c).Dark, c.Light())
+		}
 	}
 }

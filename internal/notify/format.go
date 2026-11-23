@@ -18,15 +18,6 @@ type Stat struct {
 }
 
 // palette is what a mail needs from a theme. The values are the theme's in web/src/routes/layout.css; a test keeps them equal.
-type palette struct{ Canvas, Surface, Border, Text, Muted, Accent, AccentText string }
-
-var palettes = map[string]palette{
-	"graphite": {"#08090b", "#13161a", "#2b323b", "#f2f5f7", "#9da6b2", "#2563eb", "#ffffff"},
-	"linen":    {"#f3eee5", "#faf7f1", "#d4c7b6", "#2b251f", "#6b6156", "#b6533a", "#ffffff"},
-	"verdant":  {"#030a07", "#0a1a12", "#27513b", "#edf7f0", "#94aa9b", "#e8ce55", "#08110c"},
-	"violet":   {"#05030a", "#110c1d", "#382653", "#f4f0fa", "#aa9fbc", "#e6cf62", "#120c1e"},
-}
-
 // stateColors are fixed across themes (10-ui.md §2).
 var stateColors = map[string]string{"up": "#22C55E", "degraded": "#F59E0B", "down": "#EF4444", "test": "#3B82F6"}
 
@@ -180,13 +171,7 @@ var mailTemplate = template.Must(template.New("mail").Funcs(template.FuncMap{"pe
 `))
 
 func mailHTML(m Message) (string, error) {
-	p, ok := palettes[m.Theme]
-	if c := m.Custom; m.Theme == settings.ThemeCustom && c != nil { // a custom theme mails in its own colours
-		p, ok = palette{c.Canvas, c.Surface, c.Border, c.Text, c.Muted, c.Accent, c.AccentText()}, true
-	}
-	if !ok {
-		p = palettes["linen"]
-	}
+	p := settings.PaletteOf(m.Theme, m.Custom) // a custom theme mails in its own colours
 	color, ok := stateColors[m.State]
 	if !ok {
 		color = p.Muted
@@ -194,7 +179,7 @@ func mailHTML(m Message) (string, error) {
 	var b bytes.Buffer
 	err := mailTemplate.Execute(&b, struct {
 		M     Message
-		P     palette
+		P     settings.Palette
 		Color string
 		When  string
 	}{m, p, color, timeLine(m)})
