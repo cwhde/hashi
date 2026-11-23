@@ -17,7 +17,6 @@ All open entries are planned into the 0.13 bug round (slices 13.1 onwards in `do
 
 | # | Kind | Status | Where | What | Reported |
 | --- | --- | --- | --- | --- | --- |
-| 185 | visual | reported | Scripts | A script's run list showed 07:03 and 07:04 for runs made at 08:03 and 08:04 local time, while the plan beside it said "Saved 08:03". One of the two is in the wrong time zone. | 2026-11-23 |
 
 ## Details
 

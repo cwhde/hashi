@@ -3,6 +3,7 @@
 	import { onMount } from 'svelte';
 	import { page } from '$app/state';
 	import { findKey } from '#lib/find.ts';
+	import { dateTime } from '#lib/format.ts';
 	import PageHeader from '#lib/components/hashi/PageHeader.svelte';
 	import Panel from '#lib/components/hashi/Panel.svelte';
 	import Tag from '#lib/components/hashi/Tag.svelte';
@@ -149,9 +150,10 @@
 		}, 300);
 	});
 
-	// The timer runs on the host's own clock and the server works the schedule out on a zone-free clock (sent as UTC),
-	// so the digits are host time: show them as they are, never in the browser's zone (bug 85).
-	const fmt = (iso: string) =>
+	// The schedule preview: the timer runs on the host's own clock and the server works the schedule out on a zone-free
+	// clock (sent as UTC), so the digits are host time: show them as they are, never in the browser's zone (bug 85).
+	// A run's start is a real moment and uses dateTime like every other time in the app (bug 185).
+	const hostTime = (iso: string) =>
 		new Date(iso).toLocaleString(undefined, {
 			timeZone: 'UTC',
 			weekday: 'short',
@@ -411,7 +413,7 @@
 							/>
 							{#if previewError}<p class="text-xs text-bad-text">{previewError}</p>
 							{:else if preview}<p class="text-xs text-muted-foreground">
-									Next, host time: {preview.next.slice(0, 3).map(fmt).join(', ')}
+									Next, host time: {preview.next.slice(0, 3).map(hostTime).join(', ')}
 								</p>
 							{:else if !form.schedule.trim()}<p class="text-xs text-muted-foreground">
 									e.g. <Mono>30 3 * * 0</Mono> is Sundays at 03:30
@@ -574,7 +576,7 @@
 									>
 										<Tag tone={tone[r.status]}>{statusText[r.status]}</Tag>
 										<span class="min-w-0 flex-1 truncate"
-											>{fmt(r.started_at)} · {r.host_name}{#if r.exit_code !== undefined && r.exit_code !== 0}{' '}
+											>{dateTime(r.started_at)} · {r.host_name}{#if r.exit_code !== undefined && r.exit_code !== 0}{' '}
 												· exit {r.exit_code}{/if}{#if duration(r)}{' '}
 												· {duration(r)}{/if}</span
 										>
