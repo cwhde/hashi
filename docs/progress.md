@@ -140,8 +140,10 @@ all of them.
   against a LAN build before any suite ran. Lighthouse 12.8.2 on the local copy after (desktop / phone): apps 98–99 /
   76, status 99 / 78, service 98 / 73 (was 74: two more small script files, LCP 4.80 → 4.95 s simulated; merging tiny
   chunks needs Rolldown's experimental inlining, not taken now). Accessibility and best practices 100 everywhere.
-- [ ] Release and deploy (the owner's OK), then the 13.12 gate on prod with the owner; confirm bug 161's lookup timeouts
-  are gone from Docker's DNS log.
+- [x] Release and deploy: `v0.13.14-beta.1` on prod 2026-11-22 (the owner's OK). Bug 161 on 2026-11-23: Docker's DNS
+  log shows 7–22 lookup timeouts an hour over the last six hours (was about 550 an hour); the rest are AdGuard's shared
+  rate limit, not Hashi's lookups.
+- [ ] 13.12 gate on prod with the owner: their drag test in Public pages (desktop and phone).
 
 Then a last bug sweep, the owner's walk, `v1.0.0`. With 1.0, a better README (the owner, 2026-11-19): what Hashi is,
 screenshots, how to install and run it, what it needs.
