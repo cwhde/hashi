@@ -40,7 +40,7 @@ Ports: 8080 admin and API, 8081 public app dashboard, 8082 public status page (`
 
 ## 3. Backups
 
-Hashi writes a consistent copy of its database every night to `data/backups/hashi-<date>.db.gz` (compressed) and keeps the newest 14.
+Hashi writes a consistent copy of its database every night at 03:30 UTC to `data/backups/hashi-<date>.db.gz` (compressed) and keeps the newest 14.
 Activity → Jobs shows the last run (`backup.nightly`) and any failure. Copies made before an upgrade
 (`pre-migrate-v<n>-…`) and before a key rotation (`pre-rotate-v<n>-…`) stay until you delete them.
 

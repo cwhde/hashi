@@ -198,3 +198,27 @@ func TestRunsPruneTheirOwnHistory(t *testing.T) {
 		t.Errorf("rare kept %d runs, want all 11 (fewer than 30)", n)
 	}
 }
+
+// Bug 188: a job with At runs at its fixed hour, not 24 h after whenever it last ran.
+func TestDailyJobKeepsItsHour(t *testing.T) {
+	at := Daily(3, 30)
+	day := func(h, m int) time.Time { return time.Date(2026, 11, 23, h, m, 0, 0, time.UTC) }
+	for _, c := range []struct{ start, want time.Time }{
+		{day(10, 12), day(3, 30).AddDate(0, 0, 1)}, // a run at any hour moves to the next night
+		{day(3, 30), day(3, 30).AddDate(0, 0, 1)},  // the run itself: tomorrow
+		{day(1, 0), day(3, 30)},                    // early enough: tonight
+		{day(2, 45), day(3, 30).AddDate(0, 0, 1)},  // under an hour before: never two runs that close
+	} {
+		if got := at(c.start); !got.Equal(c.want) {
+			t.Errorf("start %s: next %s, want %s", c.start.Format(time.Kitchen), got, c.want)
+		}
+	}
+	r, s := newRunner(t)
+	fixed := day(10, 12)
+	r.now = func() time.Time { return fixed }
+	must(t, r.Register(context.Background(), Job{Kind: "nightly", Interval: 24 * time.Hour, At: at, Run: func(context.Context) (string, error) { return "", nil }}))
+	runFor(t, r, 50*time.Millisecond)
+	if got := lastRuns(t, s)["nightly"].NextRunAt; got != day(3, 30).AddDate(0, 0, 1).UnixMilli() {
+		t.Fatalf("next run %s, want tomorrow 03:30 UTC", time.UnixMilli(got).UTC())
+	}
+}

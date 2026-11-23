@@ -160,8 +160,8 @@ func Run(ctx context.Context, cfg Config, log *slog.Logger, ready func(adminAddr
 	if err := runner.Register(ctx, jobs.Job{Kind: "session_cleanup", Interval: time.Hour, RunsLocked: true, Run: sessions.Cleanup}); err != nil {
 		return err
 	}
-	// Nightly copy of the database, 14 kept (11-delivery.md §8); the host's own backup takes /data off-host.
-	if err := runner.Register(ctx, jobs.Job{Kind: "backup.nightly", Interval: 24 * time.Hour, RunsLocked: true, Run: func(ctx context.Context) (string, error) {
+	// Nightly copy of the database at 03:30 UTC, 14 kept (11-delivery.md §8); the host's own backup takes /data off-host.
+	if err := runner.Register(ctx, jobs.Job{Kind: "backup.nightly", Interval: 24 * time.Hour, At: jobs.Daily(3, 30), RunsLocked: true, Run: func(ctx context.Context) (string, error) {
 		path, err := st.NightlyBackup(ctx, time.Now(), 14)
 		if err != nil {
 			return "", err

@@ -27,6 +27,22 @@ type Job struct {
 	// RunsLocked: the job needs no secret, so it keeps running while the vault is locked (02 §5.5). Every other job
 	// waits, still due, and runs once the vault is unlocked.
 	RunsLocked bool
+	// At, when set, picks the next run from this run's start (a nightly job at a fixed hour, Daily); Interval then
+	// only describes the job in Activity. Without it the next run is Interval after this one's start.
+	At func(start time.Time) time.Time
+}
+
+// Daily is an At for a fixed UTC hour and minute. A run closer than an hour before that time (one started by hand)
+// moves the next to the following day, so two runs never come that close.
+func Daily(hour, minute int) func(time.Time) time.Time {
+	return func(start time.Time) time.Time {
+		s := start.UTC()
+		next := time.Date(s.Year(), s.Month(), s.Day(), hour, minute, 0, 0, time.UTC)
+		for next.Sub(s) < time.Hour {
+			next = next.AddDate(0, 0, 1)
+		}
+		return next
+	}
 }
 
 // Runner polls the jobs table and starts due kinds. A kind never overlaps itself.
@@ -147,7 +163,11 @@ func (r *Runner) runOnce(ctx context.Context, j Job) {
 	bg := context.WithoutCancel(ctx)
 	start := r.now()
 	id := ulid.MustNew(ulid.Timestamp(start), rand.Reader).String()
-	if err := r.q.SetJobNextRun(bg, db.SetJobNextRunParams{NextRunAt: start.Add(j.Interval).UnixMilli(), Kind: j.Kind}); err != nil {
+	next := start.Add(j.Interval)
+	if j.At != nil {
+		next = j.At(start)
+	}
+	if err := r.q.SetJobNextRun(bg, db.SetJobNextRunParams{NextRunAt: next.UnixMilli(), Kind: j.Kind}); err != nil {
 		r.log.Error("schedule next run", "job", j.Kind, "err", err)
 		return
 	}
