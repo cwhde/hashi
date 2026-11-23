@@ -1386,6 +1386,22 @@ Decisions made in S0:
 
 ## Agenda with the user
 
+- Decided 2026-11-23 (owner): the CAPTCHA challenge page gets prototype 3 ("Notice": site, address and time in a side band,
+  heading "Security check", one plain reason line, the Cap widget styled in the install's theme with accent check and
+  error marks, favicon in the accent). A service that challenges everyone shows no reason, like a check with none. No
+  preview of the page in Settings. Next step after it: the full hunt on all new code since v1.0.0 (address page counters
+  and new-set picker, challenge page): make check, integration, e2e, UI review, the Codex brief run by a Sonnet subagent,
+  then fix what is found.
+  Done 2026-11-23 (not committed yet): Lighthouse on the real challenge page mobile 99/100/100, desktop 100/100/100,
+  133 KB, no console errors; all four themes and a custom one at 390 and 1440. Round-4 hunt (Sonnet, local copy):
+  20 findings, fixed in the working tree: permanent ban broke the counters JSON (500 on the address page and the whole
+  Counters tab), Ban/Challenge now said "done" when the engine skipped an allowed or held address, the set picker kept
+  its search, a cancelled passkey prompt read as "Hashi did not answer", the widget kept "Passed" when Hashi refused
+  (now resets), long IPv6 headings and errors overflowed, counter dialog decimals/empty fields, stale outcome line,
+  duplicate set items, set-name rules and "slug" in the errors, 8 KB return addresses, checkbox outline contrast,
+  custom-theme dark rule, noscript line, widget aria texts, Enter/focus in the sheet and dialog, one name per action.
+  Left as they are: "No personal data is collected." (owner's choice, the page shows the address), Cap's credits link
+  (Cap forces it visible), the WAF reason wording, UTC on the public page.
 - Decided 2026-11-21 (owner, from the rough mocks under `/design/ideas/*`, not approved designs): the public status page
   takes from idea B the row of group tiles on top ("x of n up" per group), its denser rows, and the service's own page
   as the detail (tiles, 90-day strip, response chart, recent downtimes, badges); from idea A each group in its own panel
