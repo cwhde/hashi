@@ -55,7 +55,9 @@ def main():
         except (subprocess.CalledProcessError, KeyError, ValueError) as error:
             print(f"Cannot select Go packages ({error}); running all packages.")
     print("Race tests:", *packages, flush=True)
-    return subprocess.call(["go", "test", "-race", "-count=1", *packages])
+    # internal/app runs ~2 min alone under -race; with every package at once on the shared runner host it reached
+    # go test's default 10 minutes (bug 190), so CI allows 20.
+    return subprocess.call(["go", "test", "-race", "-count=1", "-timeout=20m", *packages])
 
 
 if __name__ == "__main__":

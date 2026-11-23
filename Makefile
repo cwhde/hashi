@@ -33,7 +33,7 @@ test: ## unit + contract tests
 	@if [ -n "$${CI_GO_PATHS:-}" ]; then \
 	  python3 tools/ci/go-test.py; \
 	else \
-	  go test -race -count=1 ./...; \
+	  go test -race -count=1 -timeout=20m ./...; \
 	fi
 
 generate: ## regenerate sqlc and OpenAPI code

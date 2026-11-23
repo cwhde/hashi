@@ -18,6 +18,7 @@ All open entries are planned into the 0.13 bug round (slices 13.1 onwards in `do
 | # | Kind | Status | Where | What | Reported |
 | --- | --- | --- | --- | --- | --- |
 | 189 | function | reported | CI | `TestIntegrationTakeover` failed once on main (run 1298, 2026-11-23): the old rules were back before the test looked. Its rescue window is 3 s; with the release build on the same Docker host the apply and the check likely took longer. Passes locally (3 of 3). | 2026-11-23 |
+| 190 | function | mitigated | CI | `internal/app` timed out after `go test`'s default 10 minutes in CI run 1332 (v1.1.0). Alone it takes 14 s, 121 s under `-race` (39 tests one after another, the slowest 10–12 s each); with every package at once on the shared runner host, 420–600 s. `make test` and CI now allow 20 minutes. The fix itself: run the package's tests in parallel (each builds its own instance). | 2026-11-23 |
 
 ## Details
 
