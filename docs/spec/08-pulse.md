@@ -23,6 +23,9 @@ Pulse lets a host report its current addresses without holding any provider cred
   spread out by themselves. A fresh start waits for that point, at most one interval, before its first beat.
 - The agent keeps only the root certificate that verified Hashi, for at most 24 hours, and goes back to the machine's
   full list when that root no longer fits. The public address check always uses the full list.
+- The agent also keeps Hashi's address from the last beat that got through. When looking up Hashi's name fails (a DNS
+  outage near the agent), it connects to that address; the certificate is still checked against the name. Any other
+  failure is reported as it is. Without this, a flaky resolver reads as the agent going down and up (bug 184).
 - Updates (ADR 0003): the heartbeat reply names the version this Hashi installs (`ReleaseTag`) and, while the Pulse
   setting "update agents automatically" is on (default on, one switch for all agents), where to fetch it. An agent
   installed on the machine whose version is older downloads its binary, checks the release signature (the public key
