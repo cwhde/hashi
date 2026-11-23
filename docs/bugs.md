@@ -17,6 +17,7 @@ All open entries are planned into the 0.13 bug round (slices 13.1 onwards in `do
 
 | # | Kind | Status | Where | What | Reported |
 | --- | --- | --- | --- | --- | --- |
+| 189 | function | reported | CI | `TestIntegrationTakeover` failed once on main (run 1298, 2026-11-23): the old rules were back before the test looked. Its rescue window is 3 s; with the release build on the same Docker host the apply and the check likely took longer. Passes locally (3 of 3). | 2026-11-23 |
 
 ## Details
 
