@@ -42,12 +42,6 @@ Go backend + embedded SvelteKit SPA + SQLite, one container. Pulse agent in `age
   confirmation and the only way to an image: a CI failure means the local run missed something, so close that gap too.
 - Conventional commits; migrations ship with the model change; OpenAPI and generated clients ship together.
 
-## Progress bar
-
-`README.md` has a rough progress bar between `<!-- progress:start -->` and `<!-- progress:end -->`. When a step passes
-its prod-proof gate (or the V1 cutover is done), update it in the same commit as `docs/progress.md`:
-15 steps total (S0, S0b, S1–S9, V1 cutover, S10–S12); bar = 30 cells, 2 `█` per finished step, rest `░`; count and
-percent rounded down; move the step from `next`/`then` to `done`. It's an overview, not a metric.
 
 ## Skills
 
