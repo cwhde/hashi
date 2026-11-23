@@ -318,8 +318,10 @@ type state struct {
 	Interval int
 	Root     []byte
 	RootAt   int64
-	// Tried is the version an update was last tried for: a failed one waits for a restart, not the next beat.
-	Tried string
+	// Tried is the version an update was last tried for and TriedAt when: a failed one is tried again after updateRetry,
+	// not at the next beat (bug 186: the release files may simply not be there yet).
+	Tried   string
+	TriedAt int64
 	// Restart: an update replaced this file, so an agent that stays in memory starts it.
 	Restart bool
 	// Addr is Hashi's address the last beat reached, used when the name can't be looked up.
@@ -333,7 +335,7 @@ func (s state) encode() string {
 		}
 		return "0"
 	}
-	return strings.Join([]string{b(s.Due), strconv.Itoa(s.Failures), b(s.Check), strconv.FormatInt(s.Checked, 10), s.Reported, strconv.Itoa(s.Interval), base64.RawStdEncoding.EncodeToString(s.Root), strconv.FormatInt(s.RootAt, 10), s.Tried, s.Addr}, ",")
+	return strings.Join([]string{b(s.Due), strconv.Itoa(s.Failures), b(s.Check), strconv.FormatInt(s.Checked, 10), s.Reported, strconv.Itoa(s.Interval), base64.RawStdEncoding.EncodeToString(s.Root), strconv.FormatInt(s.RootAt, 10), s.Tried, s.Addr, strconv.FormatInt(s.TriedAt, 10)}, ",")
 }
 
 // decodeState gives a fresh start for anything unreadable: the state only saves work.
@@ -342,11 +344,14 @@ func decodeState(v string) state {
 	if len(f) == 9 { // from an agent before 0.13.15, which an update starts this one with
 		f = append(f, "")
 	}
-	if len(f) != 10 {
+	if len(f) == 10 { // from 0.13.15
+		f = append(f, "0")
+	}
+	if len(f) != 11 {
 		return state{}
 	}
 	var s state
-	var err [5]error
+	var err [6]error
 	s.Due, s.Check = f[0] == "1", f[2] == "1"
 	s.Failures, err[0] = strconv.Atoi(f[1])
 	s.Checked, err[1] = strconv.ParseInt(f[3], 10, 64)
@@ -355,6 +360,7 @@ func decodeState(v string) state {
 	s.Root, err[3] = base64.RawStdEncoding.DecodeString(f[6])
 	s.RootAt, err[4] = strconv.ParseInt(f[7], 10, 64)
 	s.Tried = f[8]
+	s.TriedAt, err[5] = strconv.ParseInt(f[10], 10, 64)
 	if net.ParseIP(f[9]) != nil {
 		s.Addr = f[9]
 	}

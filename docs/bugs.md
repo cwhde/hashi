@@ -17,7 +17,6 @@ All open entries are planned into the 0.13 bug round (slices 13.1 onwards in `do
 
 | # | Kind | Status | Where | What | Reported |
 | --- | --- | --- | --- | --- | --- |
-| 186 | function | reported | Pulse agent updates | An agent that tries an update while the release files are not there yet (a deploy before the release job attached them) gets a 404 and waits for a restart, so it stays on its old version for good. A missing file should be tried again later, like a network failure. | 2026-11-23 |
 
 ## Details
 

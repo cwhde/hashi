@@ -11,6 +11,7 @@ import (
 	"encoding/json"
 	"encoding/pem"
 	"errors"
+	"fmt"
 	"go/parser"
 	"go/token"
 	"math/big"
@@ -156,6 +157,12 @@ func TestStateSurvivesTheSleeper(t *testing.T) {
 	// An agent from before 0.13.15 hands the updated one its state without an address.
 	if got := decodeState("1,2,1,5,198.51.100.1,60,AQI,7,v1"); !got.Due || got.Tried != "v1" || got.Addr != "" {
 		t.Fatalf("old state: %+v", got)
+	}
+	if got := decodeState("1,2,1,5,198.51.100.1,60,AQI,7,v1,192.0.2.7"); got.Tried != "v1" || got.Addr != "192.0.2.7" || got.TriedAt != 0 {
+		t.Fatalf("0.13.15 state: %+v", got)
+	}
+	if got := decodeState(state{Tried: "v2", TriedAt: 42}.encode()); got.Tried != "v2" || got.TriedAt != 42 {
+		t.Fatalf("%+v", got)
 	}
 	for _, bad := range []string{"", "x", "1,x,0,0,,0,,0", "1,0,0,0,,0,!!,0"} {
 		if got := decodeState(bad); got.Due || got.Root != nil {
@@ -430,5 +437,38 @@ func TestBeatSurvivesALookupFailure(t *testing.T) {
 	err := func() error { _, err := deliver(t.Context(), c, &st, beat{}); return err }()
 	if err == nil || !strings.Contains(err.Error(), "the last address that worked") {
 		t.Fatalf("Hashi down: want both failures named, got %v", err)
+	}
+}
+
+// Bug 186: an update that failed (here the release files aren't there yet) is tried again an hour later, not only after
+// a restart, and not at every beat either.
+func TestFailedUpdateIsTriedAgainLater(t *testing.T) {
+	var tries int
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if strings.HasSuffix(r.URL.Path, ".sig") {
+			tries++
+			http.NotFound(w, r)
+			return
+		}
+		_, _ = fmt.Fprintf(w, `{"check_public_ip":false,"interval_seconds":60,"version":"v9.0.0","update_from":%q}`, "http://"+r.Host+"/release")
+	}))
+	defer srv.Close()
+	old := Version
+	Version = "v1.0.0"
+	t.Cleanup(func() { Version = old })
+	if inDocker() {
+		t.Skip("agents in Docker never update themselves")
+	}
+	c := config{URL: srv.URL, AgentID: "a", Token: "t", Interval: time.Minute}
+	st := state{}
+	beatOnce(t.Context(), &c, &st, "h")
+	beatOnce(t.Context(), &c, &st, "h")
+	if tries != 1 || st.Tried != "v9.0.0" {
+		t.Fatalf("a failed update must not be tried at every beat: %d tries, tried %q", tries, st.Tried)
+	}
+	st.TriedAt -= int64(updateRetry / time.Second)
+	beatOnce(t.Context(), &c, &st, "h")
+	if tries != 2 {
+		t.Fatalf("a failed update must be tried again after %s: %d tries", updateRetry, tries)
 	}
 }

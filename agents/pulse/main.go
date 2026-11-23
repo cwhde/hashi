@@ -251,6 +251,10 @@ func nextBeat(id string, interval time.Duration, now time.Time) time.Duration {
 	return w
 }
 
+// updateRetry is how long a failed update waits before the next try: long enough not to fetch a release at every beat,
+// short enough that files attached after the deploy, or a network that came back, are picked up the same day.
+const updateRetry = time.Hour
+
 // rootMaxAge is how long a beat trusts the one root it kept, so a root removed from the machine's list stops being used.
 const rootMaxAge = 24 * time.Hour
 
@@ -277,14 +281,14 @@ func beatOnce(ctx context.Context, c *config, st *state, host string) time.Durat
 		return wait
 	}
 	st.Failures = 0
-	if r.UpdateFrom != "" && r.Version != st.Tried && !inDocker() && newer(r.Version, Version) {
-		st.Tried = r.Version
+	if r.UpdateFrom != "" && (r.Version != st.Tried || time.Since(time.Unix(st.TriedAt, 0)) >= updateRetry) && !inDocker() && newer(r.Version, Version) {
+		st.Tried, st.TriedAt = r.Version, time.Now().Unix()
 		self, err := os.Executable()
 		if err == nil {
 			err = update(ctx, r.UpdateFrom, r.Version, self)
 		}
 		if err != nil {
-			log.Printf("update to %s failed, trying again after a restart: %q", r.Version, err.Error()) //nolint:gosec // quoted, see above
+			log.Printf("update to %s failed, trying again in %s: %q", r.Version, updateRetry, err.Error()) //nolint:gosec // quoted, see above
 		} else {
 			log.Printf("updated to %s; the next heartbeat runs it", r.Version) //nolint:gosec // a version Hashi named, checked by update
 			st.Restart = true
