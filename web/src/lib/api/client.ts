@@ -41,6 +41,10 @@ api.use(csrfMiddleware, sessionEndedMiddleware, unreachableMiddleware);
 
 /** The problem's own message, or a plain fallback that still says nothing changed. */
 export function problemText(e: unknown): string {
+	// A passkey prompt cancelled during a reauth retry (withReauth) is the browser's error, not Hashi's (R4-004).
+	if (e instanceof DOMException && (e.name === 'NotAllowedError' || e.name === 'AbortError')) {
+		return 'The passkey prompt was closed or timed out. Nothing was changed; try again.';
+	}
 	const p = e as Partial<Problem> | undefined;
 	if (p && typeof p === 'object' && (p.detail || p.title)) return p.detail || p.title || '';
 	return 'Hashi did not answer as expected. Nothing was changed; reload and try again.';

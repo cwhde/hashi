@@ -20,7 +20,7 @@ var (
 	ErrNotFound = errors.New("IP set not found")
 	// ErrLocked: system, feed and dynamic sets change only through their owners (05a §3, invariant 10).
 	ErrLocked = errors.New("this IP set is not editable")
-	ErrTaken  = errors.New("another IP set already uses this slug")
+	ErrTaken  = errors.New("another IP set already uses this name")
 	// ErrInUse: a set (or host) is still referenced; the message lists the referencing objects.
 	ErrInUse = errors.New("still in use")
 )
@@ -120,7 +120,7 @@ func (in SetInput) validate() (SetInput, error) {
 	in.Name = strings.TrimSpace(in.Name)
 	in.Description = strings.TrimSpace(in.Description)
 	if !slugRe.MatchString(in.Slug) {
-		return in, invalid("slug must be lowercase letters, digits and dashes (1–63 characters)")
+		return in, invalid("the name must be 1–63 lowercase letters, digits and dashes, starting and ending with a letter or digit")
 	}
 	if in.Name == "" || len(in.Name) > 120 {
 		return in, invalid("name is required (at most 120 characters)")

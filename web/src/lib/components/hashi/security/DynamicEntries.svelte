@@ -161,7 +161,7 @@
 									>Reset failures</DropdownMenu.Item
 								><DropdownMenu.Separator />{/if}
 							<DropdownMenu.Item class="text-bad-text" onclick={() => end(r)}
-								>{isChallenge ? 'End challenge' : 'Unban'}</DropdownMenu.Item
+								>{isChallenge ? 'End the challenge' : 'Lift the ban'}</DropdownMenu.Item
 							>
 						</DropdownMenu.Content>
 					</DropdownMenu.Root>

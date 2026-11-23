@@ -925,7 +925,7 @@ test('setup with a passkey, then sign in with it', async ({ page, request }) => 
 	await expect(page.getByText('Solving a CAPTCHA resets neither.')).toBeVisible();
 	await page.keyboard.press('Escape');
 	await page.getByRole('button', { name: 'Actions for 198.51.100.77' }).click();
-	await page.getByRole('menuitem', { name: 'Unban' }).click();
+	await page.getByRole('menuitem', { name: 'Lift the ban' }).click();
 	await expect(page.getByRole('row', { name: /198\.51\.100\.77/ })).not.toContainText('banned');
 	await page.setViewportSize({ width: 390, height: 844 });
 	// The row menu must be reachable without scrolling sideways.
@@ -977,7 +977,7 @@ test('setup with a passkey, then sign in with it', async ({ page, request }) => 
 	await page.screenshot({ path: 'test-results/s10-dynamic-phone.png', fullPage: true });
 	await page.setViewportSize({ width: 1280, height: 800 });
 	await page.getByRole('button', { name: 'Actions for 198.51.100.78' }).click();
-	await page.getByRole('menuitem', { name: 'End challenge' }).click();
+	await page.getByRole('menuitem', { name: 'End the challenge' }).click();
 	await expect(page.getByText('Nobody is challenged right now.')).toBeVisible();
 	// S11 scripts (09 §1): save asks for the passkey, the change waits with its diff, apply puts it on the host, a run
 	// by hand shows its output in the history.

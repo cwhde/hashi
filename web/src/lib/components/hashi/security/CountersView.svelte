@@ -7,7 +7,6 @@
 	import AddressLink from '#lib/components/hashi/ipsets/AddressLink.svelte';
 	import { Button } from '#lib/components/ui/button/index.ts';
 	import { Input } from '#lib/components/ui/input/index.ts';
-	import { Label } from '#lib/components/ui/label/index.ts';
 	import { Checkbox } from '#lib/components/ui/checkbox/index.ts';
 	import * as Table from '#lib/components/ui/table/index.ts';
 	import * as Select from '#lib/components/ui/select/index.ts';
@@ -19,6 +18,7 @@
 	import { withReauth } from '#lib/auth/reauth.ts';
 	import { country, dateTime } from '#lib/format.ts';
 	import { sourceLabel } from './labels';
+	import CounterEditDialog from './CounterEditDialog.svelte';
 
 	type Row = Schemas['CounterRow'];
 	type Source = Schemas['SecuritySource'];
@@ -41,9 +41,8 @@
 	let total = $state(0);
 	let next = $state<string | undefined>();
 	let selected = $state<string[]>([]);
-	let editing = $state<Row | null>(null);
-	let editBan = $state(0);
-	let editChallenge = $state(0);
+	let editing = $state<string | null>(null);
+	let editRow = $state<Row | null>(null);
 	let bulkOpen = $state(false);
 	let busy = $state(false);
 	let error = $state('');
@@ -109,22 +108,10 @@
 	const allSelected = $derived(rows.length > 0 && rows.every((r) => selected.includes(r.address)));
 	const toggle = (a: string) =>
 		(selected = selected.includes(a) ? selected.filter((x) => x !== a) : [...selected, a]);
-	const openEdit = (r: Row) => (
-		(editing = r),
-		(editBan = r.ban_count),
-		(editChallenge = r.challenge_count)
-	);
+	const openEdit = (r: Row) => ((editRow = r), (editing = r.address));
 	// A /64 row stands for its network; its first address addresses the same counter.
 	const addr = (k: string) => k.split('/')[0] ?? k;
 
-	const saveEdit = () =>
-		editing &&
-		act(() =>
-			api.PATCH('/api/addresses/{address}/counters', {
-				params: { path: { address: addr(editing!.address) } },
-				body: { ban_count: editBan, challenge_count: editChallenge }
-			})
-		).then(() => (editing = null));
 	const resetOne = (r: Row) =>
 		act(() => api.POST('/api/security/counters/reset', { body: { addresses: [r.address] } }));
 	const resetBulk = () =>
@@ -309,7 +296,7 @@
 							</DropdownMenu.Trigger>
 							<DropdownMenu.Content align="end">
 								<DropdownMenu.Item onclick={() => openEdit(c)}>Edit counters</DropdownMenu.Item>
-								<DropdownMenu.Item onclick={() => resetOne(c)}>Reset both</DropdownMenu.Item>
+								<DropdownMenu.Item onclick={() => resetOne(c)}>Reset to zero</DropdownMenu.Item>
 								<DropdownMenu.Separator />
 								{#if c.state !== 'banned'}<DropdownMenu.Item
 										onclick={() => enter(c, 'sys-dynamic-blocked')}>Ban now</DropdownMenu.Item
@@ -321,7 +308,9 @@
 								{#if c.state !== 'none'}<DropdownMenu.Item
 										class="text-bad-text"
 										onclick={() => remove(c)}
-										>{c.state === 'banned' ? 'Unban' : 'End challenge'}</DropdownMenu.Item
+										>{c.state === 'banned'
+											? 'Lift the ban'
+											: 'End the challenge'}</DropdownMenu.Item
 									>{/if}
 							</DropdownMenu.Content>
 						</DropdownMenu.Root>
@@ -352,38 +341,12 @@
 	{/if}
 </div>
 
-<Dialog.Root open={editing !== null} onOpenChange={(o) => !o && (editing = null)}>
-	<Dialog.Content class="sm:max-w-md">
-		<Dialog.Header>
-			<Dialog.Title>Counters for <span class="font-mono">{editing?.address}</span></Dialog.Title>
-			<Dialog.Description
-				>A running ban keeps its end time; the new ban counter applies to the next ban.</Dialog.Description
-			>
-		</Dialog.Header>
-		<div class="grid grid-cols-2 gap-3">
-			<div class="space-y-1.5">
-				<Label for="eb">Ban counter</Label><Input
-					id="eb"
-					type="number"
-					min="0"
-					bind:value={editBan}
-				/>
-			</div>
-			<div class="space-y-1.5">
-				<Label for="ec">Challenge counter</Label><Input
-					id="ec"
-					type="number"
-					min="0"
-					bind:value={editChallenge}
-				/>
-			</div>
-		</div>
-		<Dialog.Footer>
-			<Button variant="ghost" onclick={() => (editing = null)}>Cancel</Button>
-			<Button disabled={busy} onclick={saveEdit}><KeyRound />Confirm with passkey and save</Button>
-		</Dialog.Footer>
-	</Dialog.Content>
-</Dialog.Root>
+<CounterEditDialog
+	bind:address={editing}
+	ban={editRow?.ban_count}
+	challenge={editRow?.challenge_count}
+	onsaved={load}
+/>
 
 <Dialog.Root bind:open={bulkOpen}>
 	<Dialog.Content class="sm:max-w-md">

@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { api } from './client';
+import { api, problemText } from './client';
 
 describe('api client', () => {
 	it('decodes /api/version with the generated types', async () => {
@@ -16,5 +16,12 @@ describe('api client', () => {
 		expect(error).toBeUndefined();
 		expect(data?.commit).toBe('abc1234');
 		expect(fetchMock.mock.calls[0]?.[0].url).toBe('http://hashi.test/api/version');
+	});
+	it('names a cancelled passkey prompt instead of blaming Hashi', () => {
+		expect(problemText(new DOMException('x', 'NotAllowedError'))).toMatch(
+			/passkey prompt was closed/
+		);
+		expect(problemText({ detail: 'nope' })).toBe('nope');
+		expect(problemText(undefined)).toMatch(/did not answer as expected/);
 	});
 });

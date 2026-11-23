@@ -7,6 +7,7 @@
 	import Mono from '#lib/components/hashi/Mono.svelte';
 	import SetBadge from '#lib/components/hashi/ipsets/SetBadge.svelte';
 	import IpSetPicker from '#lib/components/hashi/ipsets/IpSetPicker.svelte';
+	import CounterEditDialog from '#lib/components/hashi/security/CounterEditDialog.svelte';
 	import { Button } from '#lib/components/ui/button/index.ts';
 	import { Input } from '#lib/components/ui/input/index.ts';
 	import { Label } from '#lib/components/ui/label/index.ts';
@@ -43,6 +44,7 @@
 	$effect(() => {
 		const a = address;
 		jump = a;
+		outcome = ''; // the last action's line belongs to the address it was about (R4-008)
 		load(a).catch((e) => (loadError = problemText(e)));
 	});
 
@@ -59,11 +61,14 @@
 	// ---- ban, challenge, lift (bug 64): the engine's own entries, on every firewall host; an allowed address is refused ----
 	let busy = $state(false);
 	// Firewall sets need a fresh passkey: ask for it when the server says so, then retry. Returns the error text or null.
-	async function confirmed(
-		f: () => Promise<{ data?: unknown; error?: unknown }>
+	async function confirmed<T>(
+		f: () => Promise<{ data?: T; error?: unknown }>,
+		then?: (data: T) => void
 	): Promise<string | null> {
 		try {
-			await withReauth(f);
+			// Not `then?.(await …)`: an optional call skips its arguments, and the request with them, when `then` is unset.
+			const data = await withReauth(f);
+			then?.(data);
 			return null;
 		} catch (e) {
 			return problemText(e);
@@ -73,13 +78,31 @@
 	async function enter(set: 'sys-dynamic-blocked' | 'sys-dynamic-challenge') {
 		busy = true;
 		const a = target64();
-		const err = await confirmed(() =>
-			api.POST('/api/ip-sets/{id}/entries', { params: { path: { id: set } }, body: { address: a } })
+		const ban = set === 'sys-dynamic-blocked';
+		let done = '';
+		const err = await confirmed(
+			() =>
+				api.POST('/api/ip-sets/{id}/entries', {
+					params: { path: { id: set } },
+					body: { address: a }
+				}),
+			(r) => {
+				// The engine skips an allowed address and one that is already held (06 §3.4); say so (R4-002).
+				const who = r.counters.address; // an IPv6 address counts for its /64
+				const held = r.counters.state;
+				done = r.created
+					? ban
+						? `${who} is banned.`
+						: `${who} gets the challenge page now.`
+					: held === 'banned'
+						? `${who} is already banned.`
+						: held === 'challenged' && !ban
+							? `${who} is already challenged.`
+							: `Not ${ban ? 'banned' : 'challenged'}: ${who} is in an allowed set.`;
+			}
 		);
 		busy = false;
-		outcome =
-			err ??
-			(set === 'sys-dynamic-blocked' ? `${a} is banned.` : `${a} gets the challenge page now.`);
+		outcome = err ?? done;
 		if (!err) await load(a).catch(() => {});
 	}
 	async function lift() {
@@ -111,8 +134,19 @@
 	let target = $state('');
 	let note = $state('');
 	let addError = $state('');
+	// A new set starts with this address as its first item, in one step (bug 66): a refused item creates nothing.
+	let newSet = $state<{ slug: string; description: string } | null>(null);
+	// The server's rule for a set's name (05a): 1–63 characters, no dash at either end.
+	const slugOk = (v: string) => /^[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?$/.test(v) && !slugTaken(v);
+	const slugTaken = (v: string) => sets.some((s) => s.slug === v);
 	async function addToSet() {
 		addError = '';
+		if (newSet) return createSet(newSet);
+		const into = sets.find((s) => s.id === target)?.slug;
+		if (memberOf.some((m) => m.set.id === target)) {
+			addError = `${lookup?.address} is already in ${into}.`; // a second identical item helps nobody (R4-009)
+			return;
+		}
 		const err = await confirmed(() =>
 			api.POST('/api/ip-sets/{id}/elements', {
 				params: { path: { id: target } },
@@ -124,8 +158,42 @@
 			return;
 		}
 		addOpen = false;
-		outcome = `Added to ${sets.find((s) => s.id === target)?.slug}.`;
+		outcome = `Added to ${into}.`;
 		await load(address);
+	}
+	async function createSet(f: { slug: string; description: string }) {
+		const slug = f.slug.trim().toLowerCase();
+		const err = await confirmed(() =>
+			api.POST('/api/ip-sets', {
+				body: {
+					slug,
+					name: slug,
+					description: f.description,
+					first_item: { item: { type: 'ip', address: lookup?.address ?? address }, note }
+				}
+			})
+		);
+		if (err) {
+			addError = err;
+			return;
+		}
+		addOpen = false;
+		outcome = `Added to the new set ${slug}.`;
+		await load(address);
+	}
+
+	// ---- counters ----
+	let editCounters = $state<string | null>(null);
+	async function resetCounters() {
+		const c = counter;
+		if (!c) return;
+		busy = true;
+		const err = await confirmed(() =>
+			api.POST('/api/security/counters/reset', { body: { addresses: [c.address] } })
+		);
+		busy = false;
+		outcome = err ?? 'Counters reset.';
+		if (!err) await load(target64()).catch(() => {});
 	}
 </script>
 
@@ -159,7 +227,7 @@
 {#if address && loadError}
 	<p
 		role="alert"
-		class="flex gap-2 rounded-2xl border border-bad/30 bg-bad/10 p-4 text-md text-bad-text"
+		class="flex gap-2 rounded-2xl border border-bad/30 bg-bad/10 p-4 text-md wrap-anywhere text-bad-text"
 	>
 		<CircleAlert class="mt-0.5 size-4 shrink-0" />{loadError}
 	</p>
@@ -167,8 +235,8 @@
 	<Skeleton class="h-60 rounded-2xl" />
 {:else if address && lookup}
 	<div class="mb-5 flex flex-wrap items-end gap-x-6 gap-y-3">
-		<div class="min-w-64 flex-1">
-			<h1 class="font-mono text-title leading-tight font-medium tracking-[-0.02em]">
+		<div class="min-w-0 grow basis-64">
+			<h1 class="font-mono text-title leading-tight font-medium tracking-[-0.02em] wrap-anywhere">
 				{lookup.address}
 			</h1>
 			<p
@@ -193,6 +261,7 @@
 			onclick={() => {
 				target = '';
 				note = '';
+				newSet = null;
 				addError = '';
 				addOpen = true;
 			}}>Add to an IP set</Button
@@ -302,13 +371,17 @@
 							>
 								Counted for the whole network <Mono>{counter.address}</Mono>.
 							</p>{/if}
-						<p class="mt-3 text-sm">
-							<a
-								href="/security?tab=counters"
-								class="text-muted-foreground hover:text-foreground hover:underline"
-								>Edit or reset counters on the Security page</a
+						<div class="mt-3 flex flex-wrap gap-2">
+							<Button variant="outline" size="sm" onclick={() => (editCounters = counter!.address)}
+								>Edit counters</Button
 							>
-						</p>
+							<Button
+								variant="ghost"
+								size="sm"
+								disabled={busy || (counter.ban_count === 0 && counter.challenge_count === 0)}
+								onclick={resetCounters}>Reset to zero</Button
+							>
+						</div>
 					</Panel>
 				{:else}{@render firewall()}{/if}
 			{/if}{/snippet}
@@ -341,25 +414,80 @@
 	</Panel>
 {/if}
 
+<CounterEditDialog
+	bind:address={editCounters}
+	ban={counter?.ban_count}
+	challenge={counter?.challenge_count}
+	onsaved={async () => {
+		outcome = 'Counters saved.';
+		await load(target64()).catch(() => {});
+	}}
+/>
+
 <Sheet.Root bind:open={addOpen}>
 	<Sheet.Content class="w-full sm:max-w-md">
 		<Sheet.Header>
-			<Sheet.Title>Add {lookup?.address} to a set</Sheet.Title>
+			<Sheet.Title class="pr-8 wrap-anywhere">Add {lookup?.address} to a set</Sheet.Title>
 			<Sheet.Description>Takes effect within seconds everywhere the set is used.</Sheet.Description>
 		</Sheet.Header>
-		<div class="space-y-4 px-4 pb-4">
-			<div class="space-y-1.5">
-				<Label for="ts">Set</Label>
-				<IpSetPicker id="ts" sets={sets.filter((s) => s.editable)} bind:value={target} />
+		<form
+			class="contents"
+			onsubmit={(e) => {
+				e.preventDefault();
+				if (newSet ? slugOk(newSet.slug) : target) addToSet();
+			}}
+		>
+			<div class="space-y-4 px-4 pb-4">
+				{#if newSet}
+					<div class="space-y-1.5">
+						<div class="flex items-baseline justify-between gap-2">
+							<Label for="ns">New set</Label><button
+								type="button"
+								class="text-sm text-muted-foreground hover:text-foreground hover:underline"
+								onclick={() => (newSet = null)}>Pick an existing set</button
+							>
+						</div>
+						<Input
+							id="ns"
+							class="font-mono"
+							bind:value={newSet.slug}
+							placeholder="family-devices"
+							{@attach (el) => el.focus()}
+						/>
+						{#if newSet.slug && !slugOk(newSet.slug)}<p class="text-sm text-bad-text">
+								{slugTaken(newSet.slug)
+									? 'Another set already uses this name.'
+									: 'Up to 63 lowercase letters, digits and dashes, starting and ending with a letter or digit.'}
+							</p>{/if}
+					</div>
+					<div class="space-y-1.5">
+						<Label for="nd">Description</Label><Input
+							id="nd"
+							bind:value={newSet.description}
+							placeholder="Optional"
+						/>
+					</div>
+				{:else}
+					<div class="space-y-1.5">
+						<Label for="ts">Set</Label>
+						<IpSetPicker
+							id="ts"
+							sets={sets.filter((s) => s.editable)}
+							bind:value={target}
+							oncreate={(slug) => (newSet = { slug, description: '' })}
+						/>
+					</div>
+				{/if}
+				<div class="space-y-1.5">
+					<Label for="tn">Note</Label><Input id="tn" bind:value={note} placeholder="Optional" />
+				</div>
+				{#if addError}<p role="alert" class="text-md text-bad-text">{addError}</p>{/if}
 			</div>
-			<div class="space-y-1.5">
-				<Label for="tn">Note</Label><Input id="tn" bind:value={note} placeholder="Optional" />
-			</div>
-			{#if addError}<p role="alert" class="text-md text-bad-text">{addError}</p>{/if}
-		</div>
-		<Sheet.Footer class="flex-row justify-end gap-2 border-t">
-			<Button variant="ghost" onclick={() => (addOpen = false)}>Cancel</Button>
-			<Button onclick={addToSet} disabled={!target}>Add</Button>
-		</Sheet.Footer>
+			<Sheet.Footer class="flex-row justify-end gap-2 border-t">
+				<Button type="button" variant="ghost" onclick={() => (addOpen = false)}>Cancel</Button>
+				{#if newSet}<Button type="submit" disabled={!slugOk(newSet.slug)}>Create and add</Button
+					>{:else}<Button type="submit" disabled={!target}>Add</Button>{/if}
+			</Sheet.Footer>
+		</form>
 	</Sheet.Content>
 </Sheet.Root>
