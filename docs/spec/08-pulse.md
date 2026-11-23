@@ -31,7 +31,8 @@ Pulse lets a host report its current addresses without holding any provider cred
   installed on the machine whose version is older downloads its binary, checks the release signature (the public key
   is built in; the signed text names version, architecture and SHA-256), checks that the file runs and reports that
   version, then renames it over its own file; the next beat runs it. Never a downgrade; a failed update is tried again
-  after a restart, not at every beat. Docker agents never update themselves: the Compose snippet uses `:latest`. Pulse stays heartbeat-only; firewall or other root-level host functions never go into it
+  an hour later (or after a restart), not at every beat: the release files may not be attached yet when Hashi
+  already names the version (bug 186). Docker agents never update themselves: the Compose snippet uses `:latest`. Pulse stays heartbeat-only; firewall or other root-level host functions never go into it
   (ADR 0002, "Host link vs host agent").
 
 ## 2. Server model (`pulse_agents`)
