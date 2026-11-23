@@ -220,24 +220,26 @@ func (s *Service) EnqueueTest(ctx context.Context, id string) error {
 // provider or the default one, and the severity threshold. An alert inside the cooldown is not dropped but waits for its
 // end, and goes only if the endpoint is still in alarm then: an outage is never left at "up again". A recovery cancels a
 // waiting alert and then says nothing, because no alarm was sent.
+//
+// A check that alerts FlapAlerts times within FlapWindow sends one "keeps going down and up" message instead and goes
+// quiet: no alert or recovery until it holds one state for SettleAfter, which settle reports once (bug 187).
 func (s *Service) StateChanged(ctx context.Context, q *db.Queries, e db.MonitorEndpoint, from, to, message string) error {
-	r, err := q.GetNotificationRoute(ctx)
-	if err != nil {
+	r, provider, err := route(ctx, q, e)
+	if err != nil || !provider.Valid {
 		return err
-	}
-	provider := r.ProviderID
-	if e.RouteProviderID.Valid {
-		provider = e.RouteProviderID
-	}
-	if !provider.Valid {
-		return nil
 	}
 	now := s.now().UnixMilli()
 	id := sql.NullString{String: e.ID, Valid: true}
-	alarm := func(st string) bool { return st == "down" || (st == "degraded" && r.MinSeverity == "degraded") }
+	alarm := func(st string) bool { return alarmState(st, r.MinSeverity) }
 	insert := func(kind, subject string, at int64, body string) error {
 		return q.InsertNotificationDelivery(ctx, db.InsertNotificationDeliveryParams{ID: ulid.Make().String(), ProviderID: provider.String,
 			EndpointID: id, Kind: kind, Subject: subject, Body: body, NextAttemptAt: at, CreatedAt: now})
+	}
+	if !alarm(to) && !alarm(from) {
+		return nil
+	}
+	if quiet, err := isQuiet(ctx, q, id); err != nil || quiet {
+		return err
 	}
 	switch {
 	case alarm(to):
@@ -247,6 +249,14 @@ func (s *Service) StateChanged(ctx context.Context, q *db.Queries, e db.MonitorE
 		}
 		if waiting > 0 {
 			return nil
+		}
+		recent, err := q.AlertsSince(ctx, db.AlertsSinceParams{EndpointID: id, CreatedAt: now - FlapWindow.Milliseconds()})
+		if err != nil {
+			return err
+		}
+		if recent >= FlapAlerts-1 {
+			return insert("flapping", e.Name+" keeps going down and up", now, fmt.Sprintf("It went %s %d times in the last hour. "+
+				"Hashi stays quiet about it until it holds one state for %s, then says so once.", to, recent+1, plainDuration(SettleAfter)))
 		}
 		last, err := q.LastAlertAt(ctx, id)
 		if err != nil {
@@ -284,9 +294,80 @@ func (s *Service) StateChanged(ctx context.Context, q *db.Queries, e db.MonitorE
 	return nil
 }
 
+// Flapping (07 §6, bug 187): FlapAlerts alerts for one check within FlapWindow make it quiet; it settles once it has
+// held one state for SettleAfter.
+const (
+	FlapAlerts  = 3
+	FlapWindow  = time.Hour
+	SettleAfter = 30 * time.Minute
+)
+
+func alarmState(st, minSeverity string) bool {
+	return st == "down" || (st == "degraded" && minSeverity == "degraded")
+}
+
+// route is the notification route and the provider an endpoint's messages go to (invalid: none).
+func route(ctx context.Context, q *db.Queries, e db.MonitorEndpoint) (db.NotificationRoute, sql.NullString, error) {
+	r, err := q.GetNotificationRoute(ctx)
+	if err != nil {
+		return r, sql.NullString{}, err
+	}
+	if e.RouteProviderID.Valid {
+		return r, e.RouteProviderID, nil
+	}
+	return r, r.ProviderID, nil
+}
+
+// isQuiet: the check's newest "keeps going down and up" message is newer than its newest settled one.
+func isQuiet(ctx context.Context, q *db.Queries, id sql.NullString) (bool, error) {
+	flap, err := q.LastDeliveryOfKind(ctx, db.LastDeliveryOfKindParams{EndpointID: id, Kind: "flapping"})
+	if err != nil {
+		return false, err
+	}
+	settled, err := q.LastDeliveryOfKind(ctx, db.LastDeliveryOfKindParams{EndpointID: id, Kind: "settled"})
+	return flap > settled, err
+}
+
+// settle ends the quiet of each flapping check that has held one state for SettleAfter, with one message: "stable
+// again", or the alert when it stayed down. From then on the usual rules apply, so a recovery follows that alert.
+func (s *Service) settle(ctx context.Context) error {
+	quiet, err := s.st.R.QuietEndpoints(ctx)
+	if err != nil {
+		return err
+	}
+	now := s.now()
+	for _, e := range quiet {
+		held := now.Sub(time.UnixMilli(e.StateSince))
+		if held < SettleAfter {
+			continue
+		}
+		r, provider, err := route(ctx, s.st.Q, e)
+		if err != nil {
+			return err
+		}
+		if !provider.Valid {
+			continue // nowhere to say it; without a route the quiet changes nothing
+		}
+		subject := e.Name + " is stable again"
+		if alarmState(e.State, r.MinSeverity) {
+			subject = e.Name + " is " + e.State
+		}
+		body := "It kept going down and up and has now been " + e.State + " for " + plainDuration(held) + "."
+		if err := s.st.Q.InsertNotificationDelivery(ctx, db.InsertNotificationDeliveryParams{ID: ulid.Make().String(), ProviderID: provider.String,
+			EndpointID: sql.NullString{String: e.ID, Valid: true}, Kind: "settled", Subject: subject, Body: body,
+			NextAttemptAt: now.UnixMilli(), CreatedAt: now.UnixMilli()}); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 // Deliver is the job: it sends what is due, retrying with backoff until MaxAttempts. Nothing is held in a transaction
 // while talking to a provider. A failure stores only the provider's error text.
 func (s *Service) Deliver(ctx context.Context) (string, error) {
+	if err := s.settle(ctx); err != nil {
+		return "", err
+	}
 	now := s.now()
 	due, err := s.st.R.DueNotificationDeliveries(ctx, now.UnixMilli())
 	if err != nil {

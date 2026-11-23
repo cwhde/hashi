@@ -168,3 +168,16 @@ UPDATE monitor_endpoints SET pending_dns = 1 WHERE source_type = ? AND source_id
 
 -- name: ClearMonitorPendingDNS :exec
 UPDATE monitor_endpoints SET pending_dns = 0 WHERE id = ? AND pending_dns = 1;
+
+-- Flapping (07 section 6, bug 187): alerts sent or waiting for a check since a time; a deleted (cancelled) one never went.
+-- name: AlertsSince :one
+SELECT COUNT(*) FROM notification_deliveries WHERE endpoint_id = ? AND kind = 'alert' AND created_at >= ?;
+
+-- A check is quiet while its newest 'flapping' message is newer than its newest 'settled' one.
+-- name: LastDeliveryOfKind :one
+SELECT CAST(COALESCE(MAX(created_at), 0) AS INTEGER) FROM notification_deliveries WHERE endpoint_id = ? AND kind = ?;
+
+-- name: QuietEndpoints :many
+SELECT e.* FROM monitor_endpoints e
+WHERE COALESCE((SELECT MAX(f.created_at) FROM notification_deliveries f WHERE f.endpoint_id = e.id AND f.kind = 'flapping'), 0) >
+  COALESCE((SELECT MAX(d.created_at) FROM notification_deliveries d WHERE d.endpoint_id = e.id AND d.kind = 'settled'), 0);

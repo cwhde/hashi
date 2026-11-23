@@ -91,7 +91,7 @@ func TestRoutingCooldownAndRecovery(t *testing.T) {
 	}
 	setState := func(st string) {
 		t.Helper()
-		if err := s.st.Q.SetMonitorEndpointResult(ctx, db.SetMonitorEndpointResultParams{State: st, ID: "e1"}); err != nil {
+		if err := s.st.Q.SetMonitorEndpointResult(ctx, db.SetMonitorEndpointResultParams{State: st, StateSince: now.UnixMilli(), ID: "e1"}); err != nil {
 			t.Fatal(err)
 		}
 	}
@@ -130,11 +130,13 @@ func TestRoutingCooldownAndRecovery(t *testing.T) {
 	change("up", "down")
 	setState("up")
 	change("down", "up")
+	// That blip was the third alert within an hour: one "keeps going down and up" instead, and its recovery stays
+	// quiet; an hour of up later, one "stable again" (bug 187).
 	*now = now.Add(time.Hour)
 	if _, err := s.Deliver(ctx); err != nil {
 		t.Fatal(err)
 	}
-	if len(f.sent) != 4 {
+	if len(f.sent) != 6 || f.sent[4].Subject != "Wiki keeps going down and up" || f.sent[5].Subject != "Wiki is stable again" {
 		t.Fatalf("a blip inside the cooldown sent %+v", f.sent)
 	}
 }
@@ -541,5 +543,87 @@ func TestMailCustomTheme(t *testing.T) {
 		if !strings.Contains(html, want) {
 			t.Errorf("mail lacks %s", want)
 		}
+	}
+}
+
+// Bug 187: a check that goes down and up again and again sends one "keeps going down and up" mail on its third alert in
+// an hour, then stays quiet until it holds one state for SettleAfter: up sends "stable again", down sends one alert and
+// the usual rules take over, so a real outage after the flapping still reaches the owner.
+func TestFlappingCheckGoesQuiet(t *testing.T) {
+	s, f, now := fixture(t)
+	ctx := t.Context()
+	p, err := s.CreateSMTP(ctx, "Mail", SMTPConfig{Host: "mail.example.com", Port: 587, TLS: SMTPStartTLS, From: "a@example.com", To: "b@example.com"}, secrets.New("pw"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := s.st.Q.PutNotificationRoute(ctx, db.PutNotificationRouteParams{ProviderID: nullStr(p.ID), MinSeverity: "down", CooldownSeconds: 600, Recovery: 1}); err != nil {
+		t.Fatal(err)
+	}
+	if err := s.st.Q.InsertMonitorEndpoint(ctx, db.InsertMonitorEndpointParams{ID: "e1", SourceType: "pulse", Name: "router", GroupName: "G", IntervalSeconds: 60, TimeoutSeconds: 5}); err != nil {
+		t.Fatal(err)
+	}
+	e := db.MonitorEndpoint{ID: "e1", Name: "router"}
+	step := func(d time.Duration, from, to string) {
+		t.Helper()
+		*now = now.Add(d)
+		if err := s.st.Q.SetMonitorEndpointResult(ctx, db.SetMonitorEndpointResultParams{State: to, StateSince: now.UnixMilli(), ID: "e1"}); err != nil {
+			t.Fatal(err)
+		}
+		e.StateSince = now.UnixMilli()
+		if err := s.StateChanged(ctx, s.st.Q, e, from, to, "why"); err != nil {
+			t.Fatal(err)
+		}
+		if _, err := s.Deliver(ctx); err != nil {
+			t.Fatal(err)
+		}
+	}
+	wait := func(d time.Duration) { // no change: time passes, the delivery job runs
+		t.Helper()
+		*now = now.Add(d)
+		if _, err := s.Deliver(ctx); err != nil {
+			t.Fatal(err)
+		}
+	}
+	subjects := func() string {
+		var out []string
+		for _, m := range f.sent {
+			out = append(out, m.Subject)
+		}
+		return strings.Join(out, " | ")
+	}
+	// The night of 2026-11-23: down and up every 10–20 minutes.
+	step(0, "up", "down")
+	step(5*time.Minute, "down", "up")
+	step(10*time.Minute, "up", "down")
+	step(5*time.Minute, "down", "up")
+	step(10*time.Minute, "up", "down") // the third alert in an hour
+	step(5*time.Minute, "down", "up")
+	step(10*time.Minute, "up", "down")
+	step(5*time.Minute, "down", "up")
+	want := "router is down | router is up again | router is down | router is up again | router keeps going down and up"
+	if got := subjects(); got != want {
+		t.Fatalf("flapping:\n got %s\nwant %s", got, want)
+	}
+	wait(29 * time.Minute) // up, but not for long enough yet
+	if got := subjects(); got != want {
+		t.Fatalf("settled too early: %s", got)
+	}
+	wait(2 * time.Minute)
+	want += " | router is stable again"
+	if got := subjects(); got != want {
+		t.Fatalf("stable:\n got %s\nwant %s", got, want)
+	}
+	// Flapping again later, then down for good: one alert after SettleAfter, then the usual recovery.
+	*now = now.Add(3 * time.Hour)
+	for range 3 {
+		step(10*time.Minute, "up", "down")
+		step(5*time.Minute, "down", "up")
+	}
+	step(10*time.Minute, "up", "down")
+	wait(31 * time.Minute)
+	step(20*time.Minute, "down", "up")
+	want += " | router is down | router is up again | router is down | router is up again | router keeps going down and up | router is down | router is up again"
+	if got := subjects(); got != want {
+		t.Fatalf("down for good:\n got %s\nwant %s", got, want)
 	}
 }

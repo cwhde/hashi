@@ -10,6 +10,23 @@ import (
 	"database/sql"
 )
 
+const alertsSince = `-- name: AlertsSince :one
+SELECT COUNT(*) FROM notification_deliveries WHERE endpoint_id = ? AND kind = 'alert' AND created_at >= ?
+`
+
+type AlertsSinceParams struct {
+	EndpointID sql.NullString
+	CreatedAt  int64
+}
+
+// Flapping (07 section 6, bug 187): alerts sent or waiting for a check since a time; a deleted (cancelled) one never went.
+func (q *Queries) AlertsSince(ctx context.Context, arg AlertsSinceParams) (int64, error) {
+	row := q.db.QueryRowContext(ctx, alertsSince, arg.EndpointID, arg.CreatedAt)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
 const checkSampleBatchEnd = `-- name: CheckSampleBatchEnd :one
 
 SELECT at FROM monitor_samples WHERE check_id != '' AND at < ? ORDER BY at LIMIT 1 OFFSET 4999
@@ -477,6 +494,23 @@ SELECT CAST(COALESCE(MAX(next_attempt_at), 0) AS INTEGER) FROM notification_deli
 
 func (q *Queries) LastAlertAt(ctx context.Context, endpointID sql.NullString) (int64, error) {
 	row := q.db.QueryRowContext(ctx, lastAlertAt, endpointID)
+	var column_1 int64
+	err := row.Scan(&column_1)
+	return column_1, err
+}
+
+const lastDeliveryOfKind = `-- name: LastDeliveryOfKind :one
+SELECT CAST(COALESCE(MAX(created_at), 0) AS INTEGER) FROM notification_deliveries WHERE endpoint_id = ? AND kind = ?
+`
+
+type LastDeliveryOfKindParams struct {
+	EndpointID sql.NullString
+	Kind       string
+}
+
+// A check is quiet while its newest 'flapping' message is newer than its newest 'settled' one.
+func (q *Queries) LastDeliveryOfKind(ctx context.Context, arg LastDeliveryOfKindParams) (int64, error) {
+	row := q.db.QueryRowContext(ctx, lastDeliveryOfKind, arg.EndpointID, arg.Kind)
 	var column_1 int64
 	err := row.Scan(&column_1)
 	return column_1, err
@@ -1004,6 +1038,56 @@ func (q *Queries) PutNotificationRoute(ctx context.Context, arg PutNotificationR
 		arg.UpdatedAt,
 	)
 	return err
+}
+
+const quietEndpoints = `-- name: QuietEndpoints :many
+SELECT e.id, e.source_type, e.source_id, e.name, e.group_name, e.paused, e.interval_seconds, e.timeout_seconds, e.degraded_ms, e.public, e.route_provider_id, e.state, e.state_since, e.good_rounds, e.bad_rounds, e.last_check_at, e.last_latency_ms, e.created_at, e.updated_at, e.pending_dns FROM monitor_endpoints e
+WHERE COALESCE((SELECT MAX(f.created_at) FROM notification_deliveries f WHERE f.endpoint_id = e.id AND f.kind = 'flapping'), 0) >
+  COALESCE((SELECT MAX(d.created_at) FROM notification_deliveries d WHERE d.endpoint_id = e.id AND d.kind = 'settled'), 0)
+`
+
+func (q *Queries) QuietEndpoints(ctx context.Context) ([]MonitorEndpoint, error) {
+	rows, err := q.db.QueryContext(ctx, quietEndpoints)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []MonitorEndpoint{}
+	for rows.Next() {
+		var i MonitorEndpoint
+		if err := rows.Scan(
+			&i.ID,
+			&i.SourceType,
+			&i.SourceID,
+			&i.Name,
+			&i.GroupName,
+			&i.Paused,
+			&i.IntervalSeconds,
+			&i.TimeoutSeconds,
+			&i.DegradedMs,
+			&i.Public,
+			&i.RouteProviderID,
+			&i.State,
+			&i.StateSince,
+			&i.GoodRounds,
+			&i.BadRounds,
+			&i.LastCheckAt,
+			&i.LastLatencyMs,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+			&i.PendingDns,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
 const renameMonitorEndpoint = `-- name: RenameMonitorEndpoint :exec

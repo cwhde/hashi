@@ -17,7 +17,6 @@ All open entries are planned into the 0.13 bug round (slices 13.1 onwards in `do
 
 | # | Kind | Status | Where | What | Reported |
 | --- | --- | --- | --- | --- | --- |
-| 187 | function | reported | Alerts | A check that goes down and up every 10–20 minutes mails each time: 30 mails in 5 hours for the router (2026-11-23), "spamming my email". The 10-minute cooldown doesn't help when each round is longer than it. Needs a flapping rule (owner's call how it reads). | 2026-11-23 |
 
 ## Details
 
