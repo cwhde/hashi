@@ -158,8 +158,7 @@
 			{#snippet footer()}
 				{#if fwPlan?.status === 'pending' || fwPlan?.status === 'approved'}
 					<p class="mr-auto text-sm text-muted-foreground">
-						Opens the public ports, and rolls back by itself if Hashi can't log in again within 3
-						minutes.
+						Rolls back by itself if Hashi can't log in again within 3 minutes.
 					</p>
 					<Button size="sm" disabled={!!busy} onclick={() => fwPlan && runFirewall(fwPlan.id)}
 						>{busy === 'firewall' ? 'Applying…' : 'Approve and run'}</Button

@@ -252,9 +252,6 @@
 		<div class="flex items-center gap-2 text-md font-medium">
 			<ShieldCheck class="size-4" />Confirm this host key
 		</div>
-		<p class="mt-1 text-md text-muted-foreground">
-			First contact: compare it with what the host shows
-		</p>
 		<Mono class="mt-3 block rounded-lg bg-surface-2 px-3 py-2"
 			>{scanned.type} {scanned.fingerprint}</Mono
 		>

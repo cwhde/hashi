@@ -149,7 +149,7 @@
 								/>
 							</div>
 							<div class="space-y-1.5">
-								<Label for="fp">Prefix-length column (0: none)</Label><Input
+								<Label for="fp">Prefix-length column (optional)</Label><Input
 									id="fp"
 									type="number"
 									bind:value={custom.prefix}

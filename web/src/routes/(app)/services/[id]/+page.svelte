@@ -596,7 +596,7 @@
 		<Tabs.Content value="config">
 			<Panel
 				title={isStream(svc.kind) ? '20-hashi-stream-services.yml' : '10-hashi-http-services.yml'}
-				description={svc.enabled ? 'On every Traefik host' : 'Off: not on any Traefik host'}
+				description={svc.enabled ? 'On every Traefik host' : undefined}
 				flush
 			>
 				{#if yaml}

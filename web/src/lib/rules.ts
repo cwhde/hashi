@@ -9,26 +9,11 @@ export type Provider = Schemas['SSOProvider'];
 export type Action = 'none' | 'deny' | 'pass_captcha' | 'pass_authentication';
 
 // What each action means, in the words the rule editor shows (06 §4.1).
-export const actionMeta: Record<
-	Action,
-	{ label: string; tone: 'ok' | 'bad' | 'warn' | 'info'; help: string }
-> = {
-	none: {
-		label: 'None',
-		tone: 'ok',
-		help: 'Let the request through; later sign-in rules are skipped'
-	},
-	deny: { label: 'Deny', tone: 'bad', help: 'Answer 403' },
-	pass_authentication: {
-		label: 'Pass sign-in',
-		tone: 'info',
-		help: 'Ask for a login; with allowed groups, only those get in'
-	},
-	pass_captcha: {
-		label: 'Pass CAPTCHA',
-		tone: 'warn',
-		help: 'Show the challenge page; a solved one lets the visitor through for a day'
-	}
+export const actionMeta: Record<Action, { label: string; tone: 'ok' | 'bad' | 'warn' | 'info' }> = {
+	none: { label: 'None', tone: 'ok' },
+	deny: { label: 'Deny', tone: 'bad' },
+	pass_authentication: { label: 'Pass sign-in', tone: 'info' },
+	pass_captcha: { label: 'Pass CAPTCHA', tone: 'warn' }
 };
 export const actions: Action[] = ['none', 'deny', 'pass_captcha', 'pass_authentication'];
 

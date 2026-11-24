@@ -85,11 +85,6 @@
 	<Sheet.Content class="w-full sm:max-w-lg">
 		<Sheet.Header>
 			<Sheet.Title>{conn ? `Edit ${conn.name}` : 'Add a Traefik host'}</Sheet.Title>
-			<Sheet.Description
-				>{conn
-					? 'Its services, files and certificates stay.'
-					: 'It gets every enabled service.'}</Sheet.Description
-			>
 		</Sheet.Header>
 		<div class="space-y-3 overflow-y-auto px-4 text-md">
 			<div class="space-y-1.5">
@@ -131,8 +126,7 @@
 					>Read its SSH key</Button
 				>
 				{#if key}<p>
-						The host says it is <Mono class="break-all">{key.fingerprint}</Mono>. Compare it with
-						the host before you trust it.
+						The host says it is <Mono class="break-all">{key.fingerprint}</Mono>.
 					</p>{/if}
 				{#if otherMachine}<p role="status" class="text-warn-text">
 						This is not the key Hashi knows, so it is another machine: Hashi checks it and takes it

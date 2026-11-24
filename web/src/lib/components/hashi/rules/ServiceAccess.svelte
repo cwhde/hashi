@@ -9,7 +9,7 @@
 	import { Input } from '#lib/components/ui/input/index.ts';
 	import * as Sheet from '#lib/components/ui/sheet/index.ts';
 	import * as Select from '#lib/components/ui/select/index.ts';
-	import { CircleAlert, Layers, Plus, TriangleAlert, Unplug } from '@lucide/svelte';
+	import { CircleAlert, Layers, Plus, TriangleAlert } from '@lucide/svelte';
 	import { api, problemText, type Schemas } from '#lib/api/client.ts';
 	import { pendingPlans } from '#lib/sync-pending.svelte.ts';
 	import { listSets, type IPSet } from '#lib/ipsets.ts';
@@ -126,7 +126,7 @@
 			flush
 			title="This service's rules"
 			description={access.editable
-				? 'Checked first. Then the global rules, then the fallback.'
+				? undefined
 				: 'The Hashi admin page has its own passkey login, so rules never apply to it.'}
 		>
 			{#snippet actions()}
@@ -180,12 +180,6 @@
 				decides={trace?.decided ?? -1}
 			/>
 		</Panel>
-
-		<p class="flex items-start gap-2 text-sm text-muted-foreground">
-			<Unplug class="mt-0.5 size-3.5 shrink-0" />
-			{#if access.fail_closed}If Hashi is unreachable this service refuses requests, because its
-				rules can deny or ask for sign-in.{:else}If Hashi is unreachable this service stays open.{/if}
-		</p>
 	</div>
 {:else if !error}<Skeleton class="h-40 rounded-2xl" />
 {/if}
@@ -194,7 +188,6 @@
 	<Sheet.Content class="w-full sm:max-w-xl">
 		<Sheet.Header>
 			<Sheet.Title>Rule</Sheet.Title>
-			<Sheet.Description>Takes effect within seconds.</Sheet.Description>
 		</Sheet.Header>
 		{#if editing}
 			<div class="overflow-y-auto px-4 pb-4">
@@ -212,7 +205,6 @@
 	<Sheet.Content class="w-full sm:max-w-md">
 		<Sheet.Header>
 			<Sheet.Title>Attach a rule set</Sheet.Title>
-			<Sheet.Description>It is checked completely at its position in the list.</Sheet.Description>
 		</Sheet.Header>
 		<div class="px-4 pb-4">
 			<Select.Root type="single" bind:value={attachId}>

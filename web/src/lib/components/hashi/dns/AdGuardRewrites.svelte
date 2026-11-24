@@ -96,8 +96,7 @@
 						<li class="flex justify-between gap-3">
 							<Mono class="min-w-0 truncate">{r.domain}</Mono>
 							<span class="flex items-center gap-2"
-								><Mono class="text-muted-foreground">{r.answer}</Mono>{#if !r.owned}<Tag
-										>manual · untouched</Tag
+								><Mono class="text-muted-foreground">{r.answer}</Mono>{#if !r.owned}<Tag>manual</Tag
 									>{/if}</span
 							>
 						</li>

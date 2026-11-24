@@ -64,9 +64,7 @@
 	<Sheet.Content class="w-full sm:max-w-xl">
 		<Sheet.Header>
 			<Sheet.Title>{shown ? `Install ${shown.agent.name}` : 'Add a Pulse agent'}</Sheet.Title>
-			<Sheet.Description
-				>The token is shown once. It can only send this agent's heartbeat.</Sheet.Description
-			>
+			<Sheet.Description>The token is shown once.</Sheet.Description>
 		</Sheet.Header>
 		<div class="space-y-4 overflow-y-auto px-4">
 			{#if !shown}

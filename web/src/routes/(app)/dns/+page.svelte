@@ -299,9 +299,7 @@
 	</Panel>
 {:else}
 	{#if zone.last_refresh_error}
-		{@render failure(
-			`The last read of ${zone.name} failed: ${zone.last_refresh_error} The records below are from the last successful read.`
-		)}
+		{@render failure(`The last read of ${zone.name} failed: ${zone.last_refresh_error}`)}
 	{/if}
 	{#if error}{@render failure(error)}{/if}
 	{#if outcome}

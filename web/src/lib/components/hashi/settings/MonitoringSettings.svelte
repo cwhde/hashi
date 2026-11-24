@@ -82,7 +82,7 @@
 					id="md"
 					type="number"
 					min="0"
-					placeholder="0 = never slow"
+					placeholder="off"
 					bind:value={m.degraded_ms}
 				/>
 			</div>

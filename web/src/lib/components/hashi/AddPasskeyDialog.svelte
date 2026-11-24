@@ -174,17 +174,6 @@
 					? 'Add a passkey that unlocks the vault'
 					: 'Add a passkey'}</Dialog.Title
 			>
-			<Dialog.Description>
-				{#if step === 'choose'}
-					Pick a passkey you already sign in with, or create a new one, for example on a USB
-					security key.
-				{:else if creating}
-					This takes {steps.length} browser prompts. They look alike, so each step says which device to
-					use.
-				{:else}
-					One browser prompt: touch the passkey you picked.
-				{/if}
-			</Dialog.Description>
 		</Dialog.Header>
 
 		{#if step === 'choose'}
@@ -200,7 +189,6 @@
 						<input type="radio" bind:group={choice} value={p.id} class="accent-primary" />
 						<KeyRound class="size-4 text-muted-foreground" />
 						<span class="flex-1">{p.name}</span>
-						<span class="text-xs text-muted-foreground">already signs you in</span>
 					</label>
 				{/each}
 				<label
@@ -212,12 +200,13 @@
 					<input type="radio" bind:group={choice} value="new" class="accent-primary" />
 					<Usb class="size-4 text-muted-foreground" />
 					<span class="flex-1">A new passkey</span>
-					<span class="text-xs text-muted-foreground">e.g. a USB security key</span>
 				</label>
 			</fieldset>
-			<p class="text-xs text-muted-foreground">
-				Passkeys kept in a password manager often can’t unlock; a USB security key usually can.
-			</p>
+			{#if purpose === 'vault'}
+				<p class="text-xs text-muted-foreground">
+					Passkeys kept in a password manager often can’t unlock the vault.
+				</p>
+			{/if}
 			<Dialog.Footer>
 				<Button variant="ghost" onclick={() => (open = false)}>Cancel</Button>
 				<Button disabled={!choice} onclick={begin}>Continue</Button>

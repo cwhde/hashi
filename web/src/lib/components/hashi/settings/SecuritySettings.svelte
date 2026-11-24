@@ -252,7 +252,6 @@
 					max="240"
 					bind:value={sec.admin_idle_timeout_minutes}
 				/>
-				<p class="text-xs text-muted-foreground">Sessions always end 8 hours after sign-in.</p>
 			</div>
 			<div class="space-y-1.5">
 				<Label for="bn">Recovery links work from</Label>

@@ -215,7 +215,7 @@
 		{
 			title: 'Pulse agents',
 			kind: 'pulse',
-			empty: 'No agent yet. Add one to a machine whose address can change.',
+			empty: 'No agent yet.',
 			rows: agents.map((a) => ({
 				key: a.id,
 				name: a.name,
@@ -279,7 +279,7 @@
 		{
 			title: 'AdGuard Home',
 			kind: 'adguard',
-			empty: 'No AdGuard instance yet. A new one starts read-only, so adding it changes nothing.',
+			empty: 'No AdGuard instance yet.',
 			rows: adguard.map((c) => ({
 				key: c.id,
 				name: c.name,

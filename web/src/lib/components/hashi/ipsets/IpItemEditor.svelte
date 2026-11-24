@@ -185,7 +185,6 @@
 				bind:value={form.value}
 				placeholder="vpn.example.org"
 			/>
-			<p class="text-sm text-muted-foreground">Looked up every 5 minutes</p>
 		</div>
 	{:else}
 		<div class="space-y-1.5">

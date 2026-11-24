@@ -119,9 +119,6 @@
 	<Panel
 		flush
 		title="{total} {isChallenge ? 'challenged' : 'banned'} {total === 1 ? 'address' : 'addresses'}"
-		description={isChallenge
-			? 'Each has to solve a CAPTCHA. Requests without solving count as failures; at the limit the address is banned.'
-			: 'Dropped in the kernel on every firewall host and refused by forward auth.'}
 	>
 		<ul class="divide-y text-md">
 			{#each rows as r (r.address)}

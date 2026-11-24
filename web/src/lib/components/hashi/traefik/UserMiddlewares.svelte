@@ -192,9 +192,7 @@
 						? 'No middlewares yet'
 						: `Found ${found.length} middleware${found.length === 1 ? '' : 's'}`}
 				</div>
-				{#if found.length === 0}
-					<p class="mt-2 text-sm text-muted-foreground">No middlewares in the file yet.</p>
-				{:else}
+				{#if found.length > 0}
 					<ul class="mt-2 space-y-3 text-md" aria-label="Middlewares in the file">
 						{#each found as m (m.name)}
 							<li class="space-y-1.5">

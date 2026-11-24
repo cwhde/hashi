@@ -108,8 +108,7 @@
 				>
 					{#snippet footer()}
 						<p class="mr-auto text-sm text-muted-foreground">
-							{#if p.status === 'pending'}Approving asks for your passkey.{:else if p.status === 'applying'}Applying
-								now…{:else}Approved; applies on the next sync.{/if}
+							{#if p.status === 'applying'}Applying…{:else if p.status === 'approved'}Approved{/if}
 						</p>
 						{#if p.status !== 'applying'}
 							<Button variant="ghost" size="sm" disabled={!!busy} onclick={() => act(p, 'discard')}

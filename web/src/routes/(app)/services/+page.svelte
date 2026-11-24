@@ -323,10 +323,6 @@
 	<Sheet.Content class="w-full sm:max-w-xl">
 		<Sheet.Header>
 			<Sheet.Title>Add service</Sheet.Title>
-			<Sheet.Description
-				>Saving publishes it on every Traefik host. Routes, rewrites and TLS options are on the
-				service page.</Sheet.Description
-			>
 		</Sheet.Header>
 		<form
 			id="add-service"

@@ -184,9 +184,7 @@
 					{/each}
 				</ul>
 			{:else}
-				<p data-state class="px-4 py-6 text-md text-muted-foreground">
-					Every rule checks this service.
-				</p>
+				<p data-state class="px-4 py-6 text-md text-muted-foreground">No exclusions</p>
 			{/if}
 		</Panel>
 	</div>

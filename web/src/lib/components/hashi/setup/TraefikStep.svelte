@@ -167,9 +167,6 @@
 {/snippet}
 
 <h1 class="mt-1 text-title font-semibold">Connect a Traefik host</h1>
-<p class="mt-1 max-w-[62ch] text-md text-muted-foreground">
-	Hashi installs its own Traefik over SSH; existing config is backed up first.
-</p>
 
 <section class="mt-6 rounded-3xl border bg-card p-6">
 	{#if conn && !editing}

@@ -247,7 +247,6 @@
 {#if provider?.account_registered}
 	<section class="mt-8">
 		<h2 class="text-lg font-semibold">First certificate</h2>
-		<p class="mt-1 mb-3 max-w-[70ch] text-md text-muted-foreground">Takes about a minute.</p>
 		{#if plan}
 			<PlanReview
 				title={plan.title}

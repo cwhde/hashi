@@ -38,9 +38,6 @@
 </script>
 
 <h1 class="mt-1 text-title font-semibold">Open Hashi over HTTPS</h1>
-<p class="mt-1 max-w-[62ch] text-md text-muted-foreground">
-	Passkeys only work on Hashi's own HTTPS address.
-</p>
 
 <section class="mt-6 rounded-3xl border bg-card p-6">
 	{#if step?.status === 'done' && here}
@@ -49,8 +46,7 @@
 		</p>
 	{:else if step?.status === 'done'}
 		<p class="flex items-center gap-2 text-md">
-			<Check class="size-4 text-ok-text" />Done. Continue on <Mono>https://{admin}</Mono>: passkeys
-			cannot be registered on this address.
+			<Check class="size-4 text-ok-text" />Done. Continue on <Mono>https://{admin}</Mono>.
 		</p>
 		<Button class="mt-4" onclick={open} disabled={busy}><ExternalLink />Open https://{admin}</Button
 		>

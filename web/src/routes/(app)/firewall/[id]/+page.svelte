@@ -275,9 +275,7 @@
 							>
 						</li>
 					{:else}
-						<li class="px-4 py-3 text-muted-foreground">
-							No public ports yet: they follow your services.
-						</li>
+						<li class="px-4 py-3 text-muted-foreground">No public ports yet.</li>
 					{/each}
 				</ul>
 			</Panel>

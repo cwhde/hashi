@@ -216,9 +216,6 @@
 							><Plus />Add</Button
 						>{/if}
 				</div>
-				{#if !draft.charts?.length}<p class="text-xs text-muted-foreground">
-						None: charts use the accent and the status colours.
-					</p>{/if}
 			</div>
 		</div>
 

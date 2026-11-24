@@ -408,16 +408,14 @@
 							<Label for="ssched">Schedule (cron, host time)</Label><Input
 								id="ssched"
 								bind:value={form.schedule}
-								placeholder="by hand only"
+								placeholder="30 3 * * 0"
 								class="font-mono"
 							/>
 							{#if previewError}<p class="text-xs text-bad-text">{previewError}</p>
 							{:else if preview}<p class="text-xs text-muted-foreground">
 									Next, host time: {preview.next.slice(0, 3).map(hostTime).join(', ')}
 								</p>
-							{:else if !form.schedule.trim()}<p class="text-xs text-muted-foreground">
-									e.g. <Mono>30 3 * * 0</Mono> is Sundays at 03:30
-								</p>{/if}
+							{/if}
 						</div>
 						<div class="space-y-1.5">
 							<Label for="stime">Timeout (minutes)</Label><Input
@@ -458,7 +456,7 @@
 								<Input
 									bind:value={e.value}
 									type={e.secret ? 'password' : 'text'}
-									placeholder={e.secret && e.stored ? 'stored, leave empty to keep' : 'value'}
+									placeholder={e.secret && e.stored ? 'Stored' : 'value'}
 									class="font-mono"
 									aria-label="Value of {e.name || 'the variable'}"
 								/>

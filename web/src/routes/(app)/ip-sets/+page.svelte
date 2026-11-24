@@ -168,7 +168,7 @@
 		</div>
 		{#if isAddress}
 			<div class="flex flex-wrap items-center gap-2 border-b bg-surface-2/40 px-4 py-2.5 text-md">
-				<span>Sets that contain <span class="font-mono">{q.trim()}</span> are listed below.</span>
+				<span class="font-mono">{q.trim()}</span>
 				<a class="font-medium underline" href={addressHref(q.trim())}>Open the address page</a>
 			</div>
 		{/if}

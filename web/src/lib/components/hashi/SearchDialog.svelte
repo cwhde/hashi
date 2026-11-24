@@ -129,7 +129,7 @@
 					</Command.Item>
 				{/each}
 				{#if sec.more > 0}<p class="px-2 py-1 text-xs text-muted-foreground">
-						{sec.more} more. Add a word to narrow the search.
+						{sec.more} more
 					</p>{/if}
 			</Command.Group>
 		{/each}

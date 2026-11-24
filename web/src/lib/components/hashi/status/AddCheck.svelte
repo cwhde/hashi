@@ -78,9 +78,6 @@
 	<Sheet.Content class="w-full sm:max-w-md">
 		<Sheet.Header>
 			<Sheet.Title>Add check</Sheet.Title>
-			<Sheet.Description
-				>Watch something Hashi does not manage. Checks run every minute.</Sheet.Description
-			>
 		</Sheet.Header>
 		<div class="space-y-4 overflow-y-auto px-4">
 			<div class="space-y-1.5">

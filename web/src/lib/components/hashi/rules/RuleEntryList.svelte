@@ -112,7 +112,7 @@
 			<Lock class="size-3.5 text-muted-foreground" aria-label="Locked" />
 			<span class="min-w-0"
 				><span class="font-medium">Fallback</span><span class="block text-xs text-muted-foreground"
-					>Everyone else, any path, after the global rules</span
+					>Everyone else</span
 				></span
 			>
 			<span class="hidden md:inline"></span>

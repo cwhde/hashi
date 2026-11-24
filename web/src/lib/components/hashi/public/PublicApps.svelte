@@ -86,9 +86,7 @@
 		</div>
 	</header>
 	{#if failed}
-		<p role="alert" class="mb-4 text-md text-warn-text">
-			Could not refresh. What you see may be out of date.
-		</p>
+		<p role="alert" class="mb-4 text-md text-warn-text">Could not refresh.</p>
 	{/if}
 	{#if !data && !failed}
 		<div class="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">

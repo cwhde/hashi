@@ -124,9 +124,7 @@
 				>
 			</div>
 			{#if vault.unlockers.length === 0}
-				<p class="px-3 py-3 text-muted-foreground">
-					None yet. Passkeys kept in a password manager often can’t unlock.
-				</p>
+				<p class="px-3 py-3 text-muted-foreground">None yet.</p>
 			{:else}
 				<ul class="divide-y">
 					{#each vault.unlockers as u (u.id)}

@@ -428,7 +428,6 @@
 	<Sheet.Content class="w-full sm:max-w-md">
 		<Sheet.Header>
 			<Sheet.Title class="pr-8 wrap-anywhere">Add {lookup?.address} to a set</Sheet.Title>
-			<Sheet.Description>Takes effect within seconds everywhere the set is used.</Sheet.Description>
 		</Sheet.Header>
 		<form
 			class="contents"

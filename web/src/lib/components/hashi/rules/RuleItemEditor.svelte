@@ -60,9 +60,7 @@
 				>
 					<RadioGroup.Item value={a} class="mt-0.5" />
 					<span class="min-w-0"
-						><span class="block text-md font-medium">{actionMeta[a].label}</span><span
-							class="block text-sm text-muted-foreground">{actionMeta[a].help}</span
-						></span
+						><span class="block text-md font-medium">{actionMeta[a].label}</span></span
 					>
 				</label>
 			{/each}

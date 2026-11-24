@@ -275,11 +275,7 @@
 		</div>
 	</Tabs.Content>
 	<Tabs.Content value="log">
-		<Panel
-			title="Live log"
-			description={paused ? 'Paused' : 'Updating every 2 seconds · newest first'}
-			flush
-		>
+		<Panel title="Live log" description={paused ? 'Paused' : undefined} flush>
 			{#snippet actions()}<Button variant="ghost" size="sm" onclick={() => (paused = !paused)}
 					>{#if paused}<Play />Resume{:else}<Pause />Pause{/if}</Button
 				>{/snippet}

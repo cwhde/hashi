@@ -42,14 +42,14 @@
 	} = $props();
 
 	const types = ['A', 'AAAA', 'CNAME', 'MX', 'TXT', 'SRV', 'CAA'] as const;
-	const hints: Record<EntryForm['type'], string> = {
-		A: 'One IPv4 address per line',
-		AAAA: 'One IPv6 address per line',
-		CNAME: 'One target host, e.g. app.example.net',
-		MX: 'priority target, e.g. 10 mail.example.net',
-		TXT: 'Plain text, one value per line; Hashi adds the quotes',
-		SRV: 'priority weight port target, e.g. 10 5 443 host.example.net (name starts with _service._tcp)',
-		CAA: 'flags tag "value", e.g. 0 issue "letsencrypt.org"'
+	const examples: Record<EntryForm['type'], string> = {
+		A: '192.0.2.10',
+		AAAA: '2001:db8::10',
+		CNAME: 'app.example.net',
+		MX: '10 mail.example.net',
+		TXT: 'v=spf1 -all',
+		SRV: '10 5 443 host.example.net',
+		CAA: '0 issue "letsencrypt.org"'
 	};
 
 	// The form starts from the entry once; later changes to the prop do not reset what the admin typed.
@@ -150,10 +150,10 @@
 			bind:value={f.values}
 			rows={Math.max(2, f.values.split('\n').length)}
 			class="font-mono"
+			placeholder={examples[f.type]}
 			required={!followsSet}
 			disabled={followsSet}
 		/>
-		<p class="text-xs text-muted-foreground">{hints[f.type]}</p>
 	</div>
 	{#if f.type === 'A' || f.type === 'AAAA'}
 		<div class="mt-3 max-w-sm space-y-1">

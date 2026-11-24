@@ -405,7 +405,7 @@
 						{/if}
 					{:else}
 						<div class="px-4 py-10 text-center text-md text-muted-foreground">
-							{#if q}Nothing in this set matches “{q}”.{:else}Empty: matches nobody
+							{#if q}Nothing in this set matches “{q}”.{:else}Empty
 								{#if s.editable}<Button
 										size="sm"
 										variant="outline"
@@ -440,9 +440,7 @@
 						</div>
 					{/if}
 				{:else}
-					<p class="px-4 py-6 text-md text-warn-text">
-						Resolves to nothing right now, so it matches nobody.
-					</p>
+					<p class="px-4 py-6 text-md text-warn-text">Resolves to nothing right now.</p>
 				{/if}
 			</Panel>
 			{#if resolved?.address_set && resolved.addresses.length}
@@ -519,8 +517,6 @@
 	<Sheet.Content class="w-full sm:max-w-xl">
 		<Sheet.Header>
 			<Sheet.Title>{editing ? 'Edit item in' : 'Add item to'} {s?.slug}</Sheet.Title>
-			<Sheet.Description>Takes effect within seconds everywhere this set is used.</Sheet.Description
-			>
 		</Sheet.Header>
 		<div class="space-y-3 overflow-y-auto px-4 pb-4">
 			<IpItemEditor bind:form={item} {sets} self={id} {usedAsTarget} />
@@ -537,7 +533,6 @@
 	<Sheet.Content class="w-full sm:max-w-md">
 		<Sheet.Header>
 			<Sheet.Title>Rename {s?.slug}</Sheet.Title>
-			<Sheet.Description>Places that use the set follow the new name.</Sheet.Description>
 		</Sheet.Header>
 		<div class="space-y-4 px-4 pb-4">
 			<div class="space-y-1.5">

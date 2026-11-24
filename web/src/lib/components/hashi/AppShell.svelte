@@ -346,8 +346,7 @@
 				>
 					<Lock class="size-4 text-warn-text" />
 					<span class="min-w-0 flex-1"
-						><span class="font-medium">Vault locked.</span> Syncs, scripts and notifications are paused;
-						monitoring and public pages keep running.</span
+						><span class="font-medium">Vault locked.</span> Syncs, scripts and notifications are paused.</span
 					>
 					<Button size="sm" onclick={() => (unlockOpen = true)}><Fingerprint />Unlock</Button>
 				</div>

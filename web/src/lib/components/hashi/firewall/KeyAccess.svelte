@@ -39,10 +39,7 @@
 	<legend class="px-1 text-md font-medium">Hashi's key on this host</legend>
 	<label class="flex items-start gap-2.5 text-md">
 		<input type="radio" bind:group={access.mode} value="install" class="mt-0.5 accent-primary" />
-		<span
-			>Let Hashi install its key. Hashi logs in once as {user || 'this user'} with what you enter here,
-			adds one line to <Mono>authorized_keys</Mono>, and forgets what you entered.</span
-		>
+		<span>Let Hashi install its key</span>
 	</label>
 	<label class="flex items-start gap-2.5 text-md">
 		<input type="radio" bind:group={access.mode} value="manual" class="mt-0.5 accent-primary" />

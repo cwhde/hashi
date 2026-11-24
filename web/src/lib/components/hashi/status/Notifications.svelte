@@ -259,9 +259,7 @@
 		{#snippet actions()}<Button size="sm" onclick={openAdd}><Plus />Add provider</Button>{/snippet}
 		{#if !loaded}<div class="px-4 py-3"><Skeleton class="h-16 w-full" /></div>
 		{:else if providers.length === 0}
-			<p class="px-4 py-3 text-md text-muted-foreground">
-				Add Telegram or email to receive alerts.
-			</p>
+			<p class="px-4 py-3 text-md text-muted-foreground">No providers yet.</p>
 		{/if}
 		<ul class="divide-y">
 			{#each providers as p (p.id)}
@@ -298,9 +296,6 @@
 	<Sheet.Content class="w-full sm:max-w-md">
 		<Sheet.Header>
 			<Sheet.Title>{editing ? 'Edit provider' : 'Add provider'}</Sheet.Title>
-			{#if editing}<Sheet.Description
-					>Leave the secret empty to keep the stored one.</Sheet.Description
-				>{/if}
 		</Sheet.Header>
 		<div class="space-y-4 overflow-y-auto px-4">
 			<div class="space-y-1.5">
@@ -324,6 +319,7 @@
 						id="np-token"
 						type="password"
 						autocomplete="off"
+						placeholder={editing ? 'Stored' : ''}
 						bind:value={f.bot_token}
 					/>
 				</div>
@@ -335,10 +331,9 @@
 							>Find chat</Button
 						>
 					</div>
-					<p class="text-xs text-muted-foreground">
-						{#if chats.length}Found: {chats.map((c) => c.title).join(', ')}.{:else}Send the bot a
-							message in Telegram, then find it here.{/if}
-					</p>
+					{#if chats.length}<p class="text-xs text-muted-foreground">
+							Found: {chats.map((c) => c.title).join(', ')}.
+						</p>{/if}
 				</div>
 			{:else}
 				<div class="grid grid-cols-[1fr_6rem] gap-3">
@@ -377,6 +372,7 @@
 						id="np-pass"
 						type="password"
 						autocomplete="off"
+						placeholder={editing ? 'Stored' : ''}
 						bind:value={f.password}
 					/>
 				</div>

@@ -148,8 +148,7 @@
 								</li>
 							{:else}
 								<li class="text-muted-foreground">
-									Not published yet. <a href="/services" class="underline">Add a service</a> that points
-									at it.
+									Not published yet. <a href="/services" class="underline">Add a service</a>
 								</li>
 							{/each}
 						</ul>

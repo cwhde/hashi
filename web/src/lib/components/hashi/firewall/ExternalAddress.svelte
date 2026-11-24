@@ -56,7 +56,7 @@
 		</div>
 	{/if}
 	<p>
-		Hashi does not touch this host's firewall. Forward the public ports on your router to <Mono
+		Forward the public ports on your router to <Mono
 			>{host.internal_traefik_ip || 'its Traefik'}</Mono
 		>.
 	</p>

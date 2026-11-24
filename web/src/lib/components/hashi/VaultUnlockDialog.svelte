@@ -62,10 +62,6 @@
 	<Dialog.Content class="sm:max-w-md">
 		<Dialog.Header>
 			<Dialog.Title>Unlock the vault</Dialog.Title>
-			<Dialog.Description>
-				Hashi restarted in strict mode, so its secrets stay locked until you unlock them. Syncs,
-				scripts and notifications wait until then.
-			</Dialog.Description>
 		</Dialog.Header>
 		{#if unlockers.length}
 			<Button onclick={withPasskey} disabled={!!busy} class="w-full">

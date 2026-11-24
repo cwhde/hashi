@@ -119,9 +119,7 @@
 				{#if conns.length}
 					<HostForm {conns} {hosts} {busy} scan={scanFor} save={create} {publicKey} {install} />
 				{:else}
-					<p class="text-muted-foreground">
-						Add a Traefik host first: public traffic is forwarded to it.
-					</p>
+					<p class="text-muted-foreground">Add a Traefik host first.</p>
 				{/if}
 			{:else}
 				<div class="space-y-1.5">

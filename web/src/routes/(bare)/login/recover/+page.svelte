@@ -71,7 +71,6 @@
 		{#if phase === 'opening'}
 			<p class="mt-2 text-md text-muted-foreground">Checking the recovery link…</p>
 		{:else if phase === 'ready'}
-			<p class="mt-2 text-md text-muted-foreground">This one-time session can add one passkey.</p>
 			<div class="mt-5 space-y-1.5">
 				<Label for="pk-name">Passkey name</Label>
 				<Input id="pk-name" bind:value={name} placeholder="Laptop" maxlength={64} />
@@ -80,7 +79,7 @@
 				><Fingerprint />{busy ? 'Waiting for your passkey…' : 'Create passkey'}</Button
 			>
 		{:else if phase === 'done'}
-			<p class="mt-2 text-md">The new passkey is saved. Sign in with it now.</p>
+			<p class="mt-2 text-md">The new passkey is saved.</p>
 			<Button class="mt-5 h-10 w-full" onclick={() => goto('/login', { replace: true })}
 				>Go to sign-in</Button
 			>

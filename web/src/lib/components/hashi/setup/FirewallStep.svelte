@@ -143,7 +143,6 @@
 						placeholder="203.0.113.7, 10.0.0.0/8"
 						class="h-10 w-full rounded-[10px] border bg-transparent px-3 font-mono text-sm"
 					/>
-					<p class="text-xs text-muted-foreground">Its own networks and NetBird always can.</p>
 					<Button size="sm" variant="outline" onclick={saveAccess} disabled={!!busy}
 						>{accessSaved ? 'Saved' : 'Save addresses'}</Button
 					>
@@ -156,9 +155,7 @@
 			{/if}
 		{:else}
 			<p class="max-w-[62ch] text-md">
-				Hashi does not touch this host's firewall. Forward the public ports on your router to <Mono
-					>{host.internal_traefik_ip}</Mono
-				>.
+				Forward the public ports on your router to <Mono>{host.internal_traefik_ip}</Mono>.
 			</p>
 		{/if}
 	</section>
@@ -183,7 +180,7 @@
 		<section class="mt-8">
 			<h2 class="text-lg font-semibold">First apply</h2>
 			<p class="mt-1 mb-3 max-w-[70ch] text-md text-muted-foreground">
-				Optional here, and rolls back by itself if Hashi can't log in again within 3 minutes.
+				Rolls back by itself if Hashi can't log in again within 3 minutes.
 			</p>
 			{#if plan}
 				<PlanReview

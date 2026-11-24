@@ -628,8 +628,7 @@
 			{:else if step.n === 9}
 				<h1 class="mt-1 text-title font-semibold">Passkey and recovery key</h1>
 				<p class="mt-1 max-w-[62ch] text-md text-muted-foreground">
-					The recovery key restores the vault if the master key is lost; keep it in your password
-					manager.
+					Keep the recovery key in your password manager.
 				</p>
 				<section class="mt-6 rounded-3xl border bg-card p-6">
 					<h2 class="text-base font-semibold">1. Passkey</h2>
@@ -726,8 +725,7 @@
 			{:else if step.n === 11}
 				<h1 class="mt-1 text-title font-semibold">Finish setup</h1>
 				<p class="mt-1 max-w-[62ch] text-md text-muted-foreground">
-					Finishing deletes the bootstrap login and signs you out; then you sign in with your
-					passkey.
+					Finishing deletes the bootstrap login and signs you out.
 				</p>
 				<section class="mt-6 rounded-3xl border bg-card p-6">
 					<ul class="space-y-1.5 text-md">

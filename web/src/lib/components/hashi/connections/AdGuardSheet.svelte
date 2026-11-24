@@ -113,9 +113,6 @@
 	<Sheet.Content class="w-full sm:max-w-md">
 		<Sheet.Header>
 			<Sheet.Title>{editing ? 'Edit AdGuard' : 'Add AdGuard'}</Sheet.Title>
-			{#if editing}<Sheet.Description
-					>Leave the password empty to keep the stored one.</Sheet.Description
-				>{/if}
 		</Sheet.Header>
 		<div class="space-y-4 overflow-y-auto px-4">
 			<div class="space-y-1.5">
@@ -210,6 +207,7 @@
 					id="ag-pass"
 					type="password"
 					autocomplete="off"
+					placeholder={editing ? 'Stored' : ''}
 					bind:value={f.password}
 				/>
 			</div>

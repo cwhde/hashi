@@ -354,7 +354,7 @@
 			<Dialog.Title>Reset counters of {selected.length || total} addresses?</Dialog.Title>
 			<Dialog.Description
 				>Both counters go to 0. Running bans and challenges stay as they are; the next ban starts
-				again at the shortest length. Recorded in the audit log.</Dialog.Description
+				again at the shortest length.</Dialog.Description
 			>
 		</Dialog.Header>
 		<Dialog.Footer>

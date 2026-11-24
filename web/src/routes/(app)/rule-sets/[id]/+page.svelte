@@ -178,9 +178,6 @@
 	<Sheet.Content class="w-full sm:max-w-xl">
 		<Sheet.Header>
 			<Sheet.Title>Rule in {rs?.slug}</Sheet.Title>
-			<Sheet.Description
-				>Takes effect within seconds on every service that uses this rule set.</Sheet.Description
-			>
 		</Sheet.Header>
 		{#if editing}
 			<div class="overflow-y-auto px-4 pb-4">
