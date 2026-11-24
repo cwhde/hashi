@@ -213,19 +213,21 @@ func TestVerdict(t *testing.T) {
 		lat    int64
 		want   string
 	}{
-		{"all pass", []RoundCheck{{Result: ok}, {Result: ok}}, 0, 5, StateUp},
-		{"one of two paths", []RoundCheck{{Result: ok}, {Result: bad}}, 0, 5, StateDegraded},
-		{"both paths", []RoundCheck{{Result: bad}, {Result: bad}}, 0, 5, StateDown},
-		{"required fails", []RoundCheck{{Required: true, Result: bad}, {Result: ok}}, 0, 5, StateDown},
-		{"optional fails beside required", []RoundCheck{{Required: true, Result: ok}, {Result: bad}}, 0, 5, StateDegraded},
-		{"warning", []RoundCheck{{Result: ok}, {Result: warn}}, 0, 5, StateDegraded},
-		{"slow", []RoundCheck{{Result: ok}}, 100, 101, StateDegraded},
-		{"not slow without threshold", []RoundCheck{{Result: ok}}, 0, 9999, StateUp},
+		{"all pass", []RoundCheck{{Required: true, Result: ok}, {Required: true, Result: ok}}, 0, 5, StateUp},
+		// 07 §3 (2026-11-24): no optional checks; one failing path is down, not degraded.
+		{"one of two paths", []RoundCheck{{Required: true, Result: ok}, {Required: true, Result: bad}}, 0, 5, StateDown},
+		{"both paths", []RoundCheck{{Required: true, Result: bad}, {Required: true, Result: bad}}, 0, 5, StateDown},
+		{"dead paths beside a good certificate", []RoundCheck{{Required: true, Result: bad}, {Required: true, Result: bad}, {Required: true, Result: ok}}, 0, 5, StateDown},
+		{"certificate fails beside good paths", []RoundCheck{{Required: true, Result: ok}, {Required: true, Result: bad}}, 0, 5, StateDown},
+		{"certificate about to expire", []RoundCheck{{Required: true, Result: ok}, {Required: true, Result: Result{Critical: true}}}, 0, 5, StateDown},
+		{"warning", []RoundCheck{{Required: true, Result: ok}, {Required: true, Result: warn}}, 0, 5, StateDegraded},
+		{"slow", []RoundCheck{{Required: true, Result: ok}}, 100, 101, StateDegraded},
+		{"not slow without threshold", []RoundCheck{{Required: true, Result: ok}}, 0, 9999, StateUp},
 		{"no checks", nil, 0, 0, StateDown},
-		// Review of S7: a dead upstream behind a healthy edge: both paths fail while the certificate still passes.
-		{"dead paths beside a good certificate", []RoundCheck{{Result: bad}, {Result: bad}, {Advisory: true, Result: ok}}, 0, 5, StateDown},
-		{"edge down: one path and the certificate", []RoundCheck{{Result: ok}, {Result: bad}, {Advisory: true, Result: bad}}, 0, 5, StateDegraded},
-		{"certificate about to expire", []RoundCheck{{Result: ok}, {Advisory: true, Result: Result{Critical: true}}}, 0, 5, StateDown},
+		// An address set (07 §2): one address answering is enough, and a dead one beside it changes nothing.
+		{"set: one of two addresses", []RoundCheck{{Result: ok}, {Result: bad}}, 0, 5, StateUp},
+		{"set: no address answers", []RoundCheck{{Result: bad}, {Result: bad}}, 0, 5, StateDown},
+		{"set with a required check failing", []RoundCheck{{Required: true, Result: bad}, {Result: ok}}, 0, 5, StateDown},
 	} {
 		if got := Verdict(c.checks, c.slow, c.lat); got != c.want {
 			t.Errorf("%s: %s, want %s", c.name, got, c.want)
@@ -283,7 +285,8 @@ func TestRollupsClosedBucketsOnly(t *testing.T) {
 
 func TestServiceChecksByProtocol(t *testing.T) {
 	http := services.Service{Kind: services.KindHTTP, HostName: "a.example.com", Target: services.Target{Address: "10.0.0.1", Port: 80}}
-	if got := ServiceChecks(http); len(got) != 3 || got[0].Role != "internal" || got[1].Role != "public" || got[2].Type != TypeTLS || got[0].Required {
+	if got := ServiceChecks(http); len(got) != 3 || got[0].Role != "internal" || got[1].Role != "public" || got[2].Type != TypeTLS ||
+		!got[0].Required || !got[1].Required || !got[2].Required { // 07 §3: no optional checks
 		t.Fatalf("http %+v", got)
 	}
 	tcp := services.Service{Kind: services.KindTCP, Target: services.Target{Address: "10.0.0.1", Port: 22}}

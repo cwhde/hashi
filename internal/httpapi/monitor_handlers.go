@@ -72,7 +72,16 @@ func endpointBody(r monitor.Row, lastErr map[string]string) gen.MonitorEndpoint 
 	return gen.MonitorEndpoint{Version: e.UpdatedAt, PendingDns: boolIf(e.PendingDns == 1), Id: e.ID, Name: e.Name, Group: e.GroupName, SourceType: e.SourceType, SourceId: emptyNil(e.SourceID), State: gen.MonitorState(r.State), StateSince: &since,
 		Paused: e.Paused == 1, Public: e.Public == 1, IntervalSeconds: e.IntervalSeconds, TimeoutSeconds: e.TimeoutSeconds, DegradedMs: e.DegradedMs,
 		RouteProviderId: emptyNil(e.RouteProviderID.String), LastCheckAt: millis(e.LastCheckAt), LastLatencyMs: nullInt(e.LastLatencyMs), Uptime24h: r.Uptime24,
-		Checks: checks, Strip: stripBody(r.Strip)}
+		Checks: checks, Check: checkSettingsBody(monitor.StoredSettings(e)), Strip: stripBody(r.Strip)}
+}
+
+func checkSettingsBody(v monitor.CheckSettings) gen.MonitorCheckSettings {
+	return gen.MonitorCheckSettings{Method: gen.MonitorCheckSettingsMethod(v.Method), Path: v.Path, Codes: v.Codes, Contains: v.Contains,
+		Family: v.Family, SkipVerify: v.SkipVerify}
+}
+
+func checkSettings(b gen.MonitorCheckSettings) monitor.CheckSettings {
+	return monitor.CheckSettings{Method: string(b.Method), Path: b.Path, Codes: b.Codes, Contains: b.Contains, Family: b.Family, SkipVerify: b.SkipVerify}
 }
 
 func (s *Server) ListMonitorEndpoints(ctx context.Context, _ gen.ListMonitorEndpointsRequestObject) (gen.ListMonitorEndpointsResponseObject, error) {
@@ -146,6 +155,10 @@ func (s *Server) PutMonitorEndpoint(ctx context.Context, req gen.PutMonitorEndpo
 	if b.Version != nil {
 		v.Version = *b.Version
 	}
+	if b.Check != nil {
+		c := checkSettings(*b.Check)
+		v.Check = &c
+	}
 	if err := s.Monitor.Update(ctx, req.Id, v); err != nil {
 		return nil, monitorError(err)
 	}
@@ -153,6 +166,29 @@ func (s *Server) PutMonitorEndpoint(ctx context.Context, req gen.PutMonitorEndpo
 		return nil, err
 	}
 	return gen.PutMonitorEndpoint204Response{}, nil
+}
+
+// TestMonitorEndpoint is Test now (07 §2): the endpoint's checks once with the form's settings, nothing stored.
+func (s *Server) TestMonitorEndpoint(ctx context.Context, req gen.TestMonitorEndpointRequestObject) (gen.TestMonitorEndpointResponseObject, error) {
+	rs, err := s.Monitor.Test(ctx, req.Id, checkSettings(*req.Body))
+	if err != nil {
+		return nil, monitorError(err)
+	}
+	out := gen.TestMonitorEndpoint200JSONResponse{Checks: make([]struct {
+		Degraded  bool   `json:"degraded"`
+		Detail    string `json:"detail"`
+		LatencyMs int64  `json:"latency_ms"`
+		Ok        bool   `json:"ok"`
+		Role      string `json:"role"`
+		Target    string `json:"target"`
+		Type      string `json:"type"`
+	}, len(rs))}
+	for i, r := range rs {
+		c := &out.Checks[i]
+		c.Type, c.Role, c.Target = r.Check.Type, r.Check.Role, r.Check.Target
+		c.Ok, c.Degraded, c.Detail, c.LatencyMs = r.Result.OK, r.Result.Degraded, r.Result.Detail, r.Result.Latency.Milliseconds()
+	}
+	return out, nil
 }
 
 func (s *Server) DeleteMonitorEndpoint(ctx context.Context, req gen.DeleteMonitorEndpointRequestObject) (gen.DeleteMonitorEndpointResponseObject, error) {

@@ -442,6 +442,7 @@ func Run(ctx context.Context, cfg Config, log *slog.Logger, ready func(adminAddr
 		}
 	})
 	sso := edge.NewSSO(st, v, &http.Client{Timeout: 10 * time.Second}, time.Now)
+	monitorSvc.UseSession(sso.MonitorCookie) // the public checks pass sign-in rules as a visitor would (06 §7)
 	for _, j := range []jobs.Job{
 		{Kind: edge.JobKind, Interval: edge.JobInterval, RunsLocked: true, Run: func(ctx context.Context) (string, error) {
 			if err := sso.Cleanup(ctx); err != nil {

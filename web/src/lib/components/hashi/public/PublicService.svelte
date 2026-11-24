@@ -104,14 +104,10 @@
 	>
 	<PublicHeader {title} assets={data?.assets} heading={false} />
 	{#if missing}
-		<p class="text-md text-muted-foreground">
-			This service is not on the status page. It may have been renamed or taken off.
-		</p>
+		<p class="text-md text-muted-foreground">This service is not on the status page.</p>
 	{:else if !data}
 		{#if failed}
-			<p role="alert" class="text-md text-warn-text">
-				Could not load this service. Try again soon.
-			</p>
+			<p role="alert" class="text-md text-warn-text">Could not load this service.</p>
 		{:else}
 			<Skeleton class="h-12 rounded-2xl" />
 			<Skeleton class="h-16 rounded-2xl" />
@@ -119,15 +115,14 @@
 		{/if}
 	{:else if e}
 		{#if failed}
-			<p role="alert" class="text-md text-warn-text">
-				Could not refresh. What you see may be out of date.
-			</p>
+			<p role="alert" class="text-md text-warn-text">Could not refresh.</p>
 		{/if}
 		<header class="flex flex-wrap items-center gap-3">
 			<AppIcon
 				name={e.name}
-				icon={e.icon}
+				icon={e.mark ? data.assets?.icon : e.icon}
 				light={e.icon_light}
+				mark={e.mark}
 				class="size-11 rounded-xl text-lg"
 			/>
 			<div class="min-w-0 flex-1">

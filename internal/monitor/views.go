@@ -223,6 +223,8 @@ type Settings struct {
 	Public          bool
 	RouteProviderID string
 	Version         int64 // the updated_at the form loaded; 0 skips the check (bug 82)
+	// Check is the endpoint's check settings (07 §2); nil keeps the stored ones.
+	Check *CheckSettings
 }
 
 // Update stores an endpoint's settings. Resuming starts the state over: the pause says nothing about what happened.
@@ -241,6 +243,11 @@ func (s *Service) Update(ctx context.Context, id string, v Settings) error {
 	if v.DegradedMs < 0 {
 		return errInvalid("the latency threshold cannot be negative")
 	}
+	if v.Check != nil {
+		if err := v.Check.Validate(); err != nil {
+			return err
+		}
+	}
 	now := s.now().UnixMilli()
 	return s.st.Tx(ctx, func(q *db.Queries) error {
 		e, err := q.GetMonitorEndpoint(ctx, id)
@@ -252,6 +259,10 @@ func (s *Service) Update(ctx context.Context, id string, v Settings) error {
 		}
 		if v.Version != 0 && v.Version != e.UpdatedAt {
 			return ErrStale
+		}
+		c := StoredSettings(e)
+		if v.Check != nil {
+			c = *v.Check
 		}
 		if e.Paused == 0 && v.Paused { // "Paused for" counts from now (bug 169); the stored result stays
 			if err := q.SetMonitorEndpointStateSince(ctx, db.SetMonitorEndpointStateSinceParams{StateSince: now, ID: id}); err != nil {
@@ -265,7 +276,9 @@ func (s *Service) Update(ctx context.Context, id string, v Settings) error {
 		}
 		if err := q.UpdateMonitorEndpointSettings(ctx, db.UpdateMonitorEndpointSettingsParams{GroupName: v.Group, Paused: flag(v.Paused), IntervalSeconds: v.IntervalSeconds,
 			TimeoutSeconds: v.TimeoutSeconds, DegradedMs: v.DegradedMs, Public: flag(v.Public),
-			RouteProviderID: sql.NullString{String: v.RouteProviderID, Valid: v.RouteProviderID != ""}, UpdatedAt: now, ID: id}); err != nil {
+			RouteProviderID: sql.NullString{String: v.RouteProviderID, Valid: v.RouteProviderID != ""},
+			CheckMethod:     c.Method, CheckPath: c.Path, CheckCodes: c.Codes, CheckContains: c.Contains, CheckFamily: c.Family, CheckSkipVerify: flag(c.SkipVerify),
+			UpdatedAt: now, ID: id}); err != nil {
 			return err
 		}
 		return syncLayout(ctx, q, now) // the Group field is the entry's place in the public layout (07 §7)

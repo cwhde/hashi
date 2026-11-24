@@ -49,13 +49,13 @@ export function publicSummary(
 ): { text: string; tone: 'ok' | 'warn' | 'bad' } | null {
 	if (states.length === 0) return null;
 	const down = states.filter((s) => s === 'down').length;
-	const slow = states.filter((s) => s === 'degraded').length;
+	const degraded = states.filter((s) => s === 'degraded').length;
 	const n = (k: number, one: string, many: string) =>
 		k === 1 ? `1 service ${one}` : `${k} services ${many}`;
-	if (down && slow)
-		return { text: `${n(down, 'is down', 'are down')}, ${slow} slow.`, tone: 'bad' };
+	if (down && degraded)
+		return { text: `${n(down, 'is down', 'are down')}, ${degraded} degraded.`, tone: 'bad' };
 	if (down) return { text: `${n(down, 'is down', 'are down')}.`, tone: 'bad' };
-	if (slow) return { text: `${n(slow, 'is slow', 'are slow')}.`, tone: 'warn' };
+	if (degraded) return { text: `${n(degraded, 'is degraded', 'are degraded')}.`, tone: 'warn' };
 	// Paused or without data yet: not known to work (bug 168).
 	const unchecked = states.filter((s) => s === 'paused' || s === 'unknown').length;
 	if (unchecked === states.length) return null;

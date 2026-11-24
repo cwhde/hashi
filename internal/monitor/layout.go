@@ -52,6 +52,14 @@ type LayoutEntry struct {
 	endpoint *db.MonitorEndpoint
 }
 
+// IconHashi marks Hashi's own entry: the public pages draw its tab icon, the 橋 mark in the theme's accent.
+const IconHashi = "hashi"
+
+func withIcon(e LayoutEntry, kind string) LayoutEntry {
+	e.IconType = kind
+	return e
+}
+
 // Endpoint is the entry's check, if it has one.
 func (e LayoutEntry) Endpoint() *db.MonitorEndpoint { return e.endpoint }
 
@@ -85,6 +93,9 @@ func subjects(ctx context.Context, q *db.Queries) (map[string]LayoutEntry, error
 			k := EntryEndpoint + ":" + e.ID
 			out[k] = LayoutEntry{Key: k, Kind: EntryEndpoint, ID: e.ID, Name: e.Name, Type: "check", CanStatus: true,
 				Status: e.Public == 1, endpoint: e}
+			if e.SourceType == SourceHashi {
+				out[k] = withIcon(out[k], IconHashi)
+			}
 		}
 	}
 	svcs, err := services.List(ctx, q)

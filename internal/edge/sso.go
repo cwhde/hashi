@@ -41,6 +41,11 @@ const (
 	maxPending = 10000
 	touchEvery = time.Minute
 	metaTTL    = 10 * time.Minute
+
+	// MonitorUser is the monitor session's user (06 §7).
+	MonitorUser    = "hashi-monitor"
+	monitorEvery   = time.Hour
+	monitorOverlap = 5 * time.Minute
 )
 
 // Errors the login flow reports.
@@ -59,12 +64,17 @@ type Session struct {
 	Email      string
 	Groups     []string
 	IDToken    string
+	// Monitor marks Hashi's own monitor session (06 §7): signed in with every provider, in every group.
+	Monitor bool
 }
 
 // HasAnyGroup reports whether the session is in one of the groups; no groups means anyone signed in.
 func (s Session) HasAnyGroup(groups []string) bool {
-	return len(groups) == 0 || slices.ContainsFunc(groups, func(g string) bool { return slices.Contains(s.Groups, g) })
+	return s.Monitor || len(groups) == 0 || slices.ContainsFunc(groups, func(g string) bool { return slices.Contains(s.Groups, g) })
 }
+
+// SignedInWith reports whether the session came from the provider.
+func (s Session) SignedInWith(providerID string) bool { return s.Monitor || s.ProviderID == providerID }
 
 type pending struct {
 	provider, verifier, nonce, rd string
@@ -88,6 +98,40 @@ type SSO struct {
 	state map[string]pending
 	meta  map[string]*metadata
 	key   []byte
+
+	// The monitor session (06 §7): in memory only, replaced every hour; the one before stays valid a little longer so
+	// a check already on its way is not refused.
+	monMu               sync.Mutex
+	monCur, monPrev     string
+	monSince, monPrevTo time.Time
+}
+
+// MonitorCookie returns the monitor session's cookie value, replacing it when it is an hour old.
+func (s *SSO) MonitorCookie() string {
+	s.monMu.Lock()
+	defer s.monMu.Unlock()
+	now := s.now()
+	if s.monCur == "" || now.Sub(s.monSince) >= monitorEvery {
+		v, err := randomToken(32)
+		if err != nil {
+			return s.monCur // keep the current one; the next call tries again
+		}
+		s.monPrev, s.monPrevTo = s.monCur, now.Add(monitorOverlap)
+		s.monCur, s.monSince = "monitor-"+v, now
+	}
+	return s.monCur
+}
+
+// monitorSession reports whether cookie is the live monitor session.
+func (s *SSO) monitorSession(cookie string) bool {
+	if !strings.HasPrefix(cookie, "monitor-") {
+		return false
+	}
+	s.monMu.Lock()
+	defer s.monMu.Unlock()
+	now := s.now()
+	match := func(v string) bool { return v != "" && subtle.ConstantTimeCompare([]byte(v), []byte(cookie)) == 1 }
+	return (match(s.monCur) && now.Sub(s.monSince) < monitorEvery+monitorOverlap) || (match(s.monPrev) && now.Before(s.monPrevTo))
 }
 
 // NewSSO returns the flow; client carries the timeouts for calls to providers.
@@ -392,6 +436,9 @@ func (s *SSO) verify(ctx context.Context, p db.OidcProvider, m *metadata, raw, n
 // Validate checks a cookie value and returns its live session. Idle and maximum limits come from settings at creation
 // (expires_at) and now (idle).
 func (s *SSO) Validate(ctx context.Context, cookie string) (Session, error) {
+	if s.monitorSession(cookie) {
+		return Session{Monitor: true, Username: MonitorUser, Subject: MonitorUser}, nil
+	}
 	id, mac, ok := strings.Cut(cookie, ".")
 	if !ok || id == "" {
 		return Session{}, ErrNoSession
@@ -440,7 +487,7 @@ func (s *SSO) Logout(ctx context.Context, cookie, postLogout string) (string, er
 	if errors.Is(err, ErrNoSession) {
 		return "", nil
 	}
-	if err != nil {
+	if err != nil || sess.Monitor {
 		return "", err
 	}
 	if err := s.st.Tx(ctx, func(q *db.Queries) error { return q.DeleteEdgeSession(ctx, sess.IDHash) }); err != nil {

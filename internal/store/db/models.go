@@ -483,6 +483,12 @@ type MonitorEndpoint struct {
 	CreatedAt       int64
 	UpdatedAt       int64
 	PendingDns      int64
+	CheckMethod     string
+	CheckPath       string
+	CheckCodes      string
+	CheckContains   string
+	CheckFamily     string
+	CheckSkipVerify int64
 }
 
 type MonitorEvent struct {

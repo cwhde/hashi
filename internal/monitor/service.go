@@ -73,6 +73,8 @@ type Service struct {
 
 	// defaults are the Monitoring settings (09 §2): new endpoints and checks start with them; retention follows them.
 	defaults atomic.Pointer[settings.Monitoring]
+	// session gives the monitor's edge session (06 §7); set once the sign-in flow exists, maybe after the jobs start.
+	session atomic.Pointer[func() string]
 }
 
 // UseDefaults sets the monitoring settings; they apply to endpoints and checks created from now on.
@@ -87,8 +89,20 @@ func (s *Service) cfg() settings.Monitoring {
 
 // New returns the service. self answers Hashi's own endpoint.
 func New(st *store.Store, self func(context.Context) error, resolve services.TargetResolver, n Notifier) *Service {
-	return &Service{st: st, exec: Executor{Self: self, Names: NewNames(), Agent: func(ctx context.Context, id string) error { return agentFresh(ctx, st, time.Now(), id) }}, resolve: resolve, notifier: n, now: time.Now}
+	s := &Service{st: st, resolve: resolve, notifier: n, now: time.Now}
+	s.exec = Executor{Self: self, Names: NewNames(), PublicNames: NewPublicNames(),
+		Agent: func(ctx context.Context, id string) error { return agentFresh(ctx, st, time.Now(), id) },
+		Session: func() string {
+			if f := s.session.Load(); f != nil {
+				return (*f)()
+			}
+			return ""
+		}}
+	return s
 }
+
+// UseSession sets the monitor's edge session the public checks send (06 §7).
+func (s *Service) UseSession(f func() string) { s.session.Store(&f) }
 
 // hostChecks checks a host where Hashi reaches it: its literal address, or with an address set each of those too, any one
 // of them answering being enough (08 §5).
@@ -208,7 +222,7 @@ func (s *Service) Sources(ctx context.Context) ([]Desired, error) {
 		}
 		out = append(out, Desired{SourceType: SourceDNS, SourceID: r.ID, Name: name, Group: "DNS entries", Checks: []CheckSpec{
 			{Type: TypeHTTPS, Role: "public", Target: "https://" + host + "/", Required: true},
-			{Type: TypeTLS, Target: net.JoinHostPort(host, "443")},
+			{Type: TypeTLS, Target: net.JoinHostPort(host, "443"), Required: true},
 		}})
 	}
 	hosts, err := s.st.R.ListFirewallHosts(ctx)
@@ -237,7 +251,7 @@ func (s *Service) Sources(ctx context.Context) ([]Desired, error) {
 			out = append(out, Desired{SourceType: SourceAdGuard, SourceID: g.ID, Name: g.Name, Keep: true})
 			continue
 		}
-		// A connection tries every address, so one answering is enough: each check alone is optional.
+		// A connection tries every address, so one answering is enough: the addresses are one set (07 §2).
 		var checks []CheckSpec
 		for _, a := range t.Addresses {
 			checks = append(checks, CheckSpec{Type: TypeTCP, Target: net.JoinHostPort(a.String(), strconv.FormatInt(g.Port, 10))})
@@ -271,7 +285,7 @@ func (s *Service) Sources(ctx context.Context) ([]Desired, error) {
 }
 
 // ServiceChecks gives a service's checks by its protocol (07 §2): the HTTP family checks the internal upstream and,
-// with a name, the public URL; both paths are optional on their own, so one failing path is degraded and tells "service
+// with a name, the public URL and its certificate. Every check is required (07 §3): which one fails tells "service
 // down" from "edge down". A TCP stream connects to its upstream. A UDP stream has no check until the admin configures a
 // probe (a silent port is never healthy).
 func ServiceChecks(v services.Service) []CheckSpec {
@@ -287,16 +301,16 @@ func ServiceChecks(v services.Service) []CheckSpec {
 	case services.KindUDP:
 		return nil
 	case services.KindHTTPS:
-		out = append(out, CheckSpec{Type: TypeHTTPS, Role: "internal", Target: "https://" + hostport + "/", SkipVerify: v.TLSSkipVerify})
+		out = append(out, CheckSpec{Type: TypeHTTPS, Role: "internal", Target: "https://" + hostport + "/", SkipVerify: v.TLSSkipVerify, Required: true})
 	case services.KindH2C:
-		out = append(out, CheckSpec{Type: TypeH2C, Role: "internal", Target: "http://" + hostport + "/"})
+		out = append(out, CheckSpec{Type: TypeH2C, Role: "internal", Target: "http://" + hostport + "/", Required: true})
 	default:
-		out = append(out, CheckSpec{Type: TypeHTTP, Role: "internal", Target: "http://" + hostport + "/"})
+		out = append(out, CheckSpec{Type: TypeHTTP, Role: "internal", Target: "http://" + hostport + "/", Required: true})
 	}
 	if v.HostName != "" {
 		out = append(out,
-			CheckSpec{Type: TypeHTTPS, Role: "public", Target: "https://" + strings.TrimSuffix(v.HostName, ".") + "/"},
-			CheckSpec{Type: TypeTLS, Target: net.JoinHostPort(strings.TrimSuffix(v.HostName, "."), "443")})
+			CheckSpec{Type: TypeHTTPS, Role: "public", Target: "https://" + strings.TrimSuffix(v.HostName, ".") + "/", Required: true},
+			CheckSpec{Type: TypeTLS, Target: net.JoinHostPort(strings.TrimSuffix(v.HostName, "."), "443"), Required: true})
 	}
 	return out
 }
@@ -455,25 +469,15 @@ func (s *Service) runEndpoint(ctx context.Context, e db.MonitorEndpoint) error {
 	if err != nil {
 		return err
 	}
-	timeout := time.Duration(e.TimeoutSeconds) * time.Second
-	results := make([]Result, len(checks))
-	var wg sync.WaitGroup
-	for i, c := range checks {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
-			results[i] = s.exec.Run(ctx, Check{Type: c.Type, Target: c.Target, CodeMin: int(c.CodeMin), CodeMax: int(c.CodeMax), SkipVerify: c.SkipVerify == 1, Probe: c.Probe, Expect: c.Expect}, timeout)
-		}()
-	}
-	wg.Wait()
+	results := s.runAll(ctx, e, checks, StoredSettings(e))
 	if ctx.Err() != nil {
 		return nil
 	}
 	round := make([]RoundCheck, len(checks))
 	var latency int64
 	for i, c := range checks {
-		round[i] = RoundCheck{Required: c.Required == 1, Advisory: c.Type == TypeTLS && c.Required != 1, Result: results[i]}
-		if c.Type != TypeTLS {
+		round[i] = RoundCheck{Required: c.Required == 1, Result: results[i]}
+		if c.Type != TypeTLS && results[i].OK { // a dead address beside a live one says nothing about speed
 			latency = max(latency, results[i].Latency.Milliseconds())
 		}
 	}
@@ -512,6 +516,109 @@ func (s *Service) runEndpoint(ctx context.Context, e db.MonitorEndpoint) error {
 		return q.SetMonitorEndpointResult(ctx, db.SetMonitorEndpointResultParams{State: m.State, StateSince: since, GoodRounds: m.Good, BadRounds: m.Bad,
 			LastCheckAt: sql.NullInt64{Int64: now, Valid: true}, LastLatencyMs: sql.NullInt64{Int64: latency, Valid: true}, ID: e.ID})
 	})
+}
+
+// CheckSettings are an endpoint's check settings (07 §2); empty values are the defaults.
+type CheckSettings struct {
+	Method, Path, Codes, Contains, Family string
+	SkipVerify                            bool
+}
+
+// StoredSettings reads an endpoint's check settings.
+func StoredSettings(e db.MonitorEndpoint) CheckSettings {
+	return CheckSettings{Method: e.CheckMethod, Path: e.CheckPath, Codes: e.CheckCodes, Contains: e.CheckContains, Family: e.CheckFamily,
+		SkipVerify: e.CheckSkipVerify == 1}
+}
+
+// Validate checks the settings as the endpoint page sends them.
+func (v *CheckSettings) Validate() error {
+	v.Path, v.Codes = strings.TrimSpace(v.Path), strings.TrimSpace(v.Codes)
+	switch v.Method {
+	case "", "GET", "HEAD", "POST":
+	default:
+		return errInvalid("the method must be GET, HEAD or POST")
+	}
+	switch v.Family {
+	case "", "4", "6":
+	default:
+		return errInvalid("the addresses must be IPv4, IPv6 or both")
+	}
+	if v.Path != "" {
+		if _, err := withPath("http://x/", v.Path); err != nil {
+			return errInvalid(err.Error())
+		}
+	}
+	if _, err := ParseCodes(v.Codes); err != nil {
+		return errInvalid(err.Error())
+	}
+	if len(v.Contains) > 200 {
+		return errInvalid("the text to look for can have at most 200 characters")
+	}
+	return nil
+}
+
+// checkFor is one stored check as it runs with the endpoint's settings: the HTTP family takes the request settings, every
+// check the address family, the internal check the certificate choice. The public check and the certificate of a
+// service's or DNS entry's name take the visitors' path (07 §2).
+func checkFor(e db.MonitorEndpoint, c db.MonitorCheck, v CheckSettings) Check {
+	out := Check{Type: c.Type, Target: c.Target, CodeMin: int(c.CodeMin), CodeMax: int(c.CodeMax), SkipVerify: c.SkipVerify == 1,
+		Probe: c.Probe, Expect: c.Expect, Family: v.Family,
+		Public: c.Role == "public" || (c.Type == TypeTLS && (e.SourceType == SourceService || e.SourceType == SourceDNS))}
+	switch c.Type {
+	case TypeHTTP, TypeHTTPS, TypeH2C:
+		out.Method, out.Path, out.Contains = v.Method, v.Path, v.Contains
+		out.Codes, _ = ParseCodes(v.Codes) // validated when saved
+		if c.Role == "internal" && v.SkipVerify {
+			out.SkipVerify = true
+		}
+	}
+	return out
+}
+
+// runAll runs an endpoint's checks at once with the given settings.
+func (s *Service) runAll(ctx context.Context, e db.MonitorEndpoint, checks []db.MonitorCheck, v CheckSettings) []Result {
+	timeout := time.Duration(e.TimeoutSeconds) * time.Second
+	results := make([]Result, len(checks))
+	var wg sync.WaitGroup
+	for i, c := range checks {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			results[i] = s.exec.Run(ctx, checkFor(e, c, v), timeout)
+		}()
+	}
+	wg.Wait()
+	return results
+}
+
+// TestResult is one check of a test run.
+type TestResult struct {
+	Check  db.MonitorCheck
+	Result Result
+}
+
+// Test runs an endpoint's checks once with the given settings and stores nothing (07 §2, Test now).
+func (s *Service) Test(ctx context.Context, id string, v CheckSettings) ([]TestResult, error) {
+	if err := v.Validate(); err != nil {
+		return nil, err
+	}
+	e, err := s.st.R.GetMonitorEndpoint(ctx, id)
+	if errors.Is(err, sql.ErrNoRows) {
+		return nil, ErrNotFound
+	}
+	if err != nil {
+		return nil, err
+	}
+	checks, err := s.st.R.ListMonitorChecks(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+	results := s.runAll(ctx, e, checks, v)
+	out := make([]TestResult, len(checks))
+	for i, c := range checks {
+		out[i] = TestResult{Check: c, Result: results[i]}
+	}
+	return out, nil
 }
 
 func resultVerdict(r Result) string {

@@ -1211,6 +1211,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/monitor/endpoints/{id}/test": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Run the endpoint's checks once with the given check settings; nothing is stored */
+        post: operations["testMonitorEndpoint"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/notifications/providers": {
         parameters: {
             query?: never;
@@ -3969,6 +3986,7 @@ export interface components {
             /** Format: double */
             uptime_24h?: number;
             checks: components["schemas"]["MonitorCheck"][];
+            check: components["schemas"]["MonitorCheckSettings"];
             strip: components["schemas"]["MonitorStripSample"][];
         };
         MonitorEndpointList: {
@@ -3993,11 +4011,37 @@ export interface components {
             /** Format: int64 */
             degraded_ms: number;
             route_provider_id?: string;
+            check?: components["schemas"]["MonitorCheckSettings"];
             /**
              * Format: int64
              * @description The endpoint's version the form loaded; a newer stored one refuses the save (409)
              */
             version?: number;
+        };
+        /** @description One set for the endpoint, the same for its internal and public check (07 section 2); empty values are the defaults */
+        MonitorCheckSettings: {
+            /** @enum {string} */
+            method: "" | "GET" | "HEAD" | "POST";
+            path: string;
+            /** @description Healthy HTTP codes, for example 200-399, 401 */
+            codes: string;
+            contains: string;
+            /** @description 4, 6, or empty for IPv4 and IPv6 */
+            family: string;
+            /** @description Skip the internal check's certificate check */
+            skip_verify: boolean;
+        };
+        MonitorTestResult: {
+            checks: {
+                type: string;
+                role: string;
+                target: string;
+                ok: boolean;
+                degraded: boolean;
+                /** Format: int64 */
+                latency_ms: number;
+                detail: string;
+            }[];
         };
         MonitorPoint: {
             /** Format: date-time */
@@ -4369,8 +4413,6 @@ export interface components {
             state: components["schemas"]["MonitorState"];
             /** Format: date-time */
             since: string;
-            /** @description Its address changed and DNS may still be catching up */
-            pending_dns?: boolean;
             /** @description The last hour's rounds, oldest first */
             minutes: components["schemas"]["PublicMinute"][];
             /** @description 90 days, oldest first, in Hashi's time zone */
@@ -4383,6 +4425,8 @@ export interface components {
             icon?: string;
             /** @description Its white variant for dark themes */
             icon_light?: string;
+            /** @description Hashi itself: show the page's own tab icon */
+            mark?: boolean;
         };
         PublicMinute: {
             /** Format: date-time */
@@ -8047,6 +8091,33 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    testMonitorEndpoint: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["MonitorCheckSettings"];
+            };
+        };
+        responses: {
+            /** @description One result per check */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MonitorTestResult"];
+                };
             };
             default: components["responses"]["Problem"];
         };

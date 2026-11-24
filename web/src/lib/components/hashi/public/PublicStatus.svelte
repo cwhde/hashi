@@ -236,15 +236,12 @@
 									<span class="flex min-w-0 items-center gap-2 text-md font-medium">
 										<AppIcon
 											name={e.name}
-											icon={e.icon}
+											icon={e.mark ? data?.assets?.icon : e.icon}
 											light={e.icon_light}
+											mark={e.mark}
 											class="size-6 rounded-md text-xs"
 										/>
 										<span class="truncate">{e.name}</span>
-										{#if e.pending_dns}<span
-												class="shrink-0 text-xs font-normal text-muted-foreground"
-												>DNS updating</span
-											>{/if}
 									</span>
 									<!-- Word then dot, the dot on the same right edge as the group's (07 §7.1). -->
 									<PublicState state={e.state} class="sm:order-last" />

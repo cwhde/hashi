@@ -127,7 +127,7 @@ func Badge(p PublicService, kind string) (svg []byte, ok bool) {
 		case StateUp:
 			value, tone = "up", ToneGood
 		case StateDegraded:
-			value, tone = "slow", ToneWarn
+			value, tone = "degraded", ToneWarn
 		case StateDown:
 			value, tone = "down", ToneBad
 		case StatePaused:

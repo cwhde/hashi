@@ -13,7 +13,8 @@ UPDATE monitor_endpoints SET name = ?, updated_at = ? WHERE id = ?;
 
 -- name: UpdateMonitorEndpointSettings :exec
 UPDATE monitor_endpoints
-SET group_name = ?, paused = ?, interval_seconds = ?, timeout_seconds = ?, degraded_ms = ?, public = ?, route_provider_id = ?, updated_at = ?
+SET group_name = ?, paused = ?, interval_seconds = ?, timeout_seconds = ?, degraded_ms = ?, public = ?, route_provider_id = ?,
+    check_method = ?, check_path = ?, check_codes = ?, check_contains = ?, check_family = ?, check_skip_verify = ?, updated_at = ?
 WHERE id = ?;
 
 -- name: SetMonitorEndpointStateSince :exec

@@ -9,6 +9,7 @@ import (
 	"io"
 	"net"
 	"net/http"
+	"net/url"
 	"slices"
 	"strconv"
 	"strings"
@@ -45,7 +46,57 @@ type Check struct {
 	SkipVerify bool
 	Probe      string // udp: payload; dns: record type (A, AAAA, CNAME, TXT)
 	Expect     string // udp: expected response; dns: expected answer
+
+	// The endpoint's check settings (07 §2). Method, Path, Codes and Contains shape the HTTP family; Family limits the
+	// addresses any check connects to ("4", "6" or "" for both).
+	Method   string
+	Path     string
+	Codes    []CodeRange
+	Contains string
+	Family   string
+	// Public resolves through public DNS and sends the monitor session: the check takes a visitor's path (07 §2).
+	Public bool
 }
+
+// CodeRange is a range of healthy HTTP codes, both ends included.
+type CodeRange struct{ Min, Max int }
+
+// ParseCodes reads "200-399, 401" (07 §2). Empty is no list: the check's own range applies.
+func ParseCodes(s string) ([]CodeRange, error) {
+	var out []CodeRange
+	for part := range strings.SplitSeq(s, ",") {
+		part = strings.TrimSpace(part)
+		if part == "" {
+			continue
+		}
+		lo, hi, isRange := strings.Cut(part, "-")
+		a, err1 := strconv.Atoi(strings.TrimSpace(lo))
+		b := a
+		var err2 error
+		if isRange {
+			b, err2 = strconv.Atoi(strings.TrimSpace(hi))
+		}
+		if err1 != nil || err2 != nil || a < 100 || b > 599 || a > b {
+			return nil, fmt.Errorf("%q is not an HTTP code or a range like 200-399", part)
+		}
+		out = append(out, CodeRange{a, b})
+	}
+	return out, nil
+}
+
+func codesText(rs []CodeRange) string {
+	parts := make([]string, len(rs))
+	for i, r := range rs {
+		parts[i] = strconv.Itoa(r.Min)
+		if r.Max != r.Min {
+			parts[i] += "-" + strconv.Itoa(r.Max)
+		}
+	}
+	return strings.Join(parts, ", ")
+}
+
+// bodyLimit is how much of an answer a check reads; the text it must contain has to be within it.
+const bodyLimit = 64 << 10
 
 // Result is one execution. Degraded marks a passing check with a warning (a certificate close to expiry); Critical
 // a failure that means down whatever else passes (a certificate about to expire).
@@ -64,7 +115,11 @@ type Executor struct {
 	Agent func(ctx context.Context, id string) error
 	// Names caches the lookups of HTTP, TCP, UDP and TLS checks (bug 161); nil resolves on every dial.
 	Names *Names
-	now   func() time.Time
+	// PublicNames resolves the public checks' names through public DNS (07 §2); nil uses Names.
+	PublicNames *Names
+	// Session is the monitor's edge session cookie the public checks send (06 §7); nil sends none.
+	Session func() string
+	now     func() time.Time
 }
 
 // Run executes c within timeout. It never panics on bad targets: they are failed results.
@@ -82,7 +137,7 @@ func (e Executor) run(ctx context.Context, c Check) Result {
 	case TypeHTTP, TypeHTTPS, TypeH2C:
 		return e.runHTTP(ctx, c)
 	case TypeTCP:
-		conn, err := e.dial(ctx, "tcp", c.Target)
+		conn, err := e.dialer(c)(ctx, "tcp", c.Target)
 		if err != nil {
 			return failed(err)
 		}
@@ -118,32 +173,72 @@ func (e Executor) run(ctx context.Context, c Check) Result {
 func failed(err error) Result { return Result{Detail: err.Error()} }
 
 func (e Executor) runHTTP(ctx context.Context, c Check) Result {
-	tr := &http.Transport{TLSClientConfig: &tls.Config{InsecureSkipVerify: c.SkipVerify}, DisableKeepAlives: true, DialContext: e.dial} // #nosec G402 -- the admin's per-check choice, matching the service's upstream setting
+	tr := &http.Transport{TLSClientConfig: &tls.Config{InsecureSkipVerify: c.SkipVerify}, DisableKeepAlives: true, DialContext: e.dialer(c)} // #nosec G402 -- the admin's per-check choice, matching the service's upstream setting
 	if c.Type == TypeH2C {
 		tr.Protocols = new(http.Protocols)
 		tr.Protocols.SetUnencryptedHTTP2(true)
 	}
 	defer tr.CloseIdleConnections()
 	client := &http.Client{Transport: tr, CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }}
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, c.Target, nil)
+	target, err := withPath(c.Target, c.Path)
+	if err != nil {
+		return failed(err)
+	}
+	method := c.Method
+	if method == "" {
+		method = http.MethodGet
+	}
+	req, err := http.NewRequestWithContext(ctx, method, target, nil)
 	if err != nil {
 		return failed(err)
 	}
 	req.Header.Set("User-Agent", "Hashi-Monitor/1")
+	if c.Public && e.Session != nil {
+		if v := e.Session(); v != "" {
+			req.Header.Set("Cookie", sessionCookie+"="+v)
+		}
+	}
 	res, err := client.Do(req)
 	if err != nil {
 		return failed(err)
 	}
 	defer func() { _ = res.Body.Close() }()
-	_, _ = io.CopyN(io.Discard, res.Body, 4096)
-	lo, hi := c.CodeMin, c.CodeMax
-	if lo == 0 && hi == 0 {
-		lo, hi = 200, 399
+	body, _ := io.ReadAll(io.LimitReader(res.Body, bodyLimit))
+	codes := c.Codes
+	if len(codes) == 0 {
+		lo, hi := c.CodeMin, c.CodeMax
+		if lo == 0 && hi == 0 {
+			lo, hi = 200, 399
+		}
+		codes = []CodeRange{{lo, hi}}
 	}
-	if res.StatusCode < lo || res.StatusCode > hi {
-		return Result{Detail: fmt.Sprintf("HTTP %d, expected %d-%d", res.StatusCode, lo, hi)}
+	if !slices.ContainsFunc(codes, func(r CodeRange) bool { return res.StatusCode >= r.Min && res.StatusCode <= r.Max }) {
+		return Result{Detail: fmt.Sprintf("HTTP %d, expected %s", res.StatusCode, codesText(codes))}
+	}
+	if c.Contains != "" && !strings.Contains(string(body), c.Contains) {
+		return Result{Detail: fmt.Sprintf("HTTP %d, the answer does not contain %q", res.StatusCode, c.Contains)}
 	}
 	return Result{OK: true, Detail: "HTTP " + strconv.Itoa(res.StatusCode)}
+}
+
+// sessionCookie is the edge session cookie's name (internal/edge.CookieSession; monitor does not import edge).
+const sessionCookie = "__Secure-hashi.edge"
+
+// withPath puts the endpoint's path (with its query, if any) on the check's target; empty keeps the target's own.
+func withPath(target, path string) (string, error) {
+	if path == "" {
+		return target, nil
+	}
+	u, err := url.Parse(target)
+	if err != nil {
+		return "", err
+	}
+	p, err := url.Parse(path)
+	if err != nil || p.Scheme != "" || p.Host != "" || !strings.HasPrefix(p.Path, "/") {
+		return "", fmt.Errorf("the path %q must start with /", path)
+	}
+	u.Path, u.RawPath, u.RawQuery = p.Path, p.RawPath, p.RawQuery
+	return u.String(), nil
 }
 
 // runUDP needs a payload and an expected response: "no response" is never healthy (07 §2).
@@ -151,7 +246,7 @@ func (e Executor) runUDP(ctx context.Context, c Check) Result {
 	if c.Probe == "" || c.Expect == "" {
 		return Result{Detail: "a UDP check needs a probe payload and an expected response"}
 	}
-	conn, err := e.dial(ctx, "udp", c.Target)
+	conn, err := e.dialer(c)(ctx, "udp", c.Target)
 	if err != nil {
 		return failed(err)
 	}
@@ -225,7 +320,7 @@ func (e Executor) runTLS(ctx context.Context, c Check) Result {
 	if err != nil {
 		return failed(err)
 	}
-	raw, err := e.dial(ctx, "tcp", c.Target)
+	raw, err := e.dialer(c)(ctx, "tcp", c.Target)
 	if err != nil {
 		return failed(err)
 	}

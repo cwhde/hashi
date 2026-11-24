@@ -15,43 +15,35 @@ const (
 	SuccessesToUp  = 2
 )
 
-// RoundCheck is one check's part in a round. Advisory checks (a certificate beside the paths) say something about the
-// endpoint without being a path to it: a failing one degrades, a passing one never hides that the paths are dead.
+// RoundCheck is one check's part in a round. A check that is not required belongs to the endpoint's address set: Hashi
+// connects to whichever address answers, so the set passes when one of them does (07 §2).
 type RoundCheck struct {
 	Required bool
-	Advisory bool
 	Result   Result
 }
 
-// Verdict combines one round's results (07 §3): a failing required check or a critical result means down; without
-// required checks, every path failing means down; any other failure, a warning, or latency over the threshold means
-// degraded. Two paths with one healthy therefore give degraded ("service down" or "edge down", 07 §2).
+// Verdict combines one round's results (07 §3): a failing required check, a critical result or an address set with no
+// address answering means down; every check passing but with a warning (a certificate close to expiry) or slower than
+// the threshold means degraded. latencyMs is the slowest passing check's.
 func Verdict(checks []RoundCheck, slowMs, latencyMs int64) string {
-	paths, pathFails, required, degraded := 0, 0, false, false
+	if len(checks) == 0 {
+		return StateDown
+	}
+	set, setOK, degraded := 0, false, false
 	for _, c := range checks {
-		required = required || c.Required
-		degraded = degraded || c.Result.Degraded
-		if !c.Advisory {
-			paths++
-		}
-		if c.Result.OK {
-			continue
-		}
-		switch {
-		case c.Required, c.Result.Critical:
+		if c.Result.Critical || (c.Required && !c.Result.OK) {
 			return StateDown
-		case c.Advisory:
-			degraded = true
-		default:
-			pathFails++
 		}
+		if !c.Required {
+			set++
+			setOK = setOK || c.Result.OK
+		}
+		degraded = degraded || (c.Result.OK && c.Result.Degraded)
 	}
 	switch {
-	case len(checks) == 0:
+	case set > 0 && !setOK:
 		return StateDown
-	case !required && paths > 0 && pathFails == paths:
-		return StateDown
-	case pathFails > 0, degraded, slowMs > 0 && latencyMs > slowMs:
+	case degraded, slowMs > 0 && latencyMs > slowMs:
 		return StateDegraded
 	}
 	return StateUp

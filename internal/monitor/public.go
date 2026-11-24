@@ -38,7 +38,6 @@ type PublicDay struct {
 type PublicEntry struct {
 	Name, Slug, State  string
 	Since              time.Time
-	PendingDNS         bool
 	Minutes            []PublicMinute
 	Days               []PublicDay
 	Uptime24, Uptime90 *float64
@@ -246,7 +245,7 @@ func (s *Service) publicEntries(ctx context.Context, q *db.Queries) ([]PublicSta
 	eps := map[string]*db.MonitorEndpoint{}
 	for _, g := range l.Groups {
 		for _, e := range g.Entries {
-			if e.Status && e.endpoint != nil {
+			if e.Status && e.endpoint != nil && e.endpoint.Paused == 0 {
 				eps[e.endpoint.ID] = e.endpoint
 			}
 		}
@@ -259,12 +258,12 @@ func (s *Service) publicEntries(ctx context.Context, q *db.Queries) ([]PublicSta
 	for _, g := range l.Groups {
 		pg := PublicStatusGroup{Name: g.Name}
 		for _, e := range g.Entries {
-			if !e.Status || e.endpoint == nil {
+			if !e.Status || e.endpoint == nil || e.endpoint.Paused == 1 { // a paused entry is not on the status page (07 §7.1)
 				continue
 			}
 			ep, h := e.endpoint, hist[e.endpoint.ID]
 			pg.Entries = append(pg.Entries, PublicEntry{Name: e.Name, Slug: e.Slug, State: shownState(*ep),
-				Since: time.UnixMilli(ep.StateSince).UTC(), PendingDNS: ep.PendingDns == 1, Minutes: h.minutes,
+				Since: time.UnixMilli(ep.StateSince).UTC(), Minutes: h.minutes,
 				Days: h.days, Uptime24: h.uptime24, Uptime90: h.uptime90, IconType: e.IconType, IconID: e.IconID, endpoint: ep})
 		}
 		if len(pg.Entries) > 0 {

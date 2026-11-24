@@ -1110,6 +1110,22 @@ paths:
       responses:
         "204": { description: Removed }
         default: { $ref: "#/components/responses/Problem" }
+  /api/monitor/endpoints/{id}/test:
+    post:
+      operationId: testMonitorEndpoint
+      summary: Run the endpoint's checks once with the given check settings; nothing is stored
+      tags: [monitor]
+      x-hashi-scopes: [admin.write]
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: "#/components/schemas/MonitorCheckSettings" } } }
+      responses:
+        "200":
+          description: One result per check
+          content: { application/json: { schema: { $ref: "#/components/schemas/MonitorTestResult" } } }
+        default: { $ref: "#/components/responses/Problem" }
   /api/notifications/providers:
     get:
       operationId: listNotificationProviders
@@ -3857,7 +3873,7 @@ components:
         last_error: { type: string }
     MonitorEndpoint:
       type: object
-      required: [id, name, group, source_type, state, paused, public, interval_seconds, timeout_seconds, degraded_ms, checks, strip, version]
+      required: [id, name, group, source_type, state, paused, public, interval_seconds, timeout_seconds, degraded_ms, checks, check, strip, version]
       properties:
         version: { type: integer, format: int64, description: "Changes on every settings save; send it back with a save to refuse overwriting a newer one" }
         pending_dns: { type: boolean }
@@ -3878,6 +3894,7 @@ components:
         last_latency_ms: { type: integer, format: int64 }
         uptime_24h: { type: number, format: double }
         checks: { type: array, items: { $ref: "#/components/schemas/MonitorCheck" } }
+        check: { $ref: "#/components/schemas/MonitorCheckSettings" }
         strip: { type: array, items: { $ref: "#/components/schemas/MonitorStripSample" } }
     MonitorEndpointList:
       type: object
@@ -3905,7 +3922,36 @@ components:
         timeout_seconds: { type: integer, format: int64 }
         degraded_ms: { type: integer, format: int64 }
         route_provider_id: { type: string }
+        check: { $ref: "#/components/schemas/MonitorCheckSettings" }
         version: { type: integer, format: int64, description: "The endpoint's version the form loaded; a newer stored one refuses the save (409)" }
+    MonitorCheckSettings:
+      type: object
+      description: "One set for the endpoint, the same for its internal and public check (07 section 2); empty values are the defaults"
+      required: [method, path, codes, contains, family, skip_verify]
+      properties:
+        method: { type: string, enum: ["", GET, HEAD, POST] }
+        path: { type: string }
+        codes: { type: string, description: "Healthy HTTP codes, for example 200-399, 401" }
+        contains: { type: string }
+        family: { type: string, description: "4, 6, or empty for IPv4 and IPv6" }
+        skip_verify: { type: boolean, description: "Skip the internal check's certificate check" }
+    MonitorTestResult:
+      type: object
+      required: [checks]
+      properties:
+        checks:
+          type: array
+          items:
+            type: object
+            required: [type, role, target, ok, degraded, latency_ms, detail]
+            properties:
+              type: { type: string }
+              role: { type: string }
+              target: { type: string }
+              ok: { type: boolean }
+              degraded: { type: boolean }
+              latency_ms: { type: integer, format: int64 }
+              detail: { type: string }
     MonitorPoint:
       type: object
       required: [at, latency_ms, availability]
@@ -4296,13 +4342,13 @@ components:
         slug: { type: string, description: "The service page's address part: /s/{slug}" }
         state: { $ref: "#/components/schemas/MonitorState" }
         since: { type: string, format: date-time }
-        pending_dns: { type: boolean, description: "Its address changed and DNS may still be catching up" }
         minutes: { type: array, items: { $ref: "#/components/schemas/PublicMinute" }, description: "The last hour's rounds, oldest first" }
         days: { type: array, items: { $ref: "#/components/schemas/PublicDay" }, description: "90 days, oldest first, in Hashi's time zone" }
         uptime_24h: { type: number, format: double }
         uptime_90d: { type: number, format: double }
         icon: { type: string, description: "Hashi's address of the app's icon; missing: show the letter" }
         icon_light: { type: string, description: "Its white variant for dark themes" }
+        mark: { type: boolean, description: "Hashi itself: show the page's own tab icon" }
     PublicMinute:
       type: object
       additionalProperties: false

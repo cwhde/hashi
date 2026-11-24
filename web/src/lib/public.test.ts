@@ -33,7 +33,7 @@ test('day names are Hashi’s dates as given', () => {
 	expect(dayName('2026-11-22', true)).toBe('Today');
 });
 
-// 07 §7.1: a bar names its downtime with times and length; a slow day says slow; a day without data says so.
+// 07 §7.1: a bar names its downtime with times and length; a degraded day says degraded; a day without data says so.
 test('day details', () => {
 	const day = (d: Partial<Day>): Day => ({ date: '2026-11-20', state: 'up', spells: [], ...d });
 	expect(dayDetail(day({ uptime: 100 }), false)).toEqual({
@@ -62,7 +62,7 @@ test('day details', () => {
 			}),
 			false
 		).text
-	).toBe('Slow 14:10–14:30 (20 min)');
+	).toBe('Degraded 14:10–14:30 (20 min)');
 	expect(
 		dayDetail(
 			day({ state: 'down', spells: [{ state: 'down', start: at('13:36') }] }),
@@ -113,14 +113,14 @@ test('the last hour pads on the left and names each round', () => {
 test('since and worst', () => {
 	expect(['up', 'degraded', 'down', 'paused', 'unknown'].map(stateWord)).toEqual([
 		'Up',
-		'Slow',
+		'Degraded',
 		'Down',
-		'Paused',
+		'',
 		'No data'
 	]);
 	const now = Date.parse(at('13:42'));
 	expect(sinceTile('down', at('13:36'), now)).toEqual(['Down for', '6 min']);
-	expect(sinceTile('degraded', at('13:30'), now)).toEqual(['Slow for', '12 min']);
+	expect(sinceTile('degraded', at('13:30'), now)).toEqual(['Degraded for', '12 min']);
 	expect(sinceTile('up', at('00:01'), now)).toEqual(['Up for', '13 h 41 min']);
 	expect(sinceTile('unknown', at('13:30'), now)).toEqual(['State', 'No data']);
 	expect(worst(['up', 'degraded', 'up'])).toBe('degraded');
@@ -130,7 +130,9 @@ test('since and worst', () => {
 
 test('a strip tells a screen reader what it holds, in the words the page uses', () => {
 	expect(stripText(['unknown', 'up', 'up'], 'day')).toBe('2 days, all up');
-	expect(stripText(['up', 'down', 'degraded', 'degraded'], 'day')).toBe('4 days: 1 down, 2 slow');
+	expect(stripText(['up', 'down', 'degraded', 'degraded'], 'day')).toBe(
+		'4 days: 1 down, 2 degraded'
+	);
 	expect(stripText(['unknown', 'down'], 'check')).toBe('1 check: 1 down');
 	expect(stripText(['unknown', 'unknown'], 'day')).toBe('No data');
 });
@@ -145,7 +147,7 @@ test('the Last hour view states the hour’s uptime, not the day’s (bug 165)',
 	const at = (i: number) => new Date(Date.UTC(2026, 10, 22, 18, i)).toISOString();
 	const m = (i: number, state: 'up' | 'degraded' | 'down') => ({ at: at(i), state, latency_ms: 5 });
 	expect(minuteUptime([m(0, 'down'), m(1, 'down')])).toBe(0);
-	expect(minuteUptime([m(0, 'up'), m(1, 'degraded'), m(2, 'down'), m(3, 'up')])).toBe(75); // slow still answered
+	expect(minuteUptime([m(0, 'up'), m(1, 'degraded'), m(2, 'down'), m(3, 'up')])).toBe(75); // degraded still answered
 	expect(minuteUptime([])).toBeUndefined();
 	// Only the bars shown: the last 60.
 	expect(

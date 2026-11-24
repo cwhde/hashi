@@ -295,3 +295,68 @@ func TestPauseStartsItsOwnTime(t *testing.T) {
 		t.Fatalf("pausing changed the stored result: %+v → %+v", before, after)
 	}
 }
+
+// 07 §7.1: a paused entry leaves the status page; Hashi's own entry carries its mark as the icon. 07 §2: the check
+// settings are stored with the other settings, and a save without them keeps them.
+func TestPublicStatusSkipsPausedAndKeepsCheckSettings(t *testing.T) {
+	s, st, _, _ := fixture(t)
+	ctx := t.Context()
+	id, err := s.CreateUser(ctx, "Lamp", "Home", CheckSpec{Type: TypeHTTP, Target: "http://127.0.0.1:1/"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := s.Sync(ctx); err != nil {
+		t.Fatal(err)
+	}
+	set := &CheckSettings{Method: "HEAD", Path: "/health", Codes: "200-399, 401", Contains: "ok", Family: "4"}
+	if err := s.Update(ctx, id, Settings{Group: "Home", Public: true, IntervalSeconds: 60, TimeoutSeconds: 5, Check: set}); err != nil {
+		t.Fatal(err)
+	}
+	shown := func() (lamp, hashiMark bool) {
+		t.Helper()
+		p, err := s.PublicStatus(ctx)
+		if err != nil {
+			t.Fatal(err)
+		}
+		for _, g := range p.Groups {
+			for _, e := range g.Entries {
+				lamp = lamp || e.Name == "Lamp"
+				hashiMark = hashiMark || (e.Name == "Hashi" && e.IconType == IconHashi)
+			}
+		}
+		return lamp, hashiMark
+	}
+	if lamp, _ := shown(); !lamp {
+		t.Fatal("a public entry is missing")
+	}
+	if err := s.Update(ctx, id, Settings{Group: "Home", Public: true, Paused: true, IntervalSeconds: 60, TimeoutSeconds: 5}); err != nil {
+		t.Fatal(err)
+	}
+	if lamp, _ := shown(); lamp {
+		t.Fatal("a paused entry is on the status page")
+	}
+	e, err := st.R.GetMonitorEndpoint(ctx, id)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := StoredSettings(e); got != *set {
+		t.Fatalf("a save without check settings changed them: %+v", got)
+	}
+	if err := s.Update(ctx, id, Settings{Group: "Home", IntervalSeconds: 60, TimeoutSeconds: 5, Check: &CheckSettings{Path: "health"}}); err == nil {
+		t.Fatal("a path without / was stored")
+	}
+	hashi, err := s.st.R.ListMonitorEndpoints(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, h := range hashi {
+		if h.SourceType == SourceHashi {
+			if err := s.Update(ctx, h.ID, Settings{Group: h.GroupName, Public: true, IntervalSeconds: 60, TimeoutSeconds: 5}); err != nil {
+				t.Fatal(err)
+			}
+		}
+	}
+	if _, mark := shown(); !mark {
+		t.Fatal("Hashi's entry has no mark")
+	}
+}

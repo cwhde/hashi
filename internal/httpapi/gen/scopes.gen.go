@@ -249,6 +249,7 @@ var Requirements = map[string]Requirement{
 	"StartSetupHTTPS":             {Scopes: []string{"setup.manage"}, Session: false, Reauth: false},
 	"TestAdGuardConnection":       {Scopes: []string{"admin.write"}, Session: false, Reauth: false},
 	"TestCaptcha":                 {Scopes: []string{"security.manage"}, Session: false, Reauth: false},
+	"TestMonitorEndpoint":         {Scopes: []string{"admin.write"}, Session: false, Reauth: false},
 	"TestNotificationProvider":    {Scopes: []string{"admin.write"}, Session: false, Reauth: false},
 	"TraceAddress":                {Scopes: []string{"admin.read"}, Session: false, Reauth: false},
 	"UnlockVaultWithPasskey":      {Scopes: []string{"secrets.manage"}, Session: false, Reauth: false},

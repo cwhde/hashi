@@ -147,7 +147,7 @@
 						: 'sr-only'}"
 				>
 					{name || 'All checks'}{#if down}<Tag tone="bad">{down} down</Tag>{/if}{#if slow}<Tag
-							tone="warn">{slow} slow</Tag
+							tone="warn">{slow} degraded</Tag
 						>{/if}
 				</h2>
 				<div class="grid gap-3 md:grid-cols-2 xl:grid-cols-3">

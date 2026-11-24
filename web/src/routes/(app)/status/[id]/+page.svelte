@@ -56,6 +56,7 @@
 				timeout_seconds: e.timeout_seconds,
 				degraded_ms: e.degraded_ms,
 				route_provider_id: e.route_provider_id,
+				check: { ...e.check },
 				version: e.version
 			};
 			draft.mark();
@@ -124,6 +125,35 @@
 			busy = false;
 		}
 	}
+	// Test now (07 §2): the checks once with the form's check settings; nothing is stored.
+	let testing = $state(false);
+	let tested = $state<Schemas['MonitorTestResult']['checks'] | null>(null);
+	async function test() {
+		if (!s?.check) return;
+		error = '';
+		testing = true;
+		tested = null;
+		try {
+			const r = await api.POST('/api/monitor/endpoints/{id}/test', {
+				params: { path: { id } },
+				body: s.check
+			});
+			if (r.error || !r.data) throw r.error;
+			tested = r.data.checks;
+		} catch (e) {
+			error = problemText(e);
+		} finally {
+			testing = false;
+		}
+	}
+	const http = (t: string) => t === 'http' || t === 'https' || t === 'h2c';
+	const families: Record<string, string> = {
+		'': 'IPv4 and IPv6',
+		'4': 'IPv4 only',
+		'6': 'IPv6 only'
+	};
+	const checkName = (c: { type: string; role: string }) => (c.role ? `${c.role} path` : c.type);
+
 	async function remove() {
 		try {
 			await withReauth(() =>
@@ -252,27 +282,102 @@
 		</div>
 	{/if}
 	<div class="grid gap-4 lg:grid-cols-2">
-		<Panel title="Events">
-			{#if d.events.length === 0}<p class="text-md text-muted-foreground">No changes yet.</p>{/if}
-			<ol class="space-y-2.5 text-md">
-				{#each d.events as e (e.id)}
-					<li class="grid gap-x-3 sm:grid-cols-[9rem_1fr]">
-						<span class="tnum text-muted-foreground">{dateTime(e.at)}</span>
-						<span class="min-w-0 break-words"><StatusBadge state={e.to} /> {e.message}</span>
-					</li>
-				{/each}
-			</ol>
-		</Panel>
-		<Panel title="Checks and settings" description={sourceText[m.source_type]}>
+		<Panel title="Checks" description={sourceText[m.source_type]}>
 			<ul class="mb-4 space-y-1.5 text-md">
 				{#each m.checks as c (c.id)}
 					<li class="min-w-0 break-words">
-						<span class="font-medium">{c.role ? `${c.role} path` : c.type}</span>
+						<span class="font-medium">{checkName(c)}</span>
 						<span class="text-muted-foreground">{c.target}</span>
 						{#if c.last_error}<span class="block text-bad-text">{c.last_error}</span>{/if}
 					</li>
 				{/each}
 			</ul>
+			{#if s?.check}
+				{@const c = s.check}
+				<div class="grid grid-cols-2 gap-3 text-md">
+					{#if m.checks.some((x) => http(x.type))}
+						<div class="col-span-2 grid grid-cols-[7rem_1fr] gap-3">
+							<div class="space-y-1.5">
+								<Label for="ck-method">Method</Label>
+								<Select.Root
+									type="single"
+									value={c.method || 'GET'}
+									onValueChange={(v) => (c.method = v === 'GET' ? '' : (v as typeof c.method))}
+								>
+									<Select.Trigger id="ck-method" class="w-full">{c.method || 'GET'}</Select.Trigger>
+									<Select.Content>
+										{#each ['GET', 'HEAD', 'POST'] as v (v)}<Select.Item value={v}>{v}</Select.Item
+											>{/each}
+									</Select.Content>
+								</Select.Root>
+							</div>
+							<div class="space-y-1.5">
+								<Label for="ck-path">Path</Label><Input
+									id="ck-path"
+									class="font-mono"
+									placeholder="/"
+									bind:value={c.path}
+								/>
+							</div>
+						</div>
+						<div class="space-y-1.5">
+							<Label for="ck-codes">Healthy HTTP codes</Label><Input
+								id="ck-codes"
+								class="font-mono"
+								placeholder="200-399"
+								bind:value={c.codes}
+							/>
+						</div>
+					{/if}
+					{#if m.checks.some((x) => x.type !== 'self')}<div class="space-y-1.5">
+							<Label for="ck-family">Addresses</Label>
+							<Select.Root type="single" value={c.family} onValueChange={(v) => (c.family = v)}>
+								<Select.Trigger id="ck-family" class="w-full">{families[c.family]}</Select.Trigger>
+								<Select.Content>
+									{#each Object.entries(families) as [v, label] (v)}<Select.Item value={v}
+											>{label}</Select.Item
+										>{/each}
+								</Select.Content>
+							</Select.Root>
+						</div>{/if}
+					{#if m.checks.some((x) => http(x.type))}
+						<div class="col-span-2 space-y-1.5">
+							<Label for="ck-contains">The answer contains</Label><Input
+								id="ck-contains"
+								bind:value={c.contains}
+							/>
+						</div>
+					{/if}
+					{#if m.checks.some((x) => x.role === 'internal' && x.type === 'https')}
+						<label class="col-span-2 flex items-center justify-between gap-3">
+							<span>Skip the internal certificate check</span><Switch
+								bind:checked={c.skip_verify}
+								aria-label="Skip the internal certificate check"
+							/>
+						</label>
+					{/if}
+				</div>
+				{#if tested}
+					<ul class="mt-3 space-y-1 text-md" aria-live="polite">
+						{#each tested as t, i (i)}
+							<li class="flex min-w-0 items-baseline gap-2">
+								<span class="font-medium">{checkName(t)}</span>
+								<span class={t.ok ? 'text-ok-text' : 'text-bad-text'}
+									>{t.detail || (t.ok ? 'OK' : 'Failed')} · {t.latency_ms} ms</span
+								>
+							</li>
+						{/each}
+					</ul>
+				{/if}
+				<div class="mt-3 flex justify-between gap-2">
+					<Button size="sm" variant="outline" disabled={testing} onclick={test}
+						>{testing ? 'Testing…' : 'Test now'}</Button
+					>
+					<Button size="sm" disabled={busy || !draft.dirty} onclick={() => save()}>Save</Button>
+				</div>
+			{/if}
+		</Panel>
+		<Panel title="Settings">
 			{#if s}
 				<div class="grid grid-cols-2 gap-3 text-md">
 					<div class="col-span-2 space-y-1.5">
@@ -296,7 +401,7 @@
 						/>
 					</div>
 					<div class="space-y-1.5">
-						<Label for="ep-slow">Degraded over (ms, 0 = off)</Label><Input
+						<Label for="ep-slow">Degraded over (ms)</Label><Input
 							id="ep-slow"
 							type="number"
 							min="0"
@@ -339,6 +444,17 @@
 			{/if}
 		</Panel>
 	</div>
+	<Panel title="Events" class="mt-4">
+		{#if d.events.length === 0}<p class="text-md text-muted-foreground">No changes yet.</p>{/if}
+		<ol class="space-y-2.5 text-md">
+			{#each d.events as e (e.id)}
+				<li class="grid gap-x-3 sm:grid-cols-[9rem_1fr]">
+					<span class="tnum text-muted-foreground">{dateTime(e.at)}</span>
+					<span class="min-w-0 break-words"><StatusBadge state={e.to} /> {e.message}</span>
+				</li>
+			{/each}
+		</ol>
+	</Panel>
 {/if}
 
 {#if d}<ConfirmDelete

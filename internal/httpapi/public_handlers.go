@@ -74,9 +74,10 @@ func (i iconSet) entryBody(e monitor.PublicEntry) gen.PublicStatusEntry {
 	for _, m := range e.Minutes {
 		minutes = append(minutes, gen.PublicMinute{At: m.At.UTC(), State: gen.PublicMinuteState(m.State), LatencyMs: m.LatencyMs})
 	}
-	b := gen.PublicStatusEntry{Name: e.Name, Slug: e.Slug, State: gen.MonitorState(e.State), Since: e.Since.UTC(), PendingDns: boolIf(e.PendingDNS),
+	b := gen.PublicStatusEntry{Name: e.Name, Slug: e.Slug, State: gen.MonitorState(e.State), Since: e.Since.UTC(),
 		Minutes: minutes, Days: dayBody(e.Days), Uptime24h: e.Uptime24, Uptime90d: e.Uptime90}
 	b.Icon, b.IconLight = i.urls(e.IconType, e.IconID)
+	b.Mark = boolIf(e.IconType == monitor.IconHashi)
 	return b
 }
 
@@ -191,7 +192,7 @@ func (s *Server) layoutBody(ctx context.Context, l monitor.Layout) (gen.PublicLa
 		for _, e := range g.Entries {
 			b := gen.PublicLayoutEntry{Key: e.Key, Name: e.Name, Type: gen.PublicLayoutEntryType(e.Type), Apps: e.Apps, Status: e.Status,
 				CanApps: e.CanApps, CanStatus: e.CanStatus, Url: emptyNil(e.URL), Slug: e.Slug}
-			if e.IconType != "" {
+			if e.IconType != "" && e.IconType != monitor.IconHashi { // Hashi's mark is not an app icon to pick
 				k := appicons.Key(e.IconType, e.IconID)
 				b.IconApp = &k
 			}

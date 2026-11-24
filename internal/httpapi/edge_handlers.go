@@ -156,9 +156,9 @@ func (s *Server) edgeForward(w http.ResponseWriter, r *http.Request) {
 		case want == "": // no provider set up: a rule that asks for sign-in stays shut
 			s.Log.Warn("a rule asks for sign-in, but no provider is set up", "service", d.ServiceID)
 			edgePage(w, http.StatusForbidden, "Access denied.")
-		case sess != nil && sess.ProviderID == want && sess.HasAnyGroup(d.Item.Entry.Groups):
+		case sess != nil && sess.SignedInWith(want) && sess.HasAnyGroup(d.Item.Entry.Groups):
 			allow()
-		case sess != nil && sess.ProviderID == want:
+		case sess != nil && sess.SignedInWith(want):
 			edgePage(w, http.StatusForbidden, "Your account is not allowed here.")
 		case browserRequest(r):
 			decision = security.DecisionAuth

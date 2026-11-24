@@ -1,6 +1,6 @@
 <script lang="ts">
 	// A state on the public pages (07 §7): always the word, then the dot, so every state reads the same way and the
-	// dots end on one right edge. Visitors' words: Slow, not Degraded; No data, not Unknown.
+	// dots end on one right edge. Visitors' words: No data, not Unknown; a paused app has its dot only (07 §8).
 	import StatusDot from '#lib/components/hashi/StatusDot.svelte';
 	import { health } from '#lib/components/hashi/status.ts';
 	import type { Health } from '#lib/design/mock.ts';

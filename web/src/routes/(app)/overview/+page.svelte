@@ -119,7 +119,7 @@
 					key: `e${e.id}`,
 					state: e.state,
 					title: e.name,
-					detail: `${e.state === 'down' ? 'Down' : 'Slow'} since ${dateTime(e.state_since)}`,
+					detail: `${e.state === 'down' ? 'Down' : 'Degraded'} since ${dateTime(e.state_since)}`,
 					href: `/status/${e.id}`
 				});
 		for (const h of fw.filter(bad))

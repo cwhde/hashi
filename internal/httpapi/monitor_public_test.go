@@ -17,7 +17,7 @@ func TestPublicSchemasExposeOnlySelectedFields(t *testing.T) {
 	}{
 		{gen.PublicStatus{}, []string{"assets", "custom_theme", "groups", "theme", "title", "updated_at"}},
 		{gen.PublicStatusGroup{}, []string{"entries", "name"}},
-		{gen.PublicStatusEntry{}, []string{"days", "icon", "icon_light", "minutes", "name", "pending_dns", "since", "slug", "state", "uptime_24h", "uptime_90d"}},
+		{gen.PublicStatusEntry{}, []string{"days", "icon", "icon_light", "mark", "minutes", "name", "since", "slug", "state", "uptime_24h", "uptime_90d"}},
 		{gen.PublicMinute{}, []string{"at", "latency_ms", "state"}},
 		{gen.PublicDay{}, []string{"date", "spells", "state", "uptime"}},
 		{gen.PublicSpell{}, []string{"end", "start", "state"}},

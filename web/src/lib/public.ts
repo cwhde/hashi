@@ -39,14 +39,14 @@ export function when(iso: string, now = Date.now()): string {
 	return new Date(iso).toDateString() === new Date(now).toDateString() ? clock(iso) : stamp(iso);
 }
 
-/** What a strip says to a screen reader: how many bars hold data, and which of them were down or slow. */
+/** What a strip says to a screen reader: how many bars hold data, and which of them were down or degraded. */
 export function stripText(samples: string[], unit: 'day' | 'check'): string {
 	const real = samples.filter((s) => s !== 'unknown');
 	if (!real.length) return 'No data';
 	const down = real.filter((s) => s === 'down').length;
-	const slow = real.filter((s) => s === 'degraded').length;
+	const degraded = real.filter((s) => s === 'degraded').length;
 	const what = `${real.length} ${unit}${real.length === 1 ? '' : 's'}`;
-	const bad = [down && `${down} down`, slow && `${slow} slow`].filter(Boolean);
+	const bad = [down && `${down} down`, degraded && `${degraded} degraded`].filter(Boolean);
 	return bad.length ? `${what}: ${bad.join(', ')}` : `${what}, all up`;
 }
 
@@ -62,7 +62,7 @@ export function dayName(date: string, today: boolean): string {
 	});
 }
 
-const word = { down: 'Down', degraded: 'Slow' } as const;
+const word = { down: 'Down', degraded: 'Degraded' } as const;
 
 function spellText(s: Spell, now: number): { text: string; extra?: string } {
 	if (!s.end) {
@@ -118,7 +118,7 @@ export function minuteDetail(minutes: Minute[], i: number, slots = 60): Detail {
 	if (m.state === 'down') return { when, text: 'Down' };
 	return {
 		when,
-		text: m.state === 'degraded' ? 'Slow' : 'Up',
+		text: m.state === 'degraded' ? 'Degraded' : 'Up',
 		extra: `${m.latency_ms.toLocaleString('en-GB')} ms`
 	};
 }
@@ -128,8 +128,7 @@ export function sinceTile(state: string, since: string, now = Date.now()): [stri
 	const words: Record<string, string> = {
 		up: 'Up for',
 		down: 'Down for',
-		degraded: 'Slow for',
-		paused: 'Paused for'
+		degraded: 'Degraded for'
 	};
 	const w = words[state];
 	if (!w) return ['State', 'No data'];
@@ -138,12 +137,12 @@ export function sinceTile(state: string, since: string, now = Date.now()): [stri
 
 const words: Record<string, string> = {
 	up: 'Up',
-	degraded: 'Slow',
+	degraded: 'Degraded',
 	down: 'Down',
-	paused: 'Paused'
+	paused: ''
 };
 
-/** A state in the visitors' words, the same on every public page. */
+/** A state in the visitors' words, the same on every public page; paused has none, only its grey dot (07 §8). */
 export const stateWord = (state: string) => words[state] ?? 'No data';
 
 const rank: Record<string, number> = { down: 0, degraded: 1, unknown: 2, paused: 3, up: 4 };

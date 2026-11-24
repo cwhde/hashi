@@ -6,6 +6,8 @@ import (
 	"math/rand/v2"
 	"net"
 	"net/netip"
+	"slices"
+	"strings"
 	"sync"
 	"time"
 )
@@ -47,6 +49,27 @@ type nameCall struct {
 func NewNames() *Names {
 	return newNames(func(ctx context.Context, host string) ([]netip.Addr, error) {
 		return net.DefaultResolver.LookupNetIP(ctx, "ip", host)
+	}, lookupGap)
+}
+
+// Public resolvers for the public checks (07 §2): they see what visitors see, never the internal rewrites.
+var publicResolvers = []string{"1.1.1.1:53", "9.9.9.9:53"}
+
+// NewPublicNames resolves through public DNS, the second server when the first fails.
+func NewPublicNames() *Names {
+	return newNames(func(ctx context.Context, host string) ([]netip.Addr, error) {
+		var last error
+		for _, server := range publicResolvers {
+			r := &net.Resolver{PreferGo: true, Dial: func(ctx context.Context, network, _ string) (net.Conn, error) {
+				return (&net.Dialer{}).DialContext(ctx, network, server)
+			}}
+			addrs, err := r.LookupNetIP(ctx, "ip", host)
+			if err == nil {
+				return addrs, nil
+			}
+			last = err
+		}
+		return nil, last
 	}, lookupGap)
 }
 
@@ -123,36 +146,58 @@ func (n *Names) reserve() time.Duration {
 	return start.Sub(now)
 }
 
-// dial connects to addr, looking its host up through the cache when the executor has one. Like net.Dialer, it tries the
-// addresses in the resolver's order and gives each a share of the time left (at least 2 s), so one dead address can't
-// use up the whole check.
-func (e Executor) dial(ctx context.Context, network, addr string) (net.Conn, error) {
-	d := &net.Dialer{}
-	host, port, err := net.SplitHostPort(addr)
-	if err != nil || e.Names == nil {
-		return d.DialContext(ctx, network, addr)
+// dialer connects for one check: names through the public resolver for a public check, else the cache, and only to
+// addresses of the check's family. Like net.Dialer, it tries the addresses in the resolver's order and gives each a
+// share of the time left (at least 2 s), so one dead address can't use up the whole check.
+func (e Executor) dialer(c Check) func(ctx context.Context, network, addr string) (net.Conn, error) {
+	names := e.Names
+	if c.Public && e.PublicNames != nil {
+		names = e.PublicNames
 	}
-	if _, err := netip.ParseAddr(host); err == nil {
-		return d.DialContext(ctx, network, addr)
-	}
-	addrs, err := e.Names.lookup(ctx, host)
-	if err != nil {
-		return nil, err
-	}
-	var last error
-	for i, a := range addrs {
-		actx := ctx
-		if dl, ok := ctx.Deadline(); ok && i < len(addrs)-1 {
-			share := max(time.Until(dl)/time.Duration(len(addrs)-i), 2*time.Second)
-			var cancel context.CancelFunc
-			actx, cancel = context.WithTimeout(ctx, share)
-			defer cancel()
+	return func(ctx context.Context, network, addr string) (net.Conn, error) {
+		d := &net.Dialer{}
+		if c.Family != "" {
+			network = strings.TrimRight(network, "46") + c.Family // tcp4, udp6, …: the system resolver keeps to it too
 		}
-		conn, err := d.DialContext(actx, network, net.JoinHostPort(a.String(), port))
-		if err == nil {
-			return conn, nil
+		host, port, err := net.SplitHostPort(addr)
+		if err != nil || names == nil {
+			return d.DialContext(ctx, network, addr)
 		}
-		last = err
+		if a, err := netip.ParseAddr(host); err == nil {
+			if !family(a, c.Family) {
+				return nil, fmt.Errorf("%s is not an IPv%s address", host, c.Family)
+			}
+			return d.DialContext(ctx, network, addr)
+		}
+		all, err := names.lookup(ctx, host)
+		if err != nil {
+			return nil, err
+		}
+		addrs := slices.DeleteFunc(slices.Clone(all), func(a netip.Addr) bool { return !family(a, c.Family) })
+		if len(addrs) == 0 {
+			return nil, fmt.Errorf("%s has no IPv%s address", host, c.Family)
+		}
+		var last error
+		for i, a := range addrs {
+			actx := ctx
+			if dl, ok := ctx.Deadline(); ok && i < len(addrs)-1 {
+				share := max(time.Until(dl)/time.Duration(len(addrs)-i), 2*time.Second)
+				var cancel context.CancelFunc
+				actx, cancel = context.WithTimeout(ctx, share)
+				defer cancel()
+			}
+			conn, err := d.DialContext(actx, network, net.JoinHostPort(a.String(), port))
+			if err == nil {
+				return conn, nil
+			}
+			last = err
+		}
+		return nil, last
 	}
-	return nil, last
+}
+
+// family reports whether a is of the family "4", "6" or either ("").
+func family(a netip.Addr, f string) bool {
+	a = a.Unmap()
+	return f == "" || (f == "4") == a.Is4()
 }

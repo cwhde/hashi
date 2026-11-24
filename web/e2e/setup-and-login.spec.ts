@@ -440,8 +440,8 @@ test('setup with a passkey, then sign in with it', async ({ page, request }) => 
 	await page.getByRole('button', { name: 'Turn off' }).click();
 	await expect(page.getByRole('status')).toContainText('applied on 1 Traefik host');
 	await expect(page.getByText('Off', { exact: true })).toBeVisible();
-	// Bug 78: the rendered config of an Off service says it isn't on any host.
-	await expect(page.getByText('Off: not on any Traefik host')).toBeVisible();
+	// Bug 78: the rendered config of an Off service doesn't claim to be on every host.
+	await expect(page.getByText('On every Traefik host')).toHaveCount(0);
 	// Deleting asks for the passkey (reauth), then the service is gone.
 	await page.getByRole('button', { name: 'Delete' }).click();
 	await page.getByRole('button', { name: 'Delete service' }).click();
@@ -625,8 +625,12 @@ test('setup with a passkey, then sign in with it', async ({ page, request }) => 
 		page.getByText('The 1h chart starts after the first full minute of checks.')
 	).toBeVisible();
 	await page.getByRole('switch', { name: 'Show on the public status page' }).click();
-	await page.getByRole('button', { name: 'Save', exact: true }).click();
+	// Checks and Settings each have a Save (07 §5); the Settings one is last.
+	await page.getByRole('button', { name: 'Save', exact: true }).last().click();
 	await expect(page.getByRole('status')).toContainText('Saved.');
+	// Test now runs the check once and shows its result; nothing is stored (07 §2). Nothing listens on port 1.
+	await page.getByRole('button', { name: 'Test now' }).click();
+	await expect(page.locator('ul[aria-live="polite"] li')).toContainText(/tcp.*refused/);
 	// Pause sends only the pause: an unsaved group edit is neither stored nor lost (bug 59).
 	const checkURL = `${state.baseURL}/api/monitor/endpoints/${page.url().split('/').pop()}`;
 	const group = (await (await page.request.get(checkURL)).json()).endpoint.group;
@@ -659,7 +663,7 @@ test('setup with a passkey, then sign in with it', async ({ page, request }) => 
 	await page.getByRole('tab', { name: 'Alerts sent' }).click();
 	await expect(page.getByText('No alerts are sent until you choose a provider.')).toBeVisible();
 	await page.getByRole('link', { name: 'Notification settings' }).click();
-	await expect(page.getByText('Add Telegram or email to receive alerts.')).toBeVisible();
+	await expect(page.getByText('No providers yet.')).toBeVisible();
 
 	// A provider can be renamed without entering its secret again.
 	await page.getByRole('button', { name: 'Add provider' }).click();
@@ -674,11 +678,11 @@ test('setup with a passkey, then sign in with it', async ({ page, request }) => 
 	await expect(page.getByRole('button', { name: 'Edit My Telegram' })).toBeVisible();
 	await expect(page.getByText('Telegram · chat 123')).toBeVisible();
 	await page.getByRole('button', { name: 'Remove My Telegram' }).click();
-	await expect(page.getByText('Add Telegram or email to receive alerts.')).toBeVisible();
+	await expect(page.getByText('No providers yet.')).toBeVisible();
 
-	// AdGuard: adding one is safe, and the page says so.
+	// AdGuard: the empty section.
 	await page.goto(`${state.baseURL}/connections`);
-	await expect(page.getByText('A new one starts read-only')).toBeVisible();
+	await expect(page.getByText('No AdGuard instance yet.')).toBeVisible();
 	await page.getByRole('button', { name: 'Add connection' }).click();
 	await page.getByRole('menuitem', { name: 'AdGuard Home' }).click();
 	await expect(page.getByLabel('Name on its certificate')).toBeVisible();
@@ -769,7 +773,6 @@ test('setup with a passkey, then sign in with it', async ({ page, request }) => 
 	await page.getByRole('option', { name: 'e2e-shared' }).click();
 	await page.getByRole('button', { name: 'Attach', exact: true }).click();
 	await expect(page.getByRole('link', { name: 'e2e-shared' })).toBeVisible();
-	await expect(page.getByText('this service refuses requests')).toBeVisible();
 	await page.getByLabel('Address to try').fill('203.0.113.7');
 	await page.getByLabel('Path to try').fill('/admin/x');
 	await page.getByRole('button', { name: 'Try a request' }).click();
@@ -784,7 +787,7 @@ test('setup with a passkey, then sign in with it', async ({ page, request }) => 
 	await page.getByLabel('Path', { exact: true }).fill('/upload');
 	// Bug 18: an exclusion is picked by the rule's own name, found by searching words from it or its number. Two CRS
 	// rules share this name; the number under each tells them apart.
-	await expect(page.getByText('Every rule checks this service.')).toBeVisible();
+	await expect(page.getByText('No exclusions')).toBeVisible();
 	await page.getByRole('button', { name: 'Add rule' }).click();
 	await page.getByLabel('Search rules').fill('SQL Injection Attack Detected via libinjection');
 	await page

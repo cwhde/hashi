@@ -237,7 +237,7 @@ func (q *Queries) FinishNotificationDelivery(ctx context.Context, arg FinishNoti
 }
 
 const getMonitorEndpoint = `-- name: GetMonitorEndpoint :one
-SELECT id, source_type, source_id, name, group_name, paused, interval_seconds, timeout_seconds, degraded_ms, public, route_provider_id, state, state_since, good_rounds, bad_rounds, last_check_at, last_latency_ms, created_at, updated_at, pending_dns FROM monitor_endpoints WHERE id = ?
+SELECT id, source_type, source_id, name, group_name, paused, interval_seconds, timeout_seconds, degraded_ms, public, route_provider_id, state, state_since, good_rounds, bad_rounds, last_check_at, last_latency_ms, created_at, updated_at, pending_dns, check_method, check_path, check_codes, check_contains, check_family, check_skip_verify FROM monitor_endpoints WHERE id = ?
 `
 
 func (q *Queries) GetMonitorEndpoint(ctx context.Context, id string) (MonitorEndpoint, error) {
@@ -264,6 +264,12 @@ func (q *Queries) GetMonitorEndpoint(ctx context.Context, id string) (MonitorEnd
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.PendingDns,
+		&i.CheckMethod,
+		&i.CheckPath,
+		&i.CheckCodes,
+		&i.CheckContains,
+		&i.CheckFamily,
+		&i.CheckSkipVerify,
 	)
 	return i, err
 }
@@ -607,7 +613,7 @@ func (q *Queries) ListMonitorChecks(ctx context.Context, endpointID string) ([]M
 }
 
 const listMonitorEndpoints = `-- name: ListMonitorEndpoints :many
-SELECT id, source_type, source_id, name, group_name, paused, interval_seconds, timeout_seconds, degraded_ms, public, route_provider_id, state, state_since, good_rounds, bad_rounds, last_check_at, last_latency_ms, created_at, updated_at, pending_dns FROM monitor_endpoints ORDER BY group_name, name
+SELECT id, source_type, source_id, name, group_name, paused, interval_seconds, timeout_seconds, degraded_ms, public, route_provider_id, state, state_since, good_rounds, bad_rounds, last_check_at, last_latency_ms, created_at, updated_at, pending_dns, check_method, check_path, check_codes, check_contains, check_family, check_skip_verify FROM monitor_endpoints ORDER BY group_name, name
 `
 
 func (q *Queries) ListMonitorEndpoints(ctx context.Context) ([]MonitorEndpoint, error) {
@@ -640,6 +646,12 @@ func (q *Queries) ListMonitorEndpoints(ctx context.Context) ([]MonitorEndpoint, 
 			&i.CreatedAt,
 			&i.UpdatedAt,
 			&i.PendingDns,
+			&i.CheckMethod,
+			&i.CheckPath,
+			&i.CheckCodes,
+			&i.CheckContains,
+			&i.CheckFamily,
+			&i.CheckSkipVerify,
 		); err != nil {
 			return nil, err
 		}
@@ -1041,7 +1053,7 @@ func (q *Queries) PutNotificationRoute(ctx context.Context, arg PutNotificationR
 }
 
 const quietEndpoints = `-- name: QuietEndpoints :many
-SELECT e.id, e.source_type, e.source_id, e.name, e.group_name, e.paused, e.interval_seconds, e.timeout_seconds, e.degraded_ms, e.public, e.route_provider_id, e.state, e.state_since, e.good_rounds, e.bad_rounds, e.last_check_at, e.last_latency_ms, e.created_at, e.updated_at, e.pending_dns FROM monitor_endpoints e
+SELECT e.id, e.source_type, e.source_id, e.name, e.group_name, e.paused, e.interval_seconds, e.timeout_seconds, e.degraded_ms, e.public, e.route_provider_id, e.state, e.state_since, e.good_rounds, e.bad_rounds, e.last_check_at, e.last_latency_ms, e.created_at, e.updated_at, e.pending_dns, e.check_method, e.check_path, e.check_codes, e.check_contains, e.check_family, e.check_skip_verify FROM monitor_endpoints e
 WHERE COALESCE((SELECT MAX(f.created_at) FROM notification_deliveries f WHERE f.endpoint_id = e.id AND f.kind = 'flapping'), 0) >
   COALESCE((SELECT MAX(d.created_at) FROM notification_deliveries d WHERE d.endpoint_id = e.id AND d.kind = 'settled'), 0)
 `
@@ -1076,6 +1088,12 @@ func (q *Queries) QuietEndpoints(ctx context.Context) ([]MonitorEndpoint, error)
 			&i.CreatedAt,
 			&i.UpdatedAt,
 			&i.PendingDns,
+			&i.CheckMethod,
+			&i.CheckPath,
+			&i.CheckCodes,
+			&i.CheckContains,
+			&i.CheckFamily,
+			&i.CheckSkipVerify,
 		); err != nil {
 			return nil, err
 		}
@@ -1197,7 +1215,8 @@ func (q *Queries) SetServiceDashboard(ctx context.Context, arg SetServiceDashboa
 
 const updateMonitorEndpointSettings = `-- name: UpdateMonitorEndpointSettings :exec
 UPDATE monitor_endpoints
-SET group_name = ?, paused = ?, interval_seconds = ?, timeout_seconds = ?, degraded_ms = ?, public = ?, route_provider_id = ?, updated_at = ?
+SET group_name = ?, paused = ?, interval_seconds = ?, timeout_seconds = ?, degraded_ms = ?, public = ?, route_provider_id = ?,
+    check_method = ?, check_path = ?, check_codes = ?, check_contains = ?, check_family = ?, check_skip_verify = ?, updated_at = ?
 WHERE id = ?
 `
 
@@ -1209,6 +1228,12 @@ type UpdateMonitorEndpointSettingsParams struct {
 	DegradedMs      int64
 	Public          int64
 	RouteProviderID sql.NullString
+	CheckMethod     string
+	CheckPath       string
+	CheckCodes      string
+	CheckContains   string
+	CheckFamily     string
+	CheckSkipVerify int64
 	UpdatedAt       int64
 	ID              string
 }
@@ -1222,6 +1247,12 @@ func (q *Queries) UpdateMonitorEndpointSettings(ctx context.Context, arg UpdateM
 		arg.DegradedMs,
 		arg.Public,
 		arg.RouteProviderID,
+		arg.CheckMethod,
+		arg.CheckPath,
+		arg.CheckCodes,
+		arg.CheckContains,
+		arg.CheckFamily,
+		arg.CheckSkipVerify,
 		arg.UpdatedAt,
 		arg.ID,
 	)

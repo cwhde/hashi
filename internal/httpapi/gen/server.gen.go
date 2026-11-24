@@ -1177,6 +1177,30 @@ func (e JobRunStatus) Valid() bool {
 	}
 }
 
+// Defines values for MonitorCheckSettingsMethod.
+const (
+	MonitorCheckSettingsMethodEmpty MonitorCheckSettingsMethod = ""
+	MonitorCheckSettingsMethodGET   MonitorCheckSettingsMethod = "GET"
+	MonitorCheckSettingsMethodHEAD  MonitorCheckSettingsMethod = "HEAD"
+	MonitorCheckSettingsMethodPOST  MonitorCheckSettingsMethod = "POST"
+)
+
+// Valid indicates whether the value is a known member of the MonitorCheckSettingsMethod enum.
+func (e MonitorCheckSettingsMethod) Valid() bool {
+	switch e {
+	case MonitorCheckSettingsMethodEmpty:
+		return true
+	case MonitorCheckSettingsMethodGET:
+		return true
+	case MonitorCheckSettingsMethodHEAD:
+		return true
+	case MonitorCheckSettingsMethodPOST:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for MonitorState.
 const (
 	MonitorStateDegraded MonitorState = "degraded"
@@ -4264,20 +4288,40 @@ type MonitorCheck struct {
 	Type      string  `json:"type"`
 }
 
+// MonitorCheckSettings One set for the endpoint, the same for its internal and public check (07 section 2); empty values are the defaults
+type MonitorCheckSettings struct {
+	// Codes Healthy HTTP codes, for example 200-399, 401
+	Codes    string `json:"codes"`
+	Contains string `json:"contains"`
+
+	// Family 4, 6, or empty for IPv4 and IPv6
+	Family string                     `json:"family"`
+	Method MonitorCheckSettingsMethod `json:"method"`
+	Path   string                     `json:"path"`
+
+	// SkipVerify Skip the internal check's certificate check
+	SkipVerify bool `json:"skip_verify"`
+}
+
+// MonitorCheckSettingsMethod defines model for MonitorCheckSettings.Method.
+type MonitorCheckSettingsMethod string
+
 // MonitorEndpoint defines model for MonitorEndpoint.
 type MonitorEndpoint struct {
-	Checks          []MonitorCheck `json:"checks"`
-	DegradedMs      int64          `json:"degraded_ms"`
-	Group           string         `json:"group"`
-	Id              string         `json:"id"`
-	IntervalSeconds int64          `json:"interval_seconds"`
-	LastCheckAt     *time.Time     `json:"last_check_at,omitempty"`
-	LastLatencyMs   *int64         `json:"last_latency_ms,omitempty"`
-	Name            string         `json:"name"`
-	Paused          bool           `json:"paused"`
-	PendingDns      *bool          `json:"pending_dns,omitempty"`
-	Public          bool           `json:"public"`
-	RouteProviderId *string        `json:"route_provider_id,omitempty"`
+	// Check One set for the endpoint, the same for its internal and public check (07 section 2); empty values are the defaults
+	Check           MonitorCheckSettings `json:"check"`
+	Checks          []MonitorCheck       `json:"checks"`
+	DegradedMs      int64                `json:"degraded_ms"`
+	Group           string               `json:"group"`
+	Id              string               `json:"id"`
+	IntervalSeconds int64                `json:"interval_seconds"`
+	LastCheckAt     *time.Time           `json:"last_check_at,omitempty"`
+	LastLatencyMs   *int64               `json:"last_latency_ms,omitempty"`
+	Name            string               `json:"name"`
+	Paused          bool                 `json:"paused"`
+	PendingDns      *bool                `json:"pending_dns,omitempty"`
+	Public          bool                 `json:"public"`
+	RouteProviderId *string              `json:"route_provider_id,omitempty"`
 
 	// SourceId What made it, for a link: the service, DNS record, firewall host or Traefik host ID
 	SourceId       *string              `json:"source_id,omitempty"`
@@ -4322,13 +4366,15 @@ type MonitorEndpointList struct {
 
 // MonitorEndpointSettings defines model for MonitorEndpointSettings.
 type MonitorEndpointSettings struct {
-	DegradedMs      int64   `json:"degraded_ms"`
-	Group           string  `json:"group"`
-	IntervalSeconds int64   `json:"interval_seconds"`
-	Paused          bool    `json:"paused"`
-	Public          bool    `json:"public"`
-	RouteProviderId *string `json:"route_provider_id,omitempty"`
-	TimeoutSeconds  int64   `json:"timeout_seconds"`
+	// Check One set for the endpoint, the same for its internal and public check (07 section 2); empty values are the defaults
+	Check           *MonitorCheckSettings `json:"check,omitempty"`
+	DegradedMs      int64                 `json:"degraded_ms"`
+	Group           string                `json:"group"`
+	IntervalSeconds int64                 `json:"interval_seconds"`
+	Paused          bool                  `json:"paused"`
+	Public          bool                  `json:"public"`
+	RouteProviderId *string               `json:"route_provider_id,omitempty"`
+	TimeoutSeconds  int64                 `json:"timeout_seconds"`
 
 	// Version The endpoint's version the form loaded; a newer stored one refuses the save (409)
 	Version *int64 `json:"version,omitempty"`
@@ -4362,6 +4408,19 @@ type MonitorStripSample struct {
 
 // MonitorStripSampleVerdict defines model for MonitorStripSample.Verdict.
 type MonitorStripSampleVerdict string
+
+// MonitorTestResult defines model for MonitorTestResult.
+type MonitorTestResult struct {
+	Checks []struct {
+		Degraded  bool   `json:"degraded"`
+		Detail    string `json:"detail"`
+		LatencyMs int64  `json:"latency_ms"`
+		Ok        bool   `json:"ok"`
+		Role      string `json:"role"`
+		Target    string `json:"target"`
+		Type      string `json:"type"`
+	} `json:"checks"`
+}
 
 // MonitoringSettings defines model for MonitoringSettings.
 type MonitoringSettings struct {
@@ -4781,13 +4840,13 @@ type PublicStatusEntry struct {
 	// IconLight Its white variant for dark themes
 	IconLight *string `json:"icon_light,omitempty"`
 
+	// Mark Hashi itself: show the page's own tab icon
+	Mark *bool `json:"mark,omitempty"`
+
 	// Minutes The last hour's rounds, oldest first
 	Minutes []PublicMinute `json:"minutes"`
 	Name    string         `json:"name"`
-
-	// PendingDns Its address changed and DNS may still be catching up
-	PendingDns *bool     `json:"pending_dns,omitempty"`
-	Since      time.Time `json:"since"`
+	Since   time.Time      `json:"since"`
 
 	// Slug The service page's address part: /s/{slug}
 	Slug      string       `json:"slug"`
@@ -6415,6 +6474,9 @@ type CreateMonitorEndpointJSONRequestBody = MonitorEndpointCreate
 // PutMonitorEndpointJSONRequestBody defines body for PutMonitorEndpoint for application/json ContentType.
 type PutMonitorEndpointJSONRequestBody = MonitorEndpointSettings
 
+// TestMonitorEndpointJSONRequestBody defines body for TestMonitorEndpoint for application/json ContentType.
+type TestMonitorEndpointJSONRequestBody = MonitorCheckSettings
+
 // CreateNotificationProviderJSONRequestBody defines body for CreateNotificationProvider for application/json ContentType.
 type CreateNotificationProviderJSONRequestBody = NotificationProviderCreate
 
@@ -7163,6 +7225,9 @@ type ServerInterface interface {
 	// PutMonitorEndpoint Change an endpoint's group, schedule, visibility and route override
 	// (PUT /api/monitor/endpoints/{id})
 	PutMonitorEndpoint(w http.ResponseWriter, r *http.Request, id string)
+	// TestMonitorEndpoint Run the endpoint's checks once with the given check settings; nothing is stored
+	// (POST /api/monitor/endpoints/{id}/test)
+	TestMonitorEndpoint(w http.ResponseWriter, r *http.Request, id string)
 	// ListNotificationDeliveries Recent deliveries
 	// (GET /api/notifications/deliveries)
 	ListNotificationDeliveries(w http.ResponseWriter, r *http.Request)
@@ -9749,6 +9814,32 @@ func (siw *ServerInterfaceWrapper) PutMonitorEndpoint(w http.ResponseWriter, r *
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.PutMonitorEndpoint(w, r, id)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// TestMonitorEndpoint operation middleware
+func (siw *ServerInterfaceWrapper) TestMonitorEndpoint(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "id" -------------
+	var id string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "id", r.PathValue("id"), &id, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "id", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.TestMonitorEndpoint(w, r, id)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -13160,6 +13251,7 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/api/monitor/endpoints/{id}", wrapper.DeleteMonitorEndpoint)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/monitor/endpoints/{id}", wrapper.GetMonitorEndpoint)
 	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/api/monitor/endpoints/{id}", wrapper.PutMonitorEndpoint)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/monitor/endpoints/{id}/test", wrapper.TestMonitorEndpoint)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/notifications/providers", wrapper.ListNotificationProviders)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/notifications/providers", wrapper.CreateNotificationProvider)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/notifications/telegram/discover", wrapper.DiscoverTelegramChats)
@@ -16860,6 +16952,46 @@ type PutMonitorEndpointdefaultApplicationProblemPlusJSONResponse struct {
 }
 
 func (response PutMonitorEndpointdefaultApplicationProblemPlusJSONResponse) VisitPutMonitorEndpointResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(response.StatusCode)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type TestMonitorEndpointRequestObject struct {
+	Id   string `json:"id"`
+	Body *TestMonitorEndpointJSONRequestBody
+}
+
+type TestMonitorEndpointResponseObject interface {
+	VisitTestMonitorEndpointResponse(w http.ResponseWriter) error
+}
+
+type TestMonitorEndpoint200JSONResponse MonitorTestResult
+
+func (response TestMonitorEndpoint200JSONResponse) VisitTestMonitorEndpointResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type TestMonitorEndpointdefaultApplicationProblemPlusJSONResponse struct {
+	Body       Problem
+	StatusCode int
+}
+
+func (response TestMonitorEndpointdefaultApplicationProblemPlusJSONResponse) VisitTestMonitorEndpointResponse(w http.ResponseWriter) error {
 
 	var buf bytes.Buffer
 	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
@@ -23374,6 +23506,9 @@ type StrictServerInterface interface {
 	// PutMonitorEndpoint Change an endpoint's group, schedule, visibility and route override
 	// (PUT /api/monitor/endpoints/{id})
 	PutMonitorEndpoint(ctx context.Context, request PutMonitorEndpointRequestObject) (PutMonitorEndpointResponseObject, error)
+	// TestMonitorEndpoint Run the endpoint's checks once with the given check settings; nothing is stored
+	// (POST /api/monitor/endpoints/{id}/test)
+	TestMonitorEndpoint(ctx context.Context, request TestMonitorEndpointRequestObject) (TestMonitorEndpointResponseObject, error)
 	// ListNotificationDeliveries Recent deliveries
 	// (GET /api/notifications/deliveries)
 	ListNotificationDeliveries(ctx context.Context, request ListNotificationDeliveriesRequestObject) (ListNotificationDeliveriesResponseObject, error)
@@ -26437,6 +26572,39 @@ func (sh *strictHandler) PutMonitorEndpoint(w http.ResponseWriter, r *http.Reque
 		sh.options.ResponseErrorHandlerFunc(w, r, err)
 	} else if validResponse, ok := response.(PutMonitorEndpointResponseObject); ok {
 		if err := validResponse.VisitPutMonitorEndpointResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// TestMonitorEndpoint operation middleware
+func (sh *strictHandler) TestMonitorEndpoint(w http.ResponseWriter, r *http.Request, id string) {
+	var request TestMonitorEndpointRequestObject
+
+	request.Id = id
+
+	var body TestMonitorEndpointJSONRequestBody
+	if err := runtime.BindJSONBody(r, &body); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.TestMonitorEndpoint(ctx, request.(TestMonitorEndpointRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "TestMonitorEndpoint")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(TestMonitorEndpointResponseObject); ok {
+		if err := validResponse.VisitTestMonitorEndpointResponse(w); err != nil {
 			sh.options.ResponseErrorHandlerFunc(w, r, err)
 		}
 	} else if response != nil {
