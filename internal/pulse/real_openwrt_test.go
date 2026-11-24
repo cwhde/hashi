@@ -27,7 +27,7 @@ func TestRealOpenWrtInstall(t *testing.T) {
 	}
 
 	dir := t.TempDir()
-	bin := filepath.Join(dir, "hashi-pulse-linux-"+arch)
+	bin := filepath.Join(dir, "hashi-pulse-"+arch)
 	build := exec.Command("go", "build", "-trimpath", "-ldflags", "-s -w -X main.Version=v0.0.1-test", "-o", bin, "../../agents/pulse")
 	build.Env = append(os.Environ(), "CGO_ENABLED=0", "GOOS=linux", "GOARCH="+arch)
 	if out, err := build.CombinedOutput(); err != nil {

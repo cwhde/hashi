@@ -531,12 +531,14 @@ func TestReleaseContract(t *testing.T) {
 	for _, a := range r.Assets {
 		names[a.Name] = true
 	}
+	// The capture predates v1.3.0, which dropped "linux-" from the names; releases still carry copies under the old
+	// names for agents up to v1.2.0 (make pulse-sign). Re-capture once a release with the new names is out.
 	for _, arch := range []string{"amd64", "arm64"} {
 		if !names["hashi-pulse-linux-"+arch] || !names["hashi-pulse-linux-"+arch+".sha256"] {
 			t.Fatalf("%s missing: %v", arch, names)
 		}
 	}
-	if !strings.Contains(string(InstallScript), `"$from/hashi-pulse-linux-$arch"`) || !strings.Contains(string(Script()), ReleaseBase) {
+	if !strings.Contains(string(InstallScript), `"$from/hashi-pulse-$arch"`) || !strings.Contains(string(Script()), ReleaseBase) {
 		t.Fatal("the installer must fetch those names from this release")
 	}
 }

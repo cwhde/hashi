@@ -1,7 +1,7 @@
 // Command pulsesign signs Pulse release binaries (ADR 0003, 08 §6).
 //
 //	pulsesign keygen          prints a new private key (base64) to stdout and its public key to stderr
-//	pulsesign sign DIR VERSION signs DIR/hashi-pulse-linux-<arch> with $PULSE_SIGNING_KEY into <file>.sig
+//	pulsesign sign DIR VERSION signs DIR/hashi-pulse-<arch> with $PULSE_SIGNING_KEY into <file>.sig
 package main
 
 import (
@@ -45,7 +45,7 @@ func run(args []string) error {
 		}
 		key := ed25519.NewKeyFromSeed(seed)
 		for _, arch := range []string{"amd64", "arm64"} {
-			file := filepath.Join(args[1], "hashi-pulse-linux-"+arch)
+			file := filepath.Join(args[1], "hashi-pulse-"+arch)
 			b, err := os.ReadFile(file) //nolint:gosec // the release's own build output
 			if err != nil {
 				return err

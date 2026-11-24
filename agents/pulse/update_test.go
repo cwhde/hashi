@@ -33,7 +33,7 @@ func TestUpdate(t *testing.T) {
 	old := trustedKey
 	trustedKey = base64.StdEncoding.EncodeToString(pub)
 	t.Cleanup(func() { trustedKey = old })
-	name := "hashi-pulse-linux-" + runtime.GOARCH
+	name := "hashi-pulse-" + runtime.GOARCH
 	serve := func(t *testing.T, body string, sigText []byte, chunked bool) string {
 		t.Helper()
 		sig := base64.StdEncoding.EncodeToString(ed25519.Sign(priv, sigText))

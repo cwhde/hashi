@@ -38,8 +38,8 @@ esac
 
 tmp=$(mktemp -d)
 trap 'rm -rf "$tmp"' EXIT
-fetch "$from/hashi-pulse-linux-$arch" "$tmp/hashi-pulse"
-fetch "$from/hashi-pulse-linux-$arch.sha256" "$tmp/sum"
+fetch "$from/hashi-pulse-$arch" "$tmp/hashi-pulse"
+fetch "$from/hashi-pulse-$arch.sha256" "$tmp/sum"
 want=$(cat "$tmp/sum")
 got=$(sha256sum "$tmp/hashi-pulse" | cut -d' ' -f1)
 [ "$want" = "$got" ] || { echo "checksum mismatch" >&2; exit 1; }

@@ -125,18 +125,21 @@ smoke: ## readyz, version, SPA and public listeners on ENV
 pulse-dist: ## Pulse binaries and SHA-256 checksums in dist/pulse (VERSION=...)
 	mkdir -p dist/pulse
 	for a in amd64 arm64; do \
-		CGO_ENABLED=0 GOOS=linux GOARCH=$$a go build -trimpath -ldflags "-s -w -X main.Version=$(or $(VERSION),dev)" -o dist/pulse/hashi-pulse-linux-$$a ./agents/pulse; \
-		(cd dist/pulse && sha256sum hashi-pulse-linux-$$a | cut -d' ' -f1 > hashi-pulse-linux-$$a.sha256); \
+		CGO_ENABLED=0 GOOS=linux GOARCH=$$a go build -trimpath -ldflags "-s -w -X main.Version=$(or $(VERSION),dev)" -o dist/pulse/hashi-pulse-$$a ./agents/pulse; \
+		(cd dist/pulse && sha256sum hashi-pulse-$$a | cut -d' ' -f1 > hashi-pulse-$$a.sha256); \
 	done
 
 pulse-sign: ## sign dist/pulse with $$PULSE_SIGNING_KEY (VERSION=...), as the release job does
 	go run ./cmd/pulsesign sign dist/pulse $(VERSION)
+	# Agents up to v1.2.0 update from hashi-pulse-linux-<arch>: publish copies under that name until every agent runs a
+	# later release (the signature covers version, arch and checksum, not the file name).
+	for a in amd64 arm64; do for s in '' .sha256 .sig; do cp dist/pulse/hashi-pulse-$$a$$s dist/pulse/hashi-pulse-linux-$$a$$s; done; done
 
 pulse-sleeper: ## rebuild the committed sleeper binaries from their source (needs Docker)
 	agents/pulse/sleeper/build.sh
 
 pulse-size: pulse-dist ## the agent stays under 10 MB compressed (08 §1)
-	for a in amd64 arm64; do n=$$(gzip -c dist/pulse/hashi-pulse-linux-$$a | wc -c); echo "agent $$a: $$n bytes"; [ $$n -lt 10000000 ]; done
+	for a in amd64 arm64; do n=$$(gzip -c dist/pulse/hashi-pulse-$$a | wc -c); echo "agent $$a: $$n bytes"; [ $$n -lt 10000000 ]; done
 
 pulse-image-size: ## the agent image stays under 10 MB compressed (08 §1)
 	docker build -q -f deploy/docker/Pulse.Dockerfile -t hashi-pulse:size-check .

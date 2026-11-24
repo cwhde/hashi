@@ -41,7 +41,7 @@ func signedText(version, arch string, sum []byte) []byte {
 func update(ctx context.Context, base, version, self string) error {
 	ctx, cancel := context.WithTimeout(ctx, 5*time.Minute)
 	defer cancel()
-	name := "hashi-pulse-linux-" + runtime.GOARCH
+	name := "hashi-pulse-" + runtime.GOARCH
 	sigRes, err := roundTrip(ctx, request{Method: "GET", URL: base + "/" + name + ".sig"}, nil)
 	if err != nil {
 		return err
