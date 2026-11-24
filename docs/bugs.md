@@ -19,6 +19,12 @@ All open entries are planned into the 0.13 bug round (slices 13.1 onwards in `do
 | --- | --- | --- | --- | --- | --- |
 | 189 | function | reported | CI | `TestIntegrationTakeover` failed once on main (run 1298, 2026-11-23): the old rules were back before the test looked. Its rescue window is 3 s; with the release build on the same Docker host the apply and the check likely took longer. Passes locally (3 of 3). | 2026-11-23 |
 | 190 | function | mitigated | CI | `internal/app` timed out after `go test`'s default 10 minutes in CI run 1332 (v1.1.0). Alone it takes 14 s, 121 s under `-race` (39 tests one after another, the slowest 10–12 s each); with every package at once on the shared runner host, 420–600 s. `make test` and CI now allow 20 minutes. The fix itself: run the package's tests in parallel (each builds its own instance). | 2026-11-23 |
+| 191 | function | reported | Monitoring | A service behind Hashi's own sign-in shows degraded forever: its public check gets Hashi's 401 and expects 200–399, and it goes through the internal DNS rewrite to the home Traefik, not the visitors' path. Prod 2026-11-24: 8 services. Decided: the public check resolves through public DNS and sends an hourly monitor session that passes every sign-in rule (06 §7, 07 §2). | 2026-11-24 |
+| 192 | function | reported | Public pages | A failing check showed as "Slow"/degraded. Decided: Up, Degraded (slow, counts as up), Down (a check fails); every check required (07 §3, §7.0). | 2026-11-24 |
+| 193 | function | reported | Public pages | Paused services showed "Paused" on both public pages. Decided: not on the status page; on the app dashboard with a grey dot and no word (07 §7.1, §8). | 2026-11-24 |
+| 194 | text | reported | Public pages | "DNS updating" next to a service on the public status page. Decided: removed, nothing in its place. | 2026-11-24 |
+| 195 | function | reported | Monitoring | The home AdGuard was degraded: its IPv6 address is unreachable from Hashi, which connects over IPv4. Decided: an address set is up when one address answers; per endpoint "Addresses" can be IPv4 only (07 §2). | 2026-11-24 |
+| 196 | function | reported | Monitoring | Cap's public check fails with 404 on `/`. Decided: per-endpoint path and healthy codes (07 §2). | 2026-11-24 |
 
 ## Details
 

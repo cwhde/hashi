@@ -111,7 +111,15 @@ Test for every sentence: delete it. Would someone now make a real mistake or be 
 7. **Concepts that need explaining** (rule order, ban counters) get one help icon per panel with at most three sentences
    in a popover, not a paragraph on the page.
 8. **One name per thing** across pages, buttons, toasts and plans: IP set, rule set, agent, plan, apply, approve.
-9. **Checked with `unslop-ui`** (13.10): the repo's `.unslop-ui/taste.md` lists this section's bans and what stays on
+9. **Controls name themselves.** A button, switch, checkbox, menu item or option has its label and nothing else: no
+   line under it, beside it or in a tooltip that says what it does, when to use it or what it doesn't do. If the label
+   can't carry it, change the label. Banned examples (2026-11-24): "Skip the internal certificate check" with "For an
+   upstream with its own HTTPS certificate; the edge has the real one." under it; "Test now" with "Runs both checks once
+   with these settings; saves nothing." beside it.
+10. **Words aren't explained by what they already mean.** A state, tag or value isn't followed by what it implies:
+   "Degraded · slow", never "slow, still up"; "Paused", never "paused, not checked". The reader is a competent adult.
+   This holds for public pages, tooltips, toasts and empty states too.
+11. **Checked with `unslop-ui`** (13.10): the repo's `.unslop-ui/taste.md` lists this section's bans and what stays on
    purpose (" · " between real values, "<Page> · Hashi" titles). A text change runs it; where it and this section
    disagree, both change in the same commit.
 
@@ -152,6 +160,7 @@ Test for every sentence: delete it. Would someone now make a real mistake or be 
 - [ ] Shared concepts use the shared control from §2.
 - [ ] Name, status, risk, errors and non-default values are visible; everything else is one click away (§3).
 - [ ] Every sentence passed the deletion test; no eyebrows; no description on a detail page (§4).
+- [ ] No control has a help line, and no state word is followed by what it implies (§4.9, §4.10).
 - [ ] Save model and button label follow §5; drafts survive tab switches; leaving asks.
 - [ ] Every reference is a named link.
 

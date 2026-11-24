@@ -20,13 +20,36 @@ Pulse push health (heartbeat freshness).
 Auto-detection: explicit service protocol first; for DNS entries, probe common ports in a safe fixed order (443, 80,
 then the entry's configured port) once at creation, then use the chosen check; per-endpoint override; no scanning.
 
-HTTP checks may target the public URL (through DNS + Traefik) and/or the internal upstream; both together distinguish
-"service down" from "edge down" (degraded when only one path is healthy).
+HTTP checks may target the public URL (through DNS + Traefik) and/or the internal upstream; both together tell
+"service down" from "edge down" by which one fails (the event names the path).
+
+**The public check is a visitor** (2026-11-24): it resolves the name through public DNS (1.1.1.1, else 9.9.9.9), never
+the internal resolver and its rewrites, so it takes the visitors' path through the public entry. It carries Hashi's
+monitor session (06 §7), so sign-in rules don't fail it.
+
+**Check settings** (2026-11-24), one set per endpoint, the same for its internal and public check, all optional:
+
+| Setting | Default | Applies to |
+| --- | --- | --- |
+| Method | GET (GET, HEAD, POST) | HTTP checks |
+| Path | the target's own (`/`) | HTTP checks |
+| Healthy HTTP codes | the Monitoring default (200–399); a list like `200-399, 401` | HTTP checks |
+| The answer contains | nothing; text the first 64 KiB of the body must contain | HTTP checks |
+| Addresses | IPv4 and IPv6; or IPv4 only, IPv6 only | every check that connects |
+| Skip the internal certificate check | off (on when the service skips it upstream) | the internal HTTPS check |
+
+The endpoint page's Checks panel holds them with **Test now**: it runs the endpoint's checks once with the form's
+values and shows each result; nothing is stored.
+
+**Address sets** (a firewall host's or AdGuard's addresses): Hashi connects to whichever answers, so the check does the
+same: up when one address answers, down when none does. Each address is not a check of its own.
 
 ## 3. States
 
-Up (all required checks pass) · Degraded (some fail, latency over threshold, or only some paths healthy) · Down (required
-checks fail) · Paused · Unknown (not enough data). Transitions use thresholds (default: 3 failures → down, 2 successes → up).
+Up (every check passes) · Degraded (every check passes, but slower than the endpoint's threshold or with a certificate
+close to expiry) · Down (a check fails) · Paused · Unknown (not enough data). There are no optional checks (2026-11-24):
+a failing check means down. Degraded counts as up in every uptime. Transitions use thresholds (default: 3 failures →
+down, 2 successes → up).
 
 ## 4. Storage
 
@@ -40,7 +63,8 @@ Status list: compact row/card per endpoint, last-60-minutes strip, state, last c
 by host / firewall host / status / service type (by group: the groups in the public layout's order, §8.1); sort by name / state / latency / uptime / last event.
 
 Detail: current status, last check, response min/max/avg, uptime (1 h, 24 h, 7 d, 30 d), latency chart (1 h, 24 h, 7 d,
-30 d), incident/event timeline, endpoint settings.
+30 d), incident/event timeline. Then two panels side by side: **Checks** (each check with its last error, the check
+settings of §2 and Test now) and **Settings** (group, interval, timeout, degraded threshold, alert route, public status).
 
 ## 6. Notifications
 
@@ -115,24 +139,24 @@ version refuses the save (409) and the editor reloads. Audit: one event per save
 ### 7.0 How a state reads on the public pages
 
 Everywhere a public page shows one entry's state (status rows, the service page head, app cards) it is the same: the
-word, then the dot, in the state's colour, the dot ending on the right. The words are the visitors': Up, Slow, Down,
-Paused, No data. Every state has its word, Up included, so no state rests on colour alone and none reads differently
+word, then the dot, in the state's colour, the dot ending on the right. The words: Up, Degraded, Down, No data (2026-11-24: Degraded
+replaces Slow; nothing explains a word, 10c §4.10). Every state has its word, Up included (a paused app card is the one dot without one, §8), so no state rests on colour alone and none reads differently
 (the owner, 2026-11-22). Group summaries keep their own words ("x of n up") with the dot after them.
 
-The same words reach screen readers: a strip is read as what it holds ("90 days: 1 down, 2 slow", "60 checks, all up"),
+The same words reach screen readers: a strip is read as what it holds ("90 days: 1 down, 2 degraded", "60 checks, all up"),
 never the admin's words. Times are the visitor's local time in 24 hours, with the date when it is not today
 ("20 Nov, 09:05"), the same on every public page.
 
 ### 7.1 Status page (port 8082, root path)
 
-Enabled by default (setting). Only entries with Status on; never internal hostnames, IPs, ports, protocols, status codes,
+Enabled by default (setting). Only entries with Status on that are not paused; never internal hostnames, IPs, ports, protocols, status codes,
 error text or admin links.
 
-- **Banner**: "N services are down." / slow / everything works, with "Updated" from public checks only (as since 13.5).
+- **Banner**: "N services are down." / degraded / everything works, with "Updated" from public checks only (as since 13.5).
 - **Group tiles**: one per group shown, in layout order: the group's name with a state dot on the right (worst of its
   entries), "x of n up" below. A summary only: no hover, no click (the owner, 2026-11-22: the groups are right below). Hidden when only one
   group is shown.
-- **Group panels**: each group in its own panel that folds. A group with an entry down or slow starts open; the others
+- **Group panels**: each group in its own panel that folds. A group with an entry down or degraded starts open; the others
   start as the visitor left them (kept in the browser), open the first time. Folding animates the panel's height
   (about 200 ms, none with reduced motion); folded rows are out of the tab order. Only a folded or moving panel clips
   its rows, so the bar details of a group's first row show above it.
@@ -142,15 +166,15 @@ error text or admin links.
   explains the bars; the details are on hover.
 - **Bar details**: pointing at a bar (or tapping it, or arrow keys on the focused bar) raises that bar, dims the rest
   and shows a bubble with what happened then. A day: the date, then each downtime with its times and length ("Down
-  19:55–19:56 (1 min)"), each slow spell ("Slow for 20 min, 14:10–14:30"), else "No downtime", and that day's uptime;
-  today says "Down since 13:36" while it lasts. A minute: the time, Up with its response time, Slow with it, Down, or
+  19:55–19:56 (1 min)"), each degraded spell ("Degraded 14:10–14:30 (20 min)"), else "No downtime", and that day's uptime;
+  today says "Down since 13:36" while it lasts. A minute: the time, Up with its response time, Degraded with it, Down, or
   No data. The strip stays one drawing per state (13.11); the raised bar is one extra element.
 - The row opens the service page.
 - Failed refresh shows a visible "data may be stale since …" banner rather than silently showing empty or stale data.
 - Phone: tiles in two columns, rows stack name over bar, nothing wider than the screen.
 - `GET /api/public/status` (cached 15 s): groups and entries in order, state, 60 one-minute and 90 one-day samples,
   uptime 24 h / 90 d. Days come from the 1 h rollups (01 §4.3 keeps them 2 years); a day without data is "no data".
-  Each day and minute carries what its bubble needs: the downtimes and slow spells in it (start, end), the uptime, and
+  Each day and minute carries what its bubble needs: the downtimes and degraded spells in it (start, end), the uptime, and
   for a minute the response time. Spells come from the state changes already stored (§4); nothing new is recorded.
 
 ### 7.2 Service page (status listener, `/s/<slug>`)
@@ -175,7 +199,7 @@ entry switched off answers 404.
 The service page has one Badges button; it opens a small panel with every badge this entry has, drawn as it will
 look, and a Markdown / Link switch; a click on a badge copies it and says "Copied". SVG images for READMEs and other
 pages, served by the status listener at `/badge/<slug>/<kind>.svg`, cached 60 s,
-`Content-Security-Policy: default-src 'none'; style-src 'unsafe-inline'`, `nosniff`. Kinds: `status` (up, slow, down),
+`Content-Security-Policy: default-src 'none'; style-src 'unsafe-inline'`, `nosniff`. Kinds: `status` (up, degraded, down),
 `uptime-24h`, `uptime-7d`, `uptime-30d`, `response-24h`, `certificate` (days left; only when the entry has a TLS check).
 Look: 20 px high, 4 px corners, a dark label (#3d444d) and the value on its colour, white bold text with a faint
 shadow, a light top sheen and a thin edge, so it reads on light and dark READMEs; the status badge's label is the
@@ -193,7 +217,8 @@ Launcher of the entries with Apps on, enabled by default (setting), no admin con
 - Groups as headings in layout order; cards in layout order inside each. Sorting by Name or Status drops the
   headings and shows one list.
 - Each card: app icon (§9.1), name, the public address; links to it. An entry with a check shows its state (§7.0) at
-  the end of the address line, so the name keeps the full width. No up/down counts in the header (bug 147).
+  the end of the address line, so the name keeps the full width. A paused entry stays listed with a grey dot and no
+  word. No up/down counts in the header (bug 147).
 - Search field always shown (bug 146); sort selector "Sort: Group" (default: the groups
   and cards as the owner arranged them), Name, Status. Visitors never see the owner's wording ("Your order").
 - `GET /api/public/apps` (cached 15 s).

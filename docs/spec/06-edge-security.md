@@ -305,6 +305,11 @@ few seconds). On reconnect it resumes from the cursor, bounded per read (1 MB, t
   counts as the same name; only the health routers' paths pass on any name. A service name outside the
   root domain cannot receive the cookie, so `pass_authentication` there asks for a login every time.
 - `X-Hashi-User` is removed from every client request before forward auth, so only Hashi can set it.
+- **Monitor session** (2026-11-24): Hashi's public checks (07 §2) send one edge session of their own, so a service
+  behind sign-in is checked as a signed-in visitor sees it. It lives in memory only (no `edge_sessions` row, shown
+  nowhere), is replaced every hour (the one before stays valid for 5 minutes) and on every restart. It counts as signed
+  in with every provider and in every group, so it passes every `pass_authentication` and `pass_captcha` item; deny,
+  Stage A and the WAF treat it like any session. Its user is `hashi-monitor`.
 
 ## 8. Feeds (external blocklists)
 

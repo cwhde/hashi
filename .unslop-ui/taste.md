@@ -21,6 +21,10 @@ same change.
   meaning in words (bugs 140, 141)
 - A second sentence that adds nothing ("6 services are down. Others are working.") (bug 145)
 - Counts and status in a place that is not about status (up/down counts on the app dashboard) (bug 147)
+- Any help line, sub-label or tooltip on a button, switch, checkbox, menu item or option that says what it does, when to
+  use it or what it doesn't do ("Skip the internal certificate check" + "For an upstream with its own HTTPS
+  certificate…"; "Test now" + "Runs both checks once with these settings; saves nothing.") (10c §4.9)
+- A state, tag or value followed by what it already implies ("Degraded · slow, still up", "Paused · not checked") (10c §4.10)
 - Raw event names, IDs or `kind:<id>` strings where a name or plain words fit (10c §1.6; bugs 129, 131)
 
 ## Keep
