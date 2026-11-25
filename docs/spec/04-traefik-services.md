@@ -22,8 +22,9 @@ with Hashi-managed TLS and an HTTP→HTTPS redirect on `web` (80).
 A route may name its own upstream protocol (`http`, `https`, `h2c`); empty uses the service's. One name can then serve gRPC next to plain HTTP, as NetBird and Nezha need.
 - **Simple target:** scheme, address (an address set, [05a-ip-sets.md](05a-ip-sets.md) §5.2 — a single IP, a Pulse agent, a
   host or a DNS name; several resolved addresses are load-balanced), port. The picker offers an address, a Pulse agent
-  or an IP set; an agent picked directly is stored as its hidden one-item set (05a §5.2), so advanced routes, which
-  keep their targets as text, take agents only through a set of the admin's. The service page names the firewall host
+  or an IP set; an agent picked directly is stored as its hidden one-item set (05a §5.2). Advanced routes, which keep
+  their targets as text, name an agent as `agent:<name>:<port>` and store it the same way (bug 198); a set that a route
+  still uses cannot be deleted, like one a column references. The service page names the firewall host
   the upstream sits behind and says why a record or rewrite is missing (03 §5.2).
 - **Advanced routes** (when enabled), each with: enabled, target list (address sets, load-balanced; weights optional), path match type
   (prefix / exact / regex), path value, priority, rewrite, route-specific middleware list (names from the user

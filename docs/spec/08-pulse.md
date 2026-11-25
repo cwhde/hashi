@@ -85,8 +85,8 @@ Nothing unrelated is touched; Activity logs the dependency impact (which sets, w
 ## 5. Connection targets
 
 Every connection that needs a host/IP (Traefik host SSH, firewall host SSH, AdGuard, future connections) takes an
-**address set** plus port, scheme, path prefix, TLS validation mode and expected hostname. Addresses are tried in item
-order. The UI shows, per resolved address, its source (e.g. Pulse agent: last seen, public address, private candidates,
+**address set** plus port, scheme, path prefix, TLS validation mode and expected hostname, or a Pulse agent picked
+directly, stored as its hidden one-item set (05a §5.2; SSH targets since bug 198). Addresses are tried in item order. The UI shows, per resolved address, its source (e.g. Pulse agent: last seen, public address, private candidates,
 selected address, stale status, reachability from Hashi).
 
 The literal address a host was first added with stays as the last fallback after its address set, so a set gone wrong
