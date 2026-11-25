@@ -15,6 +15,7 @@ import (
 // A logo stored before Hashi fitted logos (prod's was 227 KiB) is stored again at its shown size on start, and its
 // slot gets the new type and ETag, so the pages link the small file. Its origin and source path stay.
 func TestStoredLogoIsFittedOnStart(t *testing.T) {
+	parallel(t)
 	ctx := context.Background()
 	st := storetest.New(t)
 	big, err := os.ReadFile(filepath.Join("..", "assets", "testdata", "wide-logo.webp"))

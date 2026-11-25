@@ -23,6 +23,7 @@ import (
 // the connection target follow, and the generated record is a CNAME while the agent sits behind the host and an A record
 // once it does not (Pulse IP matching). When the agent is revoked the target keeps its last address (invariant 21).
 func TestHeartbeatReachesConsumers(t *testing.T) {
+	parallel(t)
 	ctx := t.Context()
 	st := storetest.New(t)
 	v, err := vault.New([]byte("0123456789abcdef0123456789abcdef"), 1)
@@ -115,6 +116,7 @@ func TestHeartbeatReachesConsumers(t *testing.T) {
 
 // 08 §5: an agent's consumers include what follows it through a nested set, and the address page names it (05a §6).
 func TestAgentConsumersThroughNesting(t *testing.T) {
+	parallel(t)
 	ctx := t.Context()
 	st := storetest.New(t)
 	v, err := vault.New([]byte("0123456789abcdef0123456789abcdef"), 1)

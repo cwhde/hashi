@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"git.juzo.io/juzo/hashi/internal/dns"
 	"git.juzo.io/juzo/hashi/internal/dns/hetzner"
@@ -17,6 +18,7 @@ import (
 
 // Setup step 3 over HTTP against the recorded Hetzner responses (02 §1.3, 03 §4).
 func TestSetupStep3DNSProviderAndImport(t *testing.T) {
+	parallel(t)
 	sim, srv := hetznertest.NewSimServer(t)
 	cfg := newConfig(t)
 	cfg.dnsProviders = func(_ string, token secrets.Value) (dns.Provider, error) {
@@ -97,7 +99,15 @@ func TestSetupStep3DNSProviderAndImport(t *testing.T) {
 		t.Fatalf("probe plan: %s, writes %v", r.raw, sim.Writes)
 	}
 	c.mustStatus(c.do(http.MethodPost, "/api/sync/plans/"+r.body["id"].(string)+"/approve", nil), 403) // needs sync.apply + reauth
-	r = c.mustStatus(c.do(http.MethodPost, "/api/setup/dns/probe/"+r.body["id"].(string)+"/run", nil), 200)
+	// The instance's own DNS sync may be applying this zone right now (409, the per-connection lock): run again then.
+	probe := r.body["id"].(string)
+	for range 50 {
+		if r = c.do(http.MethodPost, "/api/setup/dns/probe/"+probe+"/run", nil); r.status != http.StatusConflict {
+			break
+		}
+		time.Sleep(200 * time.Millisecond)
+	}
+	r = c.mustStatus(r, 200)
 	if r.body["status"] != "applied" || !strings.Contains(r.body["result"].(string), "write access confirmed") || len(sim.Writes) != 2 {
 		t.Fatalf("probe run: %s, writes %v", r.raw, sim.Writes)
 	}

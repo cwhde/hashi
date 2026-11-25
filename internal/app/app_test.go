@@ -11,6 +11,7 @@ import (
 )
 
 func TestRunServesHealthAndShutsDownCleanly(t *testing.T) {
+	parallel(t)
 	dir := t.TempDir()
 	cfg := Config{DataDir: dir, AdminAddr: "127.0.0.1:0", PublicStatusAddr: "127.0.0.1:0", MasterKeyFile: writeMasterKey(t, dir), Stdout: io.Discard}
 	ctx, cancel := context.WithCancel(context.Background())
@@ -74,6 +75,7 @@ func TestRunServesHealthAndShutsDownCleanly(t *testing.T) {
 }
 
 func TestLoadConfig(t *testing.T) {
+	parallel(t)
 	env := map[string]string{"HASHI_ADMIN_ADDR": ":3340", "HASHI_PUBLIC_APPS_ADDR": "off", "HASHI_LOG_LEVEL": "debug"}
 	c, err := LoadConfig([]string{"-data-dir", "/tmp/h"}, func(k string) string { return env[k] })
 	if err != nil {

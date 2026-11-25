@@ -311,7 +311,9 @@ func TestIntegrationRescueRollback(t *testing.T) {
 // other cron jobs byte-identical, and a later rollback does not bring the script back.
 func TestIntegrationTakeover(t *testing.T) {
 	old := RescueWindow
-	RescueWindow = 3 * time.Second
+	// Bug 189: the unconfirmed apply gets a long window, so "removed during the window" is checked inside it even on a
+	// loaded CI host (3 s lost that race once); the confirmed apply below goes back to a short one.
+	RescueWindow = 15 * time.Second
 	t.Cleanup(func() { RescueWindow = old })
 	c := fwContainer(t, "--sysctl", "net.ipv4.ip_forward=1")
 	c.Exec(t, "sh", "-c", `mkdir -p /scripts
@@ -358,11 +360,12 @@ crontab /scripts/crontab.txt`)
 		t.Fatalf("not removed during the window:\n%s", got)
 	}
 	var got string
-	itest.WaitFor(t, 20*time.Second, "rollback restored the script", func() bool {
+	itest.WaitFor(t, RescueWindow+20*time.Second, "rollback restored the script", func() bool {
 		got = state()
 		return got == before
 	})
 
+	RescueWindow = 3 * time.Second
 	d, diff = plan()
 	if diff.Takeover.Empty() {
 		t.Fatal("nothing to take over after the rollback")

@@ -18,6 +18,7 @@ import (
 // domain, over HTTPS, from a bootstrap network, with the latest unused nonce; it then signs the browser in on the
 // HTTPS origin with a Secure cookie bound to its address there.
 func TestSetupStep8HTTPSProof(t *testing.T) {
+	parallel(t)
 	cfg := newConfig(t)
 	ctx := context.Background()
 	st := storetest.Open(t, cfg.DBPath())

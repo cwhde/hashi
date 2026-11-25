@@ -17,6 +17,7 @@ import (
 // The tail's lines reach the telemetry as response rows of their service; Hashi's own routers and unknown services
 // are left out (06 §6.1). The sink was nil from the start, so nothing the tail read was ever counted.
 func TestAccessSinkCountsServiceResponses(t *testing.T) {
+	parallel(t)
 	ctx := context.Background()
 	st := storetest.New(t)
 	now := time.Now()
@@ -59,6 +60,7 @@ func TestAccessSinkCountsServiceResponses(t *testing.T) {
 // Bug 26: 4xx answers feed the error trigger, from services and from names no route matches (scanners probe those);
 // Hashi's own routers never count.
 func TestAccessSinkFeedsTheErrorTrigger(t *testing.T) {
+	parallel(t)
 	ctx := context.Background()
 	st := storetest.New(t)
 	now := time.Now()

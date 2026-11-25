@@ -12,6 +12,7 @@ import (
 // Invariant 6: timestamps are UTC. Stored timestamps are Unix milliseconds (zone-free by construction,
 // see internal/store/migrations); this covers the one rendered timestamp the process emits itself.
 func TestInvariant_6_LogTimestampsAreUTC(t *testing.T) {
+	parallel(t)
 	var buf bytes.Buffer
 	local := time.Date(2026, 10, 27, 15, 0, 0, 0, time.FixedZone("UTC+5", 5*3600))
 	if err := NewLogger(&buf, slog.LevelInfo).Handler().Handle(context.Background(), slog.NewRecord(local, slog.LevelInfo, "x", 0)); err != nil {

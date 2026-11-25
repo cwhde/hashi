@@ -27,6 +27,7 @@ import (
 // `hashi vault rotate` needs the server stopped; afterwards the old key is refused, the server starts with the printed
 // key, and an agent token issued before the rotation still works (no automation breaks).
 func TestVaultRotateConsole(t *testing.T) {
+	parallel(t)
 	ctx := context.Background()
 	cfg := newConfig(t)
 	in := start(t, cfg) // creates and migrates the database
@@ -96,6 +97,7 @@ func TestVaultRotateConsole(t *testing.T) {
 // Disaster recovery (11-delivery.md §8): only a nightly copy and the recovery key survive. A fresh data folder with that
 // copy, `hashi vault recover` and a start bring Hashi back with every secret readable.
 func TestRestoreNightlyBackupOnFreshFolder(t *testing.T) {
+	parallel(t)
 	ctx := context.Background()
 	cfg := newConfig(t)
 	in := start(t, cfg)
@@ -227,6 +229,7 @@ func TestRestoreNightlyBackupOnFreshFolder(t *testing.T) {
 
 // Strict mode (02 §5.4): a restart starts locked and still serves; the master key file is ignored.
 func TestStrictModeStartsLocked(t *testing.T) {
+	parallel(t)
 	ctx := context.Background()
 	cfg := newConfig(t)
 	start(t, cfg).stop() // first start creates the edge token and other start-up secrets
@@ -255,6 +258,7 @@ func TestStrictModeStartsLocked(t *testing.T) {
 }
 
 func TestKeptPurposesNameRealSecrets(t *testing.T) {
+	parallel(t)
 	if !slices.Contains(vault.KeptPurposes, traefik.EdgeTokenPurpose) {
 		t.Fatal("the edge token must stay readable while locked")
 	}
