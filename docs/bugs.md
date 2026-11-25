@@ -57,3 +57,4 @@ What the waiting firewall plan shows today:
   noise while it waits.
 - Wanted: a summary of what changes in words (sets and counts added/removed, by feed), the risk reason with its
   consequence, the rollback promise, and the hashes folded away.
+| 197 | function | reproduced | Pulse, WAF | The Linux install command Hashi shows (`curl …/api/pulse/install.sh \| sh`) gets 403 "Request refused." through the edge: the WAF (headers only) refuses the `.sh` path, from every client. Seen 2026-11-25 installing an agent; worked around by fetching the script from Hashi's internal port. Fix idea: a WAF exclusion for that path on Hashi's own service, or serve the script under a path without `.sh`. | 2026-11-25 |
