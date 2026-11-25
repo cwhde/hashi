@@ -18,7 +18,6 @@ import (
 
 // Setup step 3 over HTTP against the recorded Hetzner responses (02 §1.3, 03 §4).
 func TestSetupStep3DNSProviderAndImport(t *testing.T) {
-	parallel(t)
 	sim, srv := hetznertest.NewSimServer(t)
 	cfg := newConfig(t)
 	cfg.dnsProviders = func(_ string, token secrets.Value) (dns.Provider, error) {

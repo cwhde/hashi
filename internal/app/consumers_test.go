@@ -10,7 +10,6 @@ import (
 // 05a §10, 08 §7: a changed set queues exactly the dependent syncs. The firewall and connections always follow; Traefik,
 // DNS, AdGuard and the pending DNS mark only when a target uses the set.
 func TestChangedSetReachesEveryConsumer(t *testing.T) {
-	parallel(t)
 	var called []string
 	mark := func(n string) func(context.Context) error {
 		return func(context.Context) error { called = append(called, n); return nil }

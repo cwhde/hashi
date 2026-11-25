@@ -28,17 +28,6 @@ type syncBuffer struct {
 // readyWait bounds how long a test waits for Run to accept connections.
 const readyWait = 30 * time.Second
 
-// slots bounds how many of this package's tests run at once (bug 190). One after another they took 121 s under -race;
-// all 40 at once, next to every other package in `make check`, starved each instance past readyWait.
-var slots = make(chan struct{}, 4)
-
-// parallel runs the test next to others of this package, holding one of the slots until it ends.
-func parallel(t *testing.T) {
-	t.Parallel()
-	slots <- struct{}{}
-	t.Cleanup(func() { <-slots })
-}
-
 func (s *syncBuffer) Write(p []byte) (int, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()

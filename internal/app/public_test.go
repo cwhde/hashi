@@ -21,7 +21,6 @@ import (
 
 // Review of S7, 07 §7: a public page's failure shows visitors nothing of the error.
 func TestPublicMuxHidesErrors(t *testing.T) {
-	parallel(t)
 	st := storetest.New(t)
 	if err := st.Close(); err != nil {
 		t.Fatal(err)
@@ -44,7 +43,6 @@ func TestPublicMuxHidesErrors(t *testing.T) {
 
 // A host gets the install script from Hashi without a session, and it names the release to download from (08 §1).
 func TestAdminMuxServesPulseInstall(t *testing.T) {
-	parallel(t)
 	in := start(t, newConfig(t))
 	type answer struct {
 		Code int
@@ -100,7 +98,6 @@ func TestAdminMuxServesPulseInstall(t *testing.T) {
 
 // The public page switches (Settings → Appearance) turn each page on and off on its own listener (07 §7, §8).
 func TestPublicPageSettings(t *testing.T) {
-	parallel(t)
 	p := newPublicToggles()
 	p.update(settings.Appearance{Theme: "graphite", PublicDashboardEnabled: false, PublicStatusEnabled: true})
 	srv := &httpapi.Server{Store: storetest.New(t), Log: slog.New(slog.DiscardHandler)}
@@ -120,7 +117,6 @@ func TestPublicPageSettings(t *testing.T) {
 
 // 07 §9: each public listener serves the asset slots (its page needs them), and nothing when the page is off.
 func TestPublicMuxServesAssets(t *testing.T) {
-	parallel(t)
 	st := storetest.New(t)
 	store, err := assets.NewStore(t.TempDir())
 	if err != nil {
@@ -159,7 +155,6 @@ func TestPublicMuxServesAssets(t *testing.T) {
 // 07 §7.2, §7.3: the status listener serves each entry's service page and badges; an entry with Status off, an
 // unknown kind and a kind the entry lacks answer 404, and the apps listener serves neither.
 func TestStatusListenerServesServicePagesAndBadges(t *testing.T) {
-	parallel(t)
 	st := storetest.New(t)
 	ctx := t.Context()
 	mon := monitor.New(st, func(context.Context) error { return nil }, nil, nil)
@@ -246,7 +241,6 @@ func TestStatusListenerServesServicePagesAndBadges(t *testing.T) {
 // The pages' title (07 §8.1, bug 173): set in Settings → Public pages, it replaces the root domain in both pages' own
 // title and in their tab titles; empty is the domain.
 func TestPublicPageTitleSetting(t *testing.T) {
-	parallel(t)
 	st := storetest.New(t)
 	ctx := context.Background()
 	if err := settings.Put(ctx, st.Q, settings.General{RootDomain: "example.com", AdminDomain: "hashi.example.com",
@@ -279,7 +273,6 @@ func TestPublicPageTitleSetting(t *testing.T) {
 
 // The public pages start in the configured theme (bug 178); a custom one brings its mode, canvas and text.
 func TestPublicPageStartsInItsTheme(t *testing.T) {
-	parallel(t)
 	st := storetest.New(t)
 	ctx := context.Background()
 	api := &httpapi.Server{Store: st, Log: slog.New(slog.DiscardHandler)}

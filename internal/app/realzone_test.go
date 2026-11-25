@@ -23,7 +23,6 @@ import (
 //
 // Nothing here names the real zone; the evidence lines print plan results and hashes only.
 func TestRealZoneRecordPath(t *testing.T) {
-	parallel(t)
 	token, root := os.Getenv("HASHI_REAL_TOKEN"), os.Getenv("HASHI_REAL_ROOT")
 	if token == "" || root == "" {
 		t.Skip("HASHI_REAL_TOKEN and HASHI_REAL_ROOT not set")

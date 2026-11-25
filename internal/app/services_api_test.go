@@ -20,7 +20,6 @@ import (
 // enable/disable, the rendered preview; the system service is refused (invariant 10); deleting needs a reauth a
 // bootstrap session cannot give; step 7 needs a Traefik connection first.
 func TestServicesAPI(t *testing.T) {
-	parallel(t)
 	_, srv := hetznertest.NewSimServer(t)
 	cfg := newConfig(t)
 	cfg.dnsProviders = func(_ string, token secrets.Value) (dns.Provider, error) {

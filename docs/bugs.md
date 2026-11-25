@@ -17,3 +17,4 @@ All open entries are planned into the 0.13 bug round (slices 13.1 onwards in `do
 
 | # | Kind | Status | Where | What | Reported |
 | --- | --- | --- | --- | --- | --- |
+| 190 | function | mitigated | CI | `internal/app` took 420–600 s in CI (39 tests one after another, 121 s alone under `-race`); `make test` and CI allow 20 minutes. Tried 2026-11-25: running them four at a time made it 63 s locally and passed `make check`, but on CI (run 1353, the go, e2e and integration jobs share one host) instances missed the 30 s start limit, so it went back to one at a time. A fix needs instances that start fast under load, or the CI jobs not sharing one host. | 2026-11-23 |

@@ -36,7 +36,6 @@ func trustLoopbackProxy(t *testing.T, cfg Config) {
 }
 
 func TestBootstrapLoginFromLoopbackUsesBootstrapCookie(t *testing.T) {
-	parallel(t)
 	in := start(t, newConfig(t))
 	c := in.client()
 	if r := c.do(http.MethodGet, "/api/auth/session", nil); r.status != 200 || r.body["authenticated"] != false {
@@ -64,7 +63,6 @@ func TestBootstrapLoginFromLoopbackUsesBootstrapCookie(t *testing.T) {
 
 // 02 §6.3: untrusted forwarding headers cannot select the bound IP.
 func TestUntrustedForwardingHeadersAreIgnored(t *testing.T) {
-	parallel(t)
 	in := start(t, newConfig(t))
 	c := in.client()
 	c.header.Set("X-Forwarded-For", "192.168.7.7")
@@ -81,7 +79,6 @@ func TestUntrustedForwardingHeadersAreIgnored(t *testing.T) {
 // 02 §6.2 / acceptance 2, 3, 11: exact-IP binding through a trusted proxy; a second IP gets its own session; the same
 // canonical IP is used at issuance and validation.
 func TestSessionBoundToClientIPThroughTrustedProxy(t *testing.T) {
-	parallel(t)
 	cfg := newConfig(t)
 	trustLoopbackProxy(t, cfg)
 	in := start(t, cfg)
@@ -119,7 +116,6 @@ func TestSessionBoundToClientIPThroughTrustedProxy(t *testing.T) {
 }
 
 func TestBootstrapOnlyFromPrivateNetworks(t *testing.T) {
-	parallel(t)
 	cfg := newConfig(t)
 	trustLoopbackProxy(t, cfg)
 	in := start(t, cfg)
@@ -132,7 +128,6 @@ func TestBootstrapOnlyFromPrivateNetworks(t *testing.T) {
 // The bootstrap networks setting (09 §2 Security) decides where the bootstrap login works: a private range added to it
 // lets that address in (public ranges are refused, bug 49).
 func TestBootstrapNetworksSetting(t *testing.T) {
-	parallel(t)
 	cfg := newConfig(t)
 	trustLoopbackProxy(t, cfg)
 	st := storetest.Open(t, cfg.DBPath())
@@ -160,7 +155,6 @@ func TestBootstrapNetworksSetting(t *testing.T) {
 }
 
 func TestCSRFRequiredOnUnsafeMethods(t *testing.T) {
-	parallel(t)
 	in := start(t, newConfig(t))
 	c := in.client()
 	c.bootstrapLogin()
@@ -178,7 +172,6 @@ func TestCSRFRequiredOnUnsafeMethods(t *testing.T) {
 
 // 02 §6.2: restart keeps sessions; the master key file is required and must match.
 func TestRestartKeepsSessionAndChecksMasterKey(t *testing.T) {
-	parallel(t)
 	cfg := newConfig(t)
 	in := start(t, cfg)
 	c := in.client()
@@ -217,7 +210,6 @@ func TestRestartKeepsSessionAndChecksMasterKey(t *testing.T) {
 
 // Invariant 5 / 02 §6.3: raw tokens and bootstrap secrets never reach the structured log or the audit API.
 func TestInvariant_5_RawTokensNotLogged(t *testing.T) {
-	parallel(t)
 	in := start(t, newConfig(t))
 	c := in.client()
 	c.bootstrapLogin()
@@ -252,7 +244,6 @@ func TestInvariant_5_RawTokensNotLogged(t *testing.T) {
 
 // Setup steps 2 and 9 over HTTP, with a software authenticator; the public status toggle is consumed at once.
 func TestSetupBaseSettingsPasskeyAndRecoveryKey(t *testing.T) {
-	parallel(t)
 	cfg := newConfig(t)
 	cfg.PublicStatusAddr = freeAddr(t)
 	in := start(t, cfg)
@@ -347,7 +338,6 @@ func decodeB64(t *testing.T, s string) []byte {
 
 // 02 §2: `hashi admin recover` → one-time link → a session that can only register a passkey, then ends.
 func TestAdminRecoverLinkRegistersOnePasskey(t *testing.T) {
-	parallel(t)
 	cfg := newConfig(t)
 	in := start(t, cfg)
 	c := in.client()

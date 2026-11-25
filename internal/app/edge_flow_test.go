@@ -21,7 +21,6 @@ import (
 // Forward auth over HTTP (06 §2, §4, §17): a shared rule set decides on two services, the fallback closes a service, a
 // path behaves like its normalized form, the trace names the deciding rule, and an unknown host passes (health routers).
 func TestForwardAuthRules(t *testing.T) {
-	parallel(t)
 	_, srv := hetznertest.NewSimServer(t)
 	cfg := newConfig(t)
 	cfg.dnsProviders = func(_ string, token secrets.Value) (dns.Provider, error) {
@@ -146,7 +145,6 @@ func TestForwardAuthRules(t *testing.T) {
 // Stage A over HTTP (06 §3): a flood is challenged before the service's rules, ignoring the challenge ends in a ban,
 // and the ban is enforced by A1 from then on. Without a CAPTCHA the challenge answers 429.
 func TestForwardAuthStageA(t *testing.T) {
-	parallel(t)
 	_, srv := hetznertest.NewSimServer(t)
 	cfg := newConfig(t)
 	cfg.dnsProviders = func(_ string, token secrets.Value) (dns.Provider, error) {
@@ -214,7 +212,6 @@ func TestForwardAuthStageA(t *testing.T) {
 // SQL injection, path traversal and an unknown method get 403; a path with the WAF off passes everything; five blocks
 // within a minute challenge the address (429 for an API client).
 func TestForwardAuthWAF(t *testing.T) {
-	parallel(t)
 	_, srv := hetznertest.NewSimServer(t)
 	cfg := newConfig(t)
 	cfg.dnsProviders = func(_ string, token secrets.Value) (dns.Provider, error) {

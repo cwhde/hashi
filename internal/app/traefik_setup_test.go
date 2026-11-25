@@ -19,7 +19,6 @@ import (
 // Setup steps 4 and 5 over HTTP (02 §1.4–1.5) up to what needs a real CA or SSH host (those run against Pebble and
 // sshd in the integration tests and on the dev targets at the gate).
 func TestSetupSteps4And5API(t *testing.T) {
-	parallel(t)
 	_, srv := hetznertest.NewSimServer(t)
 	cfg := newConfig(t)
 	cfg.dnsProviders = func(_ string, token secrets.Value) (dns.Provider, error) {
