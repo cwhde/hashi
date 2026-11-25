@@ -626,11 +626,14 @@ func adminMux(api *httpapi.Server) http.Handler {
 	mux.Handle("GET /", web.Handler())
 	mux.HandleFunc("GET /assets/{slot}", api.ServeAsset)
 	mux.HandleFunc("GET /assets/apps/{name}", api.ServeAppIcon)
-	// The install script (08 §1). No session: nothing in it is secret, and the token comes from the admin.
-	mux.HandleFunc("GET /api/pulse/install.sh", func(w http.ResponseWriter, _ *http.Request) {
+	// The install script (08 §1). No session: nothing in it is secret, and the token comes from the admin. The WAF
+	// refuses .sh paths (bug 197), so the command names /api/pulse/install; install.sh stays for direct calls.
+	script := func(w http.ResponseWriter, _ *http.Request) {
 		w.Header().Set("Content-Type", "text/x-shellscript")
 		_, _ = w.Write(pulse.Script())
-	})
+	}
+	mux.HandleFunc("GET /api/pulse/install", script)
+	mux.HandleFunc("GET /api/pulse/install.sh", script)
 	return api.Handler(mux)
 }
 

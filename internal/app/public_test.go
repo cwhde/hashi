@@ -61,9 +61,11 @@ func TestAdminMuxServesPulseInstall(t *testing.T) {
 		}
 		return answer{res.StatusCode, string(b)}
 	}
-	r := get("/api/pulse/install.sh")
-	if r.Code != 200 || !strings.HasPrefix(r.Body, "#!/bin/sh") || !strings.Contains(r.Body, pulse.ReleaseBase) || strings.Contains(r.Body, "@@") {
-		t.Fatalf("script: %d %q", r.Code, r.Body)
+	for _, p := range []string{"/api/pulse/install", "/api/pulse/install.sh"} {
+		r := get(p)
+		if r.Code != 200 || !strings.HasPrefix(r.Body, "#!/bin/sh") || !strings.Contains(r.Body, pulse.ReleaseBase) || strings.Contains(r.Body, "@@") {
+			t.Fatalf("script %s: %d %q", p, r.Code, r.Body)
+		}
 	}
 	if r := get("/api/pulse/download/amd64"); r.Code == 200 && strings.HasPrefix(r.Body, "\x7fELF") {
 		t.Fatal("the Hashi image no longer carries the agent")

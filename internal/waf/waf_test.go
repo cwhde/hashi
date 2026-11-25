@@ -52,6 +52,8 @@ func TestCheck(t *testing.T) {
 		{"probe dressed as git", base, req("GET", "/.git/info/refs?service=git-upload-pack", ""), true},
 		{"unknown method", base, req("TRACE", "/", ""), true},
 		{"xss in the query", base, req("GET", "/?q=%3Cscript%3Ealert(1)%3C/script%3E", ""), true},
+		{"a .sh file (920440, bug 197)", base, with(req("GET", "/api/pulse/install.sh", ""), "User-Agent", "curl/8.14.1"), true},
+		{"the Pulse installer", base, with(req("GET", "/api/pulse/install", ""), "User-Agent", "curl/8.14.1"), false},
 	}
 	for _, c := range cases {
 		v, err := e.Check(c.c, c.r)
