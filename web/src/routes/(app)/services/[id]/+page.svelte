@@ -99,7 +99,7 @@
 			entryHost: s.data.entry_host_id ?? ''
 		};
 		targetsText = s.data.routes.map((r) =>
-			r.targets.map((t) => targetText(t, targetNames.sets)).join(', ')
+			r.targets.map((t) => targetText(t, targetNames.sets, targetNames.agents)).join(', ')
 		);
 		const mw = await api.GET('/api/traefik/user-middlewares');
 		if (mw.data) {
@@ -135,7 +135,7 @@
 			if (!edit) return;
 			const routes: Route[] = [];
 			for (const [i, r] of (edit.routes ?? []).entries()) {
-				const p = parseTargets(targetsText[i] ?? '', targetNames.sets);
+				const p = parseTargets(targetsText[i] ?? '', targetNames.sets, targetNames.agents);
 				if (p.bad) throw new Error(`Route ${r.path_value}: "${p.bad}" is not address:port.`);
 				routes.push({ ...r, targets: p.targets });
 			}
@@ -208,7 +208,7 @@
 		if (!edit) return;
 		edit.routes = [...(edit.routes ?? []), newRoute(edit.routes ?? [], edit.target)];
 		const first = upstreamTarget(extra.upstream, Number(edit.target.port));
-		targetsText = [...targetsText, first.agent_id ? '' : targetText(first, targetNames.sets)];
+		targetsText = [...targetsText, targetText(first, targetNames.sets, targetNames.agents)];
 	}
 	function dropRoute(i: number) {
 		if (!edit?.routes) return;

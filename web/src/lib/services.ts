@@ -62,21 +62,38 @@ export function upstreamTarget(u: Upstream, port: number): Target {
 export const upstreamChosen = (u: Upstream) =>
 	!!(u.mode === 'agent' ? u.agentId : u.mode === 'set' ? u.setId : u.address.trim());
 
-/** A route target as editable text: "192.0.2.5:8080", "[2001:db8::5]:8080", "@office:443" (a set by its slug), with
- * "*3" for a weight. sets maps a set's ID to its slug (bug 63: never an internal ID). */
-export function targetText(t: Target, sets: { id: string; slug: string }[] = []): string {
+type Named = { id: string; slug: string };
+type Agent = { id: string; name: string };
+
+/** A route target as editable text: "192.0.2.5:8080", "[2001:db8::5]:8080", "@office:443" (a set by its slug),
+ * "agent:nas:443" (a Pulse agent by its name, bug 198), with "*3" for a weight. sets and agents map IDs to names
+ * (bug 63: never an internal ID). */
+export function targetText(t: Target, sets: Named[] = [], agents: Agent[] = []): string {
+	const w = t.weight && t.weight > 1 ? `*${t.weight}` : '';
+	if (t.agent_id)
+		return `agent:${agents.find((a) => a.id === t.agent_id)?.name ?? t.agent_id}:${t.port}${w}`;
 	if (t.set_id) return `@${sets.find((s) => s.id === t.set_id)?.slug ?? t.set_id}:${t.port}`;
 	const host = t.address.includes(':') ? `[${t.address}]` : t.address;
-	return `${host}:${t.port}${t.weight && t.weight > 1 ? `*${t.weight}` : ''}`;
+	return `${host}:${t.port}${w}`;
 }
 
 /** Parses "address:port[*weight]" entries separated by commas or spaces; `bad` names the first entry that does not parse. */
 export function parseTargets(
 	text: string,
-	sets: { id: string; slug: string }[] = []
+	sets: Named[] = [],
+	agents: Agent[] = []
 ): { targets: Target[]; bad?: string } {
 	const targets: Target[] = [];
 	for (const raw of text.split(/[\s,]+/).filter(Boolean)) {
+		const agent = /^agent:([^:\s]+):(\d{1,5})(?:\*(\d{1,4}))?$/.exec(raw); // a Pulse agent by name (or ID)
+		if (agent) {
+			const a = agents.find((x) => x.name === agent[1] || x.id === agent[1]);
+			if (!a) return { targets, bad: raw };
+			const t: Target = { address: '', agent_id: a.id, port: Number(agent[2]) };
+			if (agent[3]) t.weight = Number(agent[3]);
+			targets.push(t);
+			continue;
+		}
 		const set = /^@([0-9A-Za-z-]+):(\d{1,5})$/.exec(raw); // an address set by slug (or ID), as targetText writes it
 		if (set) {
 			const id = sets.find((s) => s.slug === set[1])?.id ?? set[1];
@@ -138,8 +155,7 @@ export function newRoute(routes: Route[], target: Target): Route {
 	const top = routes.reduce((m, r) => Math.max(m, r.priority), 0);
 	return {
 		enabled: true,
-		// A route cannot follow an agent directly (bug 17): it starts empty then, for an address or an agent's set.
-		targets: target.agent_id ? [] : [{ ...target }],
+		targets: [{ ...target }],
 		path_match: 'prefix',
 		path_value: '/',
 		priority: Math.min(top + 10, 9999),

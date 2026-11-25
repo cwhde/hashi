@@ -1718,7 +1718,7 @@ export interface paths {
             cookie?: never;
         };
         get?: never;
-        /** Reach the host through an address set; empty goes back to its literal address */
+        /** Reach the host through a Pulse agent or an address set; empty goes back to its literal address */
         put: operations["putFirewallHostSSHTarget"];
         post?: never;
         delete?: never;
@@ -1735,7 +1735,7 @@ export interface paths {
             cookie?: never;
         };
         get?: never;
-        /** Reach the Traefik host through an address set; empty goes back to its literal address */
+        /** Reach the Traefik host through a Pulse agent or an address set; empty goes back to its literal address */
         put: operations["putTraefikSSHTarget"];
         post?: never;
         delete?: never;
@@ -4306,8 +4306,10 @@ export interface components {
             }[];
         };
         SSHTarget: {
-            /** @description Address set; empty for the literal address */
+            /** @description Address set; empty for the literal address (and when agent_id is given) */
             set_id: string;
+            /** @description A Pulse agent to follow instead of a set (bug 198); its main address is used */
+            agent_id?: string;
             /** @description Keep a set that does not answer yet */
             save_inactive?: boolean;
         };
@@ -4871,6 +4873,8 @@ export interface components {
         TraefikConnection: {
             /** @description Address set SSH tries before the literal address */
             ssh_target_set_id?: string;
+            /** @description The Pulse agent SSH follows (its hidden set is ssh_target_set_id); absent otherwise */
+            ssh_target_agent_id?: string;
             id: string;
             name: string;
             host: string;
@@ -5975,6 +5979,8 @@ export interface components {
         FirewallHost: {
             /** @description Address set SSH tries before the literal address */
             ssh_target_set_id?: string;
+            /** @description The Pulse agent SSH follows (its hidden set is ssh_target_set_id); absent otherwise */
+            ssh_target_agent_id?: string;
             id: string;
             name: string;
             /** @enum {string} */

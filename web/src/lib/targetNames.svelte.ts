@@ -10,14 +10,18 @@ class TargetNames {
 	#loaded = false;
 
 	async load() {
-		void pulseAgents.load();
-		if (this.#loaded) return;
+		const agents = pulseAgents.load();
+		if (this.#loaded) return agents;
 		this.#loaded = true;
 		try {
 			this.sets = await listSets();
 		} catch {
 			this.#loaded = false;
 		}
+		await agents; // route targets name agents (bug 198)
+	}
+	get agents() {
+		return pulseAgents.list;
 	}
 	setName(id: string) {
 		return this.sets.find((s) => s.id === id)?.name;

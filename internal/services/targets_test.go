@@ -133,7 +133,7 @@ func TestStreamWithoutName(t *testing.T) {
 }
 
 // Bug 17: a service targets a Pulse agent directly. It is stored as the agent's hidden set and read back as the
-// agent; the hidden set goes once nothing uses it; routes and an unknown agent are refused.
+// agent; the hidden set goes once nothing uses it; an unknown agent is refused.
 func TestAgentTarget(t *testing.T) {
 	ctx := context.Background()
 	st := newStore(t)
@@ -163,13 +163,60 @@ func TestAgentTarget(t *testing.T) {
 	if _, err := Update(ctx, st.Q, got, now); err != nil {
 		t.Fatalf("save as read: %v", err)
 	}
-	route := got
-	route.AdvancedRoutes = true
-	route.Routes = []Route{{Enabled: true, Targets: []Target{{AgentID: "A1", Port: 80}}, PathMatch: MatchPrefix, PathValue: "/x", Priority: 5, RewriteMode: RewriteNone}}
-	if _, err := Update(ctx, st.Q, route, now); !errors.As(err, &inv) || !strings.HasPrefix(inv.Field, "routes[0]") {
+	got.Target = Target{Address: "192.0.2.5", Port: 80}
+	if _, err := Update(ctx, st.Q, got, now); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := st.Q.GetIPSet(ctx, ipsets.AgentSetID("A1")); err == nil {
+		t.Fatal("the unused hidden set stayed")
+	}
+}
+
+// Bug 198: a route target follows a Pulse agent like the service's own target. It is stored as the agent's hidden set
+// and read back as the agent; the set stays while a route uses it, even when the service's own target moves away.
+func TestAgentRouteTarget(t *testing.T) {
+	ctx := context.Background()
+	st := newStore(t)
+	if err := st.Q.InsertPulseAgent(ctx, db.InsertPulseAgentParams{ID: "A1", Name: "nas", TokenHash: []byte("x"), InstallType: "linux", CreatedAt: 1, UpdatedAt: 1}); err != nil {
+		t.Fatal(err)
+	}
+	s := web()
+	s.Target = Target{AgentID: "A1", Port: 80}
+	s.AdvancedRoutes = true
+	s.Routes = []Route{{Enabled: true, Targets: []Target{{AgentID: "missing", Port: 81}}, PathMatch: MatchPrefix, PathValue: "/x", Priority: 5, RewriteMode: RewriteNone}}
+	var inv *InvalidError
+	if _, err := Create(ctx, st.Q, s, now); !errors.As(err, &inv) || inv.Field != "routes[0].targets[0].agent_id" {
+		t.Fatalf("unknown agent in a route: %v", err)
+	}
+	s.Routes[0].Targets = []Target{{AgentID: "A1", Port: 81}}
+	created, err := Create(ctx, st.Q, s, now)
+	if err != nil {
 		t.Fatalf("agent in a route: %v", err)
 	}
+	got, err := Get(ctx, st.Q, created.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if rt := got.Routes[0].Targets[0]; rt.AgentID != "A1" || rt.SetID != ipsets.AgentSetID("A1") || rt.Port != 81 {
+		t.Fatalf("route target read back %+v", rt)
+	}
+	if _, err := Update(ctx, st.Q, got, now); err != nil {
+		t.Fatalf("save as read: %v", err)
+	}
+	// The service's own target moves away: the route still follows the agent, so its set stays.
 	got.Target = Target{Address: "192.0.2.5", Port: 80}
+	if _, err := Update(ctx, st.Q, got, now); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := st.Q.GetIPSet(ctx, ipsets.AgentSetID("A1")); err != nil {
+		t.Fatalf("the hidden set a route uses went: %v", err)
+	}
+	if err := st.Q.DeleteIPSet(ctx, ipsets.AgentSetID("A1")); err == nil {
+		t.Fatal("a set a route uses could be deleted")
+	}
+	// The route moves away too: now nothing uses it and it goes.
+	got, _ = Get(ctx, st.Q, created.ID)
+	got.Routes[0].Targets = []Target{{Address: "192.0.2.6", Port: 81}}
 	if _, err := Update(ctx, st.Q, got, now); err != nil {
 		t.Fatal(err)
 	}

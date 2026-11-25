@@ -58,6 +58,27 @@ func EnsureAgentSet(ctx context.Context, q *db.Queries, agentID, agentName strin
 		PulseAgentID: sql.NullString{String: agentID, Valid: true}, Scope: sql.NullString{String: string(ScopeInternal), Valid: true}, CreatedBy: "system", CreatedAt: ms, UpdatedAt: ms})
 }
 
+// FollowAgent returns the set a target position uses to follow Pulse agent agentID (bug 198): the agent's hidden set,
+// created on first use.
+func FollowAgent(ctx context.Context, q *db.Queries, agentID string, now time.Time) (string, error) {
+	a, err := q.GetPulseAgent(ctx, agentID)
+	if errors.Is(err, sql.ErrNoRows) {
+		return "", fmt.Errorf("no Pulse agent %s", agentID)
+	}
+	if err != nil {
+		return "", err
+	}
+	return EnsureAgentSet(ctx, q, a.ID, a.Name, now)
+}
+
+// DropAgentSet removes an agent's hidden set once nothing uses it, so it never blocks removing the agent. A set still in
+// use stays: the columns that reference it are ON DELETE RESTRICT and service routes are guarded by a trigger.
+func DropAgentSet(ctx context.Context, q *db.Queries, setID string) {
+	if _, ok := AgentOf(setID); ok {
+		_ = q.DeleteIPSet(ctx, setID)
+	}
+}
+
 // CheckTarget refuses a set that cannot stand in a target position (05a §5.2).
 func CheckTarget(ctx context.Context, q *db.Queries, id string) error {
 	g, err := LoadGraph(ctx, q)

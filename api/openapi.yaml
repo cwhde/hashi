@@ -1641,7 +1641,7 @@ paths:
   /api/firewall/hosts/{id}/ssh-target:
     put:
       operationId: putFirewallHostSSHTarget
-      summary: Reach the host through an address set; empty goes back to its literal address
+      summary: Reach the host through a Pulse agent or an address set; empty goes back to its literal address
       tags: [firewall]
       x-hashi-scopes: [admin.write]
       x-hashi-reauth: true
@@ -1656,7 +1656,7 @@ paths:
   /api/traefik/connections/{id}/ssh-target:
     put:
       operationId: putTraefikSSHTarget
-      summary: Reach the Traefik host through an address set; empty goes back to its literal address
+      summary: Reach the Traefik host through a Pulse agent or an address set; empty goes back to its literal address
       tags: [traefik]
       x-hashi-scopes: [admin.write]
       x-hashi-reauth: true
@@ -4214,7 +4214,8 @@ components:
       type: object
       required: [set_id]
       properties:
-        set_id: { type: string, description: "Address set; empty for the literal address" }
+        set_id: { type: string, description: "Address set; empty for the literal address (and when agent_id is given)" }
+        agent_id: { type: string, description: "A Pulse agent to follow instead of a set (bug 198); its main address is used" }
         save_inactive: { type: boolean, description: "Keep a set that does not answer yet" }
     AgentDNSPreview:
       type: object
@@ -4797,6 +4798,7 @@ components:
         ownership_confirmed, health, last_error, files]
       properties:
         ssh_target_set_id: { type: string, description: "Address set SSH tries before the literal address" }
+        ssh_target_agent_id: { type: string, description: "The Pulse agent SSH follows (its hidden set is ssh_target_set_id); absent otherwise" }
         id: { type: string }
         name: { type: string }
         host: { type: string }
@@ -5864,6 +5866,7 @@ components:
         health, last_error, last_validated_at, last_applied_at, facts]
       properties:
         ssh_target_set_id: { type: string, description: "Address set SSH tries before the literal address" }
+        ssh_target_agent_id: { type: string, description: "The Pulse agent SSH follows (its hidden set is ssh_target_set_id); absent otherwise" }
         id: { type: string }
         name: { type: string }
         edge_mode: { type: string, enum: [managed, external_nat] }

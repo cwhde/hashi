@@ -196,6 +196,36 @@ func TestDeleteRefusedWhileReferenced(t *testing.T) {
 	}
 }
 
+// Bug 198: an agent that only a service route follows cannot be removed; the route would point at nothing.
+func TestDeleteRefusedWhileARouteFollowsIt(t *testing.T) {
+	s, now := fixture(t)
+	ctx := t.Context()
+	a, _, err := s.Create(ctx, "box", "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	set, err := ipsets.EnsureAgentSet(ctx, s.st.Q, a.ID, a.Name, *now)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := s.st.Q.InsertService(ctx, db.InsertServiceParams{ID: "S1", Name: "Web", Slug: "web", Kind: "http", DomainMode: "subdomain",
+		HostName: "web.example.com", Enabled: 1, Origin: "user", TargetAddress: "192.0.2.20", TargetPort: 80, AdvancedRoutes: 1,
+		TrafficJson: "{}", MiddlewaresJson: "[]"}); err != nil {
+		t.Fatal(err)
+	}
+	if err := s.st.Q.InsertServiceRoute(ctx, db.InsertServiceRouteParams{ID: "R1", ServiceID: "S1", Enabled: 1,
+		TargetsJson: `[{"set_id":"` + set + `","port":81}]`, PathMatch: "prefix", PathValue: "/api", Priority: 10, RewriteMode: "none",
+		MiddlewaresJson: "[]"}); err != nil {
+		t.Fatal(err)
+	}
+	if err := s.Delete(ctx, a.ID); !errors.Is(err, ErrInUse) {
+		t.Fatalf("delete while a route follows it: %v", err)
+	}
+	if _, err := s.st.R.GetIPSet(ctx, ipsets.AgentSetID(a.ID)); err != nil {
+		t.Fatalf("the route's hidden set went: %v", err)
+	}
+}
+
 // A heartbeat with a new address changes every IP set holding the agent, nested ones too (08 §4): consumers hang off the compile.
 func TestAddressChangeReachesNestedSets(t *testing.T) {
 	s, now := fixture(t)

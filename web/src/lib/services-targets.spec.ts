@@ -14,6 +14,15 @@ describe('route target text', () => {
 		expect(text).toBe('@office:443, [2001:db8::5]:8080*3, 192.0.2.5:80');
 		expect(parseTargets(text, sets)).toEqual({ targets: ts });
 	});
+
+	it('round-trips Pulse agents by name (bug 198)', () => {
+		const agents = [{ id: '01HAGENT', name: 'netbird' }];
+		const ts = [{ address: '', agent_id: '01HAGENT', port: 8081, weight: 2 }];
+		const text = targetText(ts[0]!, sets, agents);
+		expect(text).toBe('agent:netbird:8081*2');
+		expect(parseTargets(text, sets, agents)).toEqual({ targets: ts });
+		expect(parseTargets('agent:unknown:80', sets, agents).bad).toBe('agent:unknown:80');
+	});
 });
 
 describe('upstream choice', () => {

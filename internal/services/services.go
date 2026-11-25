@@ -271,7 +271,7 @@ func update(ctx context.Context, q *db.Queries, s Service, now time.Time) error 
 	if err != nil {
 		return err
 	}
-	old, err := q.GetService(ctx, s.ID)
+	old, err := Get(ctx, q, s.ID)
 	if err != nil {
 		return err
 	}
@@ -302,44 +302,63 @@ func update(ctx context.Context, q *db.Queries, s Service, now time.Time) error 
 	if err := q.DeleteServiceRoutes(ctx, s.ID); err != nil {
 		return err
 	}
-	if old.TargetSetID.String != s.Target.SetID {
-		dropAgentSet(ctx, q, old.TargetSetID.String)
+	if err := putRoutes(ctx, q, s, ms); err != nil {
+		return err
 	}
-	return putRoutes(ctx, q, s, ms)
-}
-
-// agentTarget points an agent target at the agent's hidden set: an agent is still used through one pulse item (08 §4).
-func agentTarget(ctx context.Context, q *db.Queries, s Service, now time.Time) (Service, error) {
-	for i, r := range s.Routes {
-		for j, t := range r.Targets {
-			if _, hidden := ipsets.AgentOf(t.SetID); hidden || t.AgentID != "" {
-				return s, invalid(fmt.Sprintf("routes[%d].targets[%d].agent_id", i, j), "a route cannot follow a Pulse agent directly: put the agent in an IP set")
-			}
+	// Only now: while the old routes were gone and the new ones not yet stored, a set they use looked unused.
+	for _, t := range old.AllTargets() {
+		if !slices.ContainsFunc(s.AllTargets(), func(n Target) bool { return n.SetID == t.SetID }) {
+			dropAgentSet(ctx, q, t.SetID)
 		}
 	}
-	t := s.Target
-	if t.AgentID == "" {
-		return s, nil
-	}
-	if t.Address != "" || (t.SetID != "" && t.SetID != ipsets.AgentSetID(t.AgentID)) {
-		return s, invalid("target.agent_id", "give an address, a Pulse agent or an IP set, not two")
-	}
-	a, err := q.GetPulseAgent(ctx, t.AgentID)
-	if errors.Is(err, sql.ErrNoRows) {
-		return s, invalid("target.agent_id", "no Pulse agent %s", t.AgentID)
-	}
-	if err != nil {
+	return nil
+}
+
+// agentTarget points every agent target (the service's own and its routes', bug 198) at the agent's hidden set: an
+// agent is still used through one pulse item (08 §4).
+func agentTarget(ctx context.Context, q *db.Queries, s Service, now time.Time) (Service, error) {
+	var err error
+	if s.Target, err = followAgent(ctx, q, s.Target, "target", now); err != nil {
 		return s, err
 	}
-	if s.Target.SetID, err = ipsets.EnsureAgentSet(ctx, q, a.ID, a.Name, now); err != nil {
-		return s, err
+	routes := make([]Route, len(s.Routes))
+	for i, r := range s.Routes {
+		r.Targets = slices.Clone(r.Targets)
+		for j, t := range r.Targets {
+			if r.Targets[j], err = followAgent(ctx, q, t, fmt.Sprintf("routes[%d].targets[%d]", i, j), now); err != nil {
+				return s, err
+			}
+		}
+		routes[i] = r
 	}
-	s.Target.AgentID = ""
+	s.Routes = routes
 	return s, nil
 }
 
+// followAgent turns one agent target into the agent's hidden set; field names the target in errors.
+func followAgent(ctx context.Context, q *db.Queries, t Target, field string, now time.Time) (Target, error) {
+	if t.AgentID == "" {
+		return t, nil
+	}
+	if t.Address != "" || (t.SetID != "" && t.SetID != ipsets.AgentSetID(t.AgentID)) {
+		return t, invalid(field+".agent_id", "give an address, a Pulse agent or an IP set, not two")
+	}
+	a, err := q.GetPulseAgent(ctx, t.AgentID)
+	if errors.Is(err, sql.ErrNoRows) {
+		return t, invalid(field+".agent_id", "no Pulse agent %s", t.AgentID)
+	}
+	if err != nil {
+		return t, err
+	}
+	if t.SetID, err = ipsets.EnsureAgentSet(ctx, q, a.ID, a.Name, now); err != nil {
+		return t, err
+	}
+	t.AgentID = ""
+	return t, nil
+}
+
 // dropAgentSet removes an agent's hidden set once nothing uses it, so it never blocks removing the agent. A set still
-// in use stays: every column that references it is ON DELETE RESTRICT, and routes cannot hold one (agentTarget).
+// in use stays: every column that references it is ON DELETE RESTRICT, and routes are guarded by a trigger (bug 198).
 func dropAgentSet(ctx context.Context, q *db.Queries, setID string) {
 	if _, ok := ipsets.AgentOf(setID); ok {
 		_ = q.DeleteIPSet(ctx, setID)
@@ -374,7 +393,9 @@ func Delete(ctx context.Context, q *db.Queries, id string) (Service, error) {
 	if err := q.DeleteService(ctx, id); err != nil {
 		return cur, err
 	}
-	dropAgentSet(ctx, q, cur.Target.SetID)
+	for _, t := range cur.AllTargets() {
+		dropAgentSet(ctx, q, t.SetID)
+	}
 	return cur, nil
 }
 
@@ -517,6 +538,11 @@ func fromRow(r db.Service, routes []db.ServiceRoute) (Service, error) {
 		var t []Target
 		if err := json.Unmarshal([]byte(rr.TargetsJson), &t); err != nil {
 			return s, fmt.Errorf("route %s targets: %w", rr.ID, err)
+		}
+		for j := range t {
+			if id, ok := ipsets.AgentOf(t[j].SetID); ok {
+				t[j].AgentID = id
+			}
 		}
 		var mws []string
 		if err := json.Unmarshal([]byte(rr.MiddlewaresJson), &mws); err != nil {

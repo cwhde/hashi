@@ -116,6 +116,7 @@
 						kind="traefik"
 						id={conn.id}
 						value={conn.ssh_target_set_id}
+						agent={conn.ssh_target_agent_id}
 					/>{/key}{/if}
 			{#if moved}
 				{#if identity}<div class="space-y-1">

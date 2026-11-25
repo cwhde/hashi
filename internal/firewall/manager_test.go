@@ -444,3 +444,39 @@ func (m *mgmtConn) Run(_ context.Context, cmd string, _ io.Reader) (sshx.Result,
 	}
 	return sshx.Result{ExitCode: m.exit}, nil
 }
+
+// Bug 198: Hashi's SSH connection to a host follows a Pulse agent directly, through the agent's hidden set; going back
+// to the literal address lets the set go.
+func TestSSHTargetFollowsAgent(t *testing.T) {
+	ctx := context.Background()
+	e := newEnv(t)
+	if err := e.st.Q.InsertPulseAgent(ctx, db.InsertPulseAgentParams{ID: "A1", Name: "edge", TokenHash: []byte("x"), InstallType: "linux", CreatedAt: 1, UpdatedAt: 1}); err != nil {
+		t.Fatal(err)
+	}
+	h, err := e.m.Save(ctx, "admin", "", "", managedInput(t))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := e.m.SetSSHTarget(ctx, h.ID, "", "nope", true); !errors.Is(err, ErrInvalid) {
+		t.Fatalf("unknown agent: %v", err)
+	}
+	if err := e.m.SetSSHTarget(ctx, h.ID, "some-set", "A1", true); !errors.Is(err, ErrInvalid) {
+		t.Fatalf("agent and set together: %v", err)
+	}
+	if _, err := e.st.Q.GetIPSet(ctx, ipsets.AgentSetID("A1")); err == nil {
+		t.Fatal("a refused save left the agent's set behind")
+	}
+	if err := e.m.SetSSHTarget(ctx, h.ID, "", "A1", true); err != nil {
+		t.Fatal(err)
+	}
+	row, err := e.st.R.GetFirewallHost(ctx, h.ID)
+	if err != nil || row.SshTargetSetID.String != ipsets.AgentSetID("A1") {
+		t.Fatalf("ssh target %q %v", row.SshTargetSetID.String, err)
+	}
+	if err := e.m.SetSSHTarget(ctx, h.ID, "", "", true); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := e.st.Q.GetIPSet(ctx, ipsets.AgentSetID("A1")); err == nil {
+		t.Fatal("the unused hidden set stayed")
+	}
+}

@@ -327,10 +327,10 @@ func (s *Server) ApplyAgentDNS(ctx context.Context, _ gen.ApplyAgentDNSRequestOb
 
 func (s *Server) PutFirewallHostSSHTarget(ctx context.Context, req gen.PutFirewallHostSSHTargetRequestObject) (gen.PutFirewallHostSSHTargetResponseObject, error) {
 	ri := info(ctx)
-	if err := s.Firewall.SetSSHTarget(ctx, req.Id, req.Body.SetId, req.Body.SaveInactive != nil && *req.Body.SaveInactive); err != nil {
+	if err := s.Firewall.SetSSHTarget(ctx, req.Id, req.Body.SetId, deref(req.Body.AgentId), req.Body.SaveInactive != nil && *req.Body.SaveInactive); err != nil {
 		return nil, sshTargetError(err)
 	}
-	if err := s.Audit.Record(ctx, s.Store.Q, audit.Event{Actor: s.actor(ri), Action: "firewall.host.ssh_target", Target: req.Id, IP: ri.ipString(), Detail: map[string]any{"set": req.Body.SetId}}); err != nil {
+	if err := s.Audit.Record(ctx, s.Store.Q, audit.Event{Actor: s.actor(ri), Action: "firewall.host.ssh_target", Target: req.Id, IP: ri.ipString(), Detail: map[string]any{"set": req.Body.SetId, "agent": deref(req.Body.AgentId)}}); err != nil {
 		return nil, err
 	}
 	return gen.PutFirewallHostSSHTarget204Response{}, nil
@@ -338,10 +338,10 @@ func (s *Server) PutFirewallHostSSHTarget(ctx context.Context, req gen.PutFirewa
 
 func (s *Server) PutTraefikSSHTarget(ctx context.Context, req gen.PutTraefikSSHTargetRequestObject) (gen.PutTraefikSSHTargetResponseObject, error) {
 	ri := info(ctx)
-	if err := s.Traefik.SetSSHTarget(ctx, req.Id, req.Body.SetId, req.Body.SaveInactive != nil && *req.Body.SaveInactive); err != nil {
+	if err := s.Traefik.SetSSHTarget(ctx, req.Id, req.Body.SetId, deref(req.Body.AgentId), req.Body.SaveInactive != nil && *req.Body.SaveInactive); err != nil {
 		return nil, sshTargetError(err)
 	}
-	if err := s.Audit.Record(ctx, s.Store.Q, audit.Event{Actor: s.actor(ri), Action: "traefik.connection.ssh_target", Target: req.Id, IP: ri.ipString(), Detail: map[string]any{"set": req.Body.SetId}}); err != nil {
+	if err := s.Audit.Record(ctx, s.Store.Q, audit.Event{Actor: s.actor(ri), Action: "traefik.connection.ssh_target", Target: req.Id, IP: ri.ipString(), Detail: map[string]any{"set": req.Body.SetId, "agent": deref(req.Body.AgentId)}}); err != nil {
 		return nil, err
 	}
 	return gen.PutTraefikSSHTarget204Response{}, nil
@@ -390,4 +390,12 @@ func (s *Server) GetIPSetSources(ctx context.Context, req gen.GetIPSetSourcesReq
 	var out gen.GetIPSetSources200JSONResponse
 	err = json.Unmarshal(b, &out)
 	return out, err
+}
+
+// agentOfSet names the Pulse agent a target position follows when its set is that agent's hidden set (bug 198).
+func agentOfSet(setID string) *string {
+	if id, ok := ipsets.AgentOf(setID); ok {
+		return &id
+	}
+	return nil
 }

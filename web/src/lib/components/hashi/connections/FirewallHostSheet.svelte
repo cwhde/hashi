@@ -152,6 +152,7 @@
 							kind="firewall"
 							id={host.id}
 							value={host.ssh_target_set_id}
+							agent={host.ssh_target_agent_id}
 						/>{/key}
 					{#if moved}
 						<Button size="sm" variant="outline" onclick={scan} disabled={busy}

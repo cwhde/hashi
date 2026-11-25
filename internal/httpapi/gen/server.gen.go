@@ -3745,6 +3745,9 @@ type FirewallHost struct {
 	PublicIpOverride  string `json:"public_ip_override"`
 	RouteViaHostId    string `json:"route_via_host_id"`
 
+	// SshTargetAgentId The Pulse agent SSH follows (its hidden set is ssh_target_set_id); absent otherwise
+	SshTargetAgentId *string `json:"ssh_target_agent_id,omitempty"`
+
 	// SshTargetSetId Address set SSH tries before the literal address
 	SshTargetSetId      *string  `json:"ssh_target_set_id,omitempty"`
 	Subnets             []string `json:"subnets"`
@@ -5175,10 +5178,13 @@ type RuleSetUse struct {
 
 // SSHTarget defines model for SSHTarget.
 type SSHTarget struct {
+	// AgentId A Pulse agent to follow instead of a set (bug 198); its main address is used
+	AgentId *string `json:"agent_id,omitempty"`
+
 	// SaveInactive Keep a set that does not answer yet
 	SaveInactive *bool `json:"save_inactive,omitempty"`
 
-	// SetId Address set; empty for the literal address
+	// SetId Address set; empty for the literal address (and when agent_id is given)
 	SetId string `json:"set_id"`
 }
 
@@ -6052,6 +6058,9 @@ type TraefikConnection struct {
 	OwnershipConfirmed bool   `json:"ownership_confirmed"`
 	PackageManager     string `json:"package_manager"`
 	Port               int    `json:"port"`
+
+	// SshTargetAgentId The Pulse agent SSH follows (its hidden set is ssh_target_set_id); absent otherwise
+	SshTargetAgentId *string `json:"ssh_target_agent_id,omitempty"`
 
 	// SshTargetSetId Address set SSH tries before the literal address
 	SshTargetSetId *string `json:"ssh_target_set_id,omitempty"`
@@ -7138,7 +7147,7 @@ type ServerInterface interface {
 	// GetFirewallRuleset The host's ruleset read now over SSH (all tables, iptables and ipsets), and the one read at setup
 	// (GET /api/firewall/hosts/{id}/ruleset)
 	GetFirewallRuleset(w http.ResponseWriter, r *http.Request, id string)
-	// PutFirewallHostSSHTarget Reach the host through an address set; empty goes back to its literal address
+	// PutFirewallHostSSHTarget Reach the host through a Pulse agent or an address set; empty goes back to its literal address
 	// (PUT /api/firewall/hosts/{id}/ssh-target)
 	PutFirewallHostSSHTarget(w http.ResponseWriter, r *http.Request, id string)
 	// GetFirewallTakeover What Hashi removes of the host's old firewall script
@@ -7645,7 +7654,7 @@ type ServerInterface interface {
 	// PlanTraefikConnection Plan the host's install, files and certificates (low-risk plans apply right away)
 	// (POST /api/traefik/connections/{id}/plan)
 	PlanTraefikConnection(w http.ResponseWriter, r *http.Request, id string)
-	// PutTraefikSSHTarget Reach the Traefik host through an address set; empty goes back to its literal address
+	// PutTraefikSSHTarget Reach the Traefik host through a Pulse agent or an address set; empty goes back to its literal address
 	// (PUT /api/traefik/connections/{id}/ssh-target)
 	PutTraefikSSHTarget(w http.ResponseWriter, r *http.Request, id string)
 	// AddTraefikHost Add a Traefik host with its confirmed host key, validate it and let Hashi take it over
@@ -23419,7 +23428,7 @@ type StrictServerInterface interface {
 	// GetFirewallRuleset The host's ruleset read now over SSH (all tables, iptables and ipsets), and the one read at setup
 	// (GET /api/firewall/hosts/{id}/ruleset)
 	GetFirewallRuleset(ctx context.Context, request GetFirewallRulesetRequestObject) (GetFirewallRulesetResponseObject, error)
-	// PutFirewallHostSSHTarget Reach the host through an address set; empty goes back to its literal address
+	// PutFirewallHostSSHTarget Reach the host through a Pulse agent or an address set; empty goes back to its literal address
 	// (PUT /api/firewall/hosts/{id}/ssh-target)
 	PutFirewallHostSSHTarget(ctx context.Context, request PutFirewallHostSSHTargetRequestObject) (PutFirewallHostSSHTargetResponseObject, error)
 	// GetFirewallTakeover What Hashi removes of the host's old firewall script
@@ -23926,7 +23935,7 @@ type StrictServerInterface interface {
 	// PlanTraefikConnection Plan the host's install, files and certificates (low-risk plans apply right away)
 	// (POST /api/traefik/connections/{id}/plan)
 	PlanTraefikConnection(ctx context.Context, request PlanTraefikConnectionRequestObject) (PlanTraefikConnectionResponseObject, error)
-	// PutTraefikSSHTarget Reach the Traefik host through an address set; empty goes back to its literal address
+	// PutTraefikSSHTarget Reach the Traefik host through a Pulse agent or an address set; empty goes back to its literal address
 	// (PUT /api/traefik/connections/{id}/ssh-target)
 	PutTraefikSSHTarget(ctx context.Context, request PutTraefikSSHTargetRequestObject) (PutTraefikSSHTargetResponseObject, error)
 	// AddTraefikHost Add a Traefik host with its confirmed host key, validate it and let Hashi take it over

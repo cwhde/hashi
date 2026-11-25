@@ -70,10 +70,24 @@ func (m *Manager) UseSSHTargets(r services.TargetResolver) { m.sshTargets = r }
 
 // SetSSHTarget makes the host reachable through an address set, or back through its literal address with "". A set that
 // resolves to nothing or does not answer is refused unless saveInactive says to keep it (08 §5).
-func (m *Manager) SetSSHTarget(ctx context.Context, id, setID string, saveInactive bool) error {
+func (m *Manager) SetSSHTarget(ctx context.Context, id, setID, agentID string, saveInactive bool) (err error) {
 	row, err := m.st.R.GetFirewallHost(ctx, id)
 	if err != nil {
 		return ErrNotFound
+	}
+	if agentID != "" {
+		if setID != "" {
+			return fmt.Errorf("%w: a Pulse agent or an IP set, not both", ErrInvalid)
+		}
+		if setID, err = ipsets.FollowAgent(ctx, m.st.Q, agentID, m.now()); err != nil {
+			return fmt.Errorf("%w: %w", ErrInvalid, err)
+		}
+		// A refused agent leaves no set behind; one in use elsewhere stays.
+		defer func() {
+			if err != nil {
+				ipsets.DropAgentSet(ctx, m.st.Q, setID)
+			}
+		}()
 	}
 	if setID != "" {
 		if err := ipsets.CheckTarget(ctx, m.st.R, setID); err != nil {
@@ -94,7 +108,13 @@ func (m *Manager) SetSSHTarget(ctx context.Context, id, setID string, saveInacti
 			}
 		}
 	}
-	return m.st.Q.SetFirewallHostSSHTarget(ctx, db.SetFirewallHostSSHTargetParams{SshTargetSetID: sql.NullString{String: setID, Valid: setID != ""}, ID: id})
+	if err := m.st.Q.SetFirewallHostSSHTarget(ctx, db.SetFirewallHostSSHTargetParams{SshTargetSetID: sql.NullString{String: setID, Valid: setID != ""}, ID: id}); err != nil {
+		return err
+	}
+	if row.SshTargetSetID.String != setID {
+		ipsets.DropAgentSet(ctx, m.st.Q, row.SshTargetSetID.String)
+	}
+	return nil
 }
 
 // ReconnectUsing retests the hosts reached through changed sets (08 §4 step 5).
